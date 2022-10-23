@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	수정일         수정자     수정내용
+    =========      =======    =================================================
+    2020.09.08     전영석     문자 메시지 전송 Tibero Mapper
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="SmsDAO">
+
+	<resultMap id="egovMap" type="egovframework.rte.psl.dataaccess.util.EgovMap"></resultMap>
+
+    <insert id="sendSmsMessage">
+
+	    INSERT INTO SCRDEVLOP.NURI_MSG_DATA
+	            (  	MSG_SEQ
+	              , REQ_DATE
+	              , CUR_STATE
+	              , CALL_TO
+	              , CALL_FROM
+	              , SMS_TXT
+	              , MSG_TYPE
+	            ) VALUES (
+	                SCRDEVLOP.MSG_DATA_SEQ.NEXTVAL
+	              , SYSDATE
+	              , 0
+	              , #{RCV_PHN_NUM}
+	              , #{SND_PHN_NUM}
+	              , #{SND_MSG}
+	              , 4
+	            )
+
+    </insert>
+
+	<insert id="sendMmsMessage" useGeneratedKeys="true" keyProperty="MSG_SEQ">
+
+	    	 INSERT INTO SCRDEVLOP.NURI_MSG_DATA
+	            (  	MSG_SEQ
+	              , REQ_DATE
+	              , CUR_STATE
+	              , CALL_TO
+	              , CALL_FROM
+	              , MSG_TYPE
+	              , CONT_SEQ
+	              , SEND_USER
+	            ) VALUES (
+	                SCRDEVLOP.MSG_DATA_SEQ.NEXTVAL
+	              , SYSDATE
+	              , 0
+	              , #{RCV_PHN_NUM}
+	              , #{SND_PHN_NUM}
+	              , 6
+	              , #{contSeq}
+	              , #{SEND_USER}
+	            )
+
+    </insert>
+
+    <insert id="sendLmsMessage" useGeneratedKeys="true" keyProperty="MSG_SEQ">
+
+	    	 INSERT INTO SCRDEVLOP.NURI_MSG_DATA
+	            (  	MSG_SEQ
+	              , REQ_DATE
+	              , CUR_STATE
+	              , CALL_TO
+	              , CALL_FROM
+	              , SMS_TXT
+	              , MSG_TYPE
+	              , SEND_USER
+	            ) VALUES (
+	                SCRDEVLOP.MSG_DATA_SEQ.NEXTVAL
+	              , SYSDATE
+	              , 0
+	              , #{RCV_PHN_NUM}
+	              , #{SND_PHN_NUM}
+	              , #{SND_MSG}
+	              , 6
+	              , #{SEND_USER}
+	            )
+
+    </insert>
+
+	<insert id="insertSmsPK">
+
+	</insert>
+
+	<select id="getSmsPK" resultType="int">
+
+	</select>
+
+	<select id="selectMsgTemplate" resultType="com.hisco.intrfc.sms.vo.SmsVO">
+		  SELECT
+					COMCD,
+					MSGNO,
+					MSGCD,
+					MSG_NAME,
+					SENDMSG,
+					KKO_MESSAGE_TEMPLATE_ID,
+					EVENT_AUTOSMSYN,
+					SEND_TELNO
+			FROM MESSAGE
+			WHERE COMCD = #{comcd}
+			AND MSGNO = #{msgno}
+	</select>
+
+	<insert id="insertMmsContentInfo" parameterType="hashmap">
+	<selectKey keyProperty="contSeq" resultType="java.lang.String" order="BEFORE">
+		SELECT SCRDEVLOP.MMS_CONTENTS_INFO_SEQ.NEXTVAL FROM DUAL
+	</selectKey>
+	INSERT INTO SCRDEVLOP.NURI_MMS_CONTENTS_INFO
+	            (
+	            	CONT_SEQ,
+		            FILE_CNT,
+		            MMS_BODY,
+					MMS_SUBJECT
+	            )
+	            VALUES
+	            (
+	               #{contSeq},
+	               0,
+	               #{SND_MSG},
+	               #{MSG_TITLE}
+	            )
+
+	</insert>
+</mapper>

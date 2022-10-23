@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  Description : 카테고리 관리
+
+   수정일                  수정자           수정내용
+  =========     =======    =================================================
+  2021.03.19   	전영석            최초 작성
+-->
+  
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hisco.admin.admcmm.mapper.AdmCmmMapper">
+
+	<!-- [공통 정보를 조회한다][2021-03-24][전영석] -->
+	<select id="selectCotGrpCdList" resultType="cMap">
+		/* com.hisco.admin.admcmm.mapper.AdmCmmMapper.selectCotGrpCdList */ 
+		select cd  
+		     , cd_nm
+		from cot_grpcd 
+		where grp_cd = #{grpCd} 
+		order by sort_order	
+				   
+	</select>
+	
+	<!-- [공통 정보를 조회한다][2021-03-24][전영석] -->
+	<select id="selectCotGrpCdListByParm" resultType="cMap">
+		/* com.hisco.admin.admcmm.mapper.AdmCmmMapper.selectCotGrpCdListByParm */
+		select cd  
+		     , cd_nm
+		from cot_grpcd 
+		where USE_YN = 'Y' 
+		  AND DEL_YN = 'N' 
+		
+		   <if test="grpCd != null and grpCd != ''">
+				AND grp_cd = #{grpCd}
+		   </if>
+		   <if test="cd != null and cd != ''">
+				AND CD = #{cd}
+		   </if>		   
+		   
+		order by sort_order	
+				   
+	</select>	
+
+	<!-- [DB 시간을 가져온다.][2021-03-27][전영석] -->
+	<select id="selectDBTime" resultType="cMap">
+		/* com.hisco.admin.admcmm.mapper.AdmCmmMapper.selectDBTime */
+		SELECT  
+		       DATE_FORMAT(NOW(), '%Y-%m-%d') AS TIME_F1
+		     , DATE_FORMAT(NOW(), '%Y%m%d')   AS TIME_F2
+		     , DATE_FORMAT(NOW(), '%Y%m')     AS TIME_F3
+		     , SUBSTR(DATE_FORMAT(NOW(6), '%Y%m%d%H%i%s%f'), 1, 18) AS TIME_F4 
+	</select>
+
+	<!-- [DB 시간을 가져온다.][2021-03-27][전영석] -->
+	<select id="selectComtecopseq" resultType="cMap">
+		/* com.hisco.admin.admcmm.mapper.AdmCmmMapper.selectComtecopseq */
+		SELECT  NVL(MAX(NEXT_ID), 0) + 1 AS NEXT_ID FROM COMTECOPSEQ WHERE table_name = 'FILE_ID'
+	</select>
+
+	<!-- [PK를 가져온다.][2021-03-27][전영석] -->
+	<update id="updateComtecopseq" parameterType="Map">
+		/* com.hisco.admin.admcmm.mapper.AdmCmmMapper.updateComtecopseq */
+		UPDATE COMTECOPSEQ SET NEXT_ID = #{nextId} WHERE table_name = 'FILE_ID' 
+	</update>
+	
+	<!-- [FIle Grp 정보를 저장한다.][2021-03-27][전영석] -->
+	<insert id="insertCmFileGrp" parameterType="Map">
+		/* com.hisco.admin.admcmm.mapper.AdmCmmMapper.insertCmFileGrp */
+		INSERT INTO CM_FILE_GRP (COMCD, FILE_GRP_NO, FILE_GRP_NM,  REGDATE, REGUSER, USE_YN) VALUES (#{comcd}, LPAD(#{nextId}, 10, '0'), LPAD(#{nextId}, 10, '0'), SYSDATE(), #{userId}, 'Y')
+	</insert> 
+		
+	<!-- [FIle List 정보를 저장한다.][2021-03-27][전영석] -->
+	<insert id="insertCmFileLst" parameterType="Map">
+		/* com.hisco.admin.admcmm.mapper.AdmCmmMapper.insertCmFileLst */
+		INSERT INTO ATCH_FILE_LIST ( COMCD , FILE_GRP_NO, FILE_SEQ, FILE_NM, ORG_FILE_NM, FILE_PATH, FILE_SIZE, FILE_EXTSN, FILE_CAPTION, REGDATE, REGUSER ) 
+		                    VALUES ( #{comcd}, LPAD(#{nextId}, 10, '0'), #{fileSn}, #{fileName}, #{orginFileName}, #{filePath}, #{fileSize}, #{fileExtsn}, #{fileCaption}, SYSDATE(), #{userId})
+	</insert>
+			
+		
+	<!-- [DB 시간을 가져온다.][2021-03-27][전영석] -->
+	<select id="getCmFileGrpId" resultType="string">
+		/* com.hisco.admin.admcmm.mapper.AdmCmmMapper.getCmFileGrpId */
+		SELECT  LPAD(#{nextId}, 10, '0') AS NEXT_ID 
+	</select>
+				
+			
+</mapper>

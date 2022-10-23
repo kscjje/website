@@ -1,0 +1,1257 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  Description : 교육프로그램신청관리
+
+   수정일                  수정자           수정내용
+  =========     =======    =================================================
+  2021.03.19   	전영석            최초 작성
+  2021.10.21	진수진		노원평생학습관 수정
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hisco.admin.eduadm.mapper.EduAdmMapper">
+
+	<!-- [교육 프로그램 목록을  조회한다][2022-09-14][정세진 프로시저로 변경처리] -->
+	<select id="selectEdcProgramList" parameterType="HashMap" resultType="HashMap">
+		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.selectEdcProgramList */
+		{
+			CALL USP_GET_EDC_PROGRAM_LIST( 
+				#{comcd, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchOrder, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchOrderDir, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+
+				#{searchRsvnsetNm, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchOrgNo, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{edcProgmType, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchCondition, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchKeyword, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+			
+				#{searchDate, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchStartDts, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchEndDts, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchStatus, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				
+				#{searchUse, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchOpen, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchFree, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchCtgcd, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchRectype, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchOrgkind, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchOrgLtype, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchTarget, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{excelyn, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+
+				#{firstIndex, mode=IN},
+				#{recordCountPerPage, mode=IN}
+			)
+		}
+	</select>
+
+
+
+
+
+	<select id="selectEdcProgramList_bal20220914" resultType="com.hisco.admin.eduadm.vo.EdcProgramVO" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.selectEdcProgramList */
+		SELECT *
+            FROM (SELECT MAIN.*
+			      <choose>
+			      	<when test='searchOrder == "orgNm"' >
+			      	, ROW_NUMBER() OVER (order by ORG_NAME <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) RNUM
+			      	</when>
+			      	<when test='searchOrder == "prgNm"'>
+			      	, ROW_NUMBER() OVER (order by EDC_PRGM_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) RNUM
+			      	</when>
+			      	<when test='searchOrder == "tchrNm"' >
+			      	, ROW_NUMBER() OVER (order by INSTRCTR_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) RNUM
+			      	</when>
+			      	<when test='searchOrder == "target"' >
+			      	, ROW_NUMBER() OVER (order by TARGET_ORDER <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose> , EDC_TARGET_AGE_GBN <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) RNUM
+			      	</when>
+			      	<when test='searchOrder == "rectType"' >
+			      	, ROW_NUMBER() OVER (order by TYPE_ORDER <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose> , EDC_RSVN_RECTYPE <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) RNUM
+			      	</when>
+			      	<otherwise>
+			      	, ROW_NUMBER() OVER (order by EDC_PRGM_NO DESC) RNUM
+			      	</otherwise>
+			      </choose>
+              FROM  (
+<![CDATA[
+					SELECT SUB_MAIN.*
+						 , CASE WHEN CONCAT(SUB_MAIN.EDC_RSVN_SDATE,SUB_MAIN.EDC_RSVN_STIME)  <=  DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i')
+					             AND CONCAT(SUB_MAIN.EDC_RSVN_EDATE,SUB_MAIN.EDC_RSVN_ETIME)  >=  DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i') THEN 'ING'
+					            WHEN CONCAT(SUB_MAIN.EDC_RSVN_SDATE,SUB_MAIN.EDC_RSVN_STIME)  >  DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i') THEN 'ACCT'
+					            WHEN SUB_MAIN.EDC_EDATE < DATE_FORMAT(SYSDATE(), '%Y%m%d') THEN 'EEND'
+					            WHEN SUB_MAIN.EDC_SDATE <= DATE_FORMAT(SYSDATE(), '%Y%m%d') AND SUB_MAIN.EDC_EDATE >= DATE_FORMAT(SYSDATE(), '%Y%m%d')  THEN 'EDU'
+					            WHEN CONCAT(SUB_MAIN.EDC_RSVN_EDATE,SUB_MAIN.EDC_RSVN_ETIME)  <  DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i') THEN 'END'
+					            ELSE 'OUT' END AS EDC_STATUS
+]]>
+					     , DATE_FORMAT(EDC_RSVN_SDATE,'%Y%m%d')- DATE_FORMAT(DATE_FORMAT(SYSDATE(),'%Y%m%d'),'%Y%m%d') AS REQ_DDAY
+					     , (SELECT AREA_NM FROM AREA_CD WHERE AREA_CD=SUB_MAIN.AREA_CD) AS AREA_NAME
+					     , SALE_AMT AS COST_AMT
+							FROM (SELECT
+							       A.EDC_PRGM_NO
+							     , A.COMCD
+							     , A.EDC_PRGM_NM
+							     , A.EDC_TARGET_INFO
+							     , A.EDC_CAPA_DVD_YN
+									     , A.EDC_PNCPA
+									     , A.EDC_ONCAPA
+									     , A.EDC_OFFCAPA
+									     , A.EDC_SDATE
+									     , A.EDC_EDATE
+									     , A.EDC_STIME
+									     , A.EDC_ETIME
+									     , A.EDC_RSVN_SDATE
+									     , A.EDC_RSVN_EDATE
+									     , A.EDC_RSVN_STIME
+									     , A.EDC_RSVN_ETIME
+							     , A.EDC_PART_CD
+							     , A.EDC_ADDR_OPEN_YN
+							     , A.EDC_LIMIT_AGE_YN
+							     , A.EDC_REQ_GENDER
+							     , A.EDC_RSVN_LIMIT_YN
+							     , A.EDC_RSVN_LIMIT_GBN
+					             , A.EDC_RSVN_LIMIT_CNT
+					             , A.EDC_RSVN_LIMIT_PD
+							     , (SELECT D.SALE_AMT
+							          FROM PROGRAM_ITEM D
+							         WHERE D.COMCD = A.COMCD
+							           AND D.ITEM_NO = (SELECT C.ITEM_NO
+							                              FROM EDC_PROGRAM_ITEM C
+							                             WHERE C.COMCD = A.COMCD
+							                               AND C.EDC_PRGM_NO = A.EDC_PRGM_NO
+							                           )
+							        ) AS SALE_AMT
+									, A.EDC_FEE_TYPE
+									, A.EDC_RSVN_RECTYPE
+								  , (SELECT GROUP_CONCAT(fn_WeekName_Convert(1, C.EDC_DAY_GBN) ORDER BY C.EDC_DAY_GBN  ASC SEPARATOR ', ') FROM EDC_DAYS C WHERE C.COMCD = A.COMCD AND C.EDC_PRGM_NO = A.EDC_PRGM_NO ) AS EDC_DAY_GBN_NM
+							      , A.EDC_ODR
+							      , A.EDC_TCHMTR_GUIDE
+							      , A.EDC_PLACE_NM
+							      , A.EDC_ONLINE_YN
+							      , A.EDC_GUIDE_TELNO
+							      , A.EDC_GUIDE_COMMENT
+							      , A.EDC_IMG_FILEID
+							      , A.EDC_PRGM_INTRO_CNTS_FILEID
+							      , A.EDC_PLAN_FILEID
+								  , A.EDC_PAYWAIT_GBN
+								  , A.EDC_PAYWAIT_TIME
+								  , A.EDC_PAYWAIT_DATE
+								  , A.EDC_PAYWAIT_HHMM
+								  , A.EDC_PROGM_TYPE
+								  , A.CTG_CD
+								  , A.EDC_OPEN_YN
+								  , A.USE_YN
+								  , A.INSTRCTR_NM
+								  , A.AREA_CD
+								  , A.EDC_TIME_GUIDE
+								  , A.EDC_RSVN_LINK_URL
+								  , (SELECT CD_NM FROM COT_GRPCD WHERE COMCD=A.COMCD AND GRP_CD='CM_RSVN_ACCSSRD' AND CD=A.EDC_RSVN_ACCSSRD) AS EDC_RSVN_ACCSSRD
+								  , C.CD_NM AS RSVN_TYPE_NM
+								  , C.SORT_ORDER AS TYPE_ORDER
+								  , C2.CD_NM AS EDC_TARGET_AGE_GBN
+								  , C2.SORT_ORDER AS TARGET_ORDER
+								  , F.COM_NM AS ORG_NAME
+								  , G.CTG_NM as COM_CTG_NM
+								  , COUNT(*) OVER() AS TOT_COUNT
+							FROM EDC_PROGRAM A
+							LEFT OUTER JOIN COT_GRPCD C ON C.COMCD=A.COMCD AND C.GRP_CD='SM_LERECPTYPE' AND C.CD=A.EDC_RSVN_RECTYPE
+							LEFT OUTER JOIN COT_GRPCD C2 ON C2.COMCD=A.COMCD AND C2.GRP_CD='CM_AGEGBN' AND C2.CD=A.EDC_TARGET_AGE_GBN
+							LEFT OUTER JOIN ORG_INFO F ON F.COMCD=A.COMCD AND F.ORG_NO=A.ORG_NO
+							LEFT OUTER JOIN COM_CTGR G ON A.COMCD=G.COMCD AND G.CTG_CD = A.CTG_CD
+							<if test='searchRsvnsetNm !=null and searchRsvnsetNm !="" and searchOrgNo !=null and searchOrgNo !=""'>
+							INNER JOIN (
+								SELECT MAX(EDC_RSVNSET_SEQ) EDC_RSVNSET_SEQ , EDC_PRGM_NO
+								FROM
+									EDC_RSVN_SET_INFO
+								WHERE
+									COMCD=#{comcd} AND EDC_RSVNSET_NM = #{searchRsvnsetNm}
+								GROUP BY
+									EDC_PRGM_NO
+							) ST ON A.EDC_PRGM_NO = ST.EDC_PRGM_NO
+							INNER JOIN EDC_RSVN_SET_INFO SF ON SF.COMCD=#{comcd} AND ST.EDC_PRGM_NO=SF.EDC_PRGM_NO AND ST.EDC_RSVNSET_SEQ = SF.EDC_RSVNSET_SEQ
+							</if>
+							<where>
+								A.COMCD = #{comcd}
+								<if test='edcProgmType !=null and edcProgmType !=""'>AND A.EDC_PROGM_TYPE = #{edcProgmType}</if>
+								<if test="myOrgList != null and myOrgList.size != 0">
+									AND A.ORG_NO IN <foreach collection="myOrgList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+								</if>
+								<if test="searchCondition == 1">
+								 AND A.EDC_PRGM_NM LIKE CONCAT('%', #{searchKeyword}, '%')
+								</if>
+								<if test="searchCondition == 2">
+								 AND C.CD_NM LIKE CONCAT('%', #{searchKeyword}, '%')
+								</if>
+								<if test="searchCondition == 3">
+								 AND A.EDC_PLACE_NM LIKE CONCAT('%', #{searchKeyword}, '%')
+								</if>
+								<if test="searchCondition == 4">
+								 AND A.EDC_TARGET_INFO LIKE CONCAT('%', #{searchKeyword}, '%')
+								</if>
+								<if test="searchCondition == 5">
+								 AND (SELECT GROUP_CONCAT(fn_WeekName_Convert(1, C.EDC_DAY_GBN) ORDER BY C.EDC_DAY_GBN ASC SEPARATOR ', ') FROM EDC_DAYS C WHERE C.COMCD = A.COMCD AND C.EDC_PRGM_NO = A.EDC_PRGM_NO ) LIKE CONCAT('%', #{searchKeyword}, '%')
+								</if>
+								<if test="searchCondition == 6">
+								 AND A.INSTRCTR_NM LIKE CONCAT('%', #{searchKeyword}, '%')
+								</if>
+								<if test="searchOrgNo !=null and searchOrgNo !=''">AND A.ORG_NO=#{searchOrgNo}</if>
+								<if test="searchTarget !=null and searchTarget !=''">AND A.EDC_TARGET_AGE_GBN=#{searchTarget}</if>
+								<if test="searchStartDts !=null and searchStartDts !=''">
+									<choose>
+										<when test="searchDate == 'edcdate'">AND EDC_SDATE >= REPLACE(#{searchStartDts},'-','')</when>
+										<when test="searchDate == 'rsvdate'">AND EDC_RSVN_SDATE >= REPLACE(#{searchStartDts},'-','')</when>
+										<when test="searchDate == 'optdate'">AND EDC_PROGM_DATE >= REPLACE(#{searchStartDts},'-','')</when>
+									</choose>
+								</if>
+								<if test="searchEndDts !=null and searchEndDts !=''">
+									<choose>
+										<when test="searchDate == 'edcdate'">AND REPLACE(#{searchEndDts},'-','') >= EDC_EDATE</when>
+										<when test="searchDate == 'rsvdate'">AND REPLACE(#{searchEndDts},'-','') >= EDC_RSVN_SDATE</when>
+										<when test="searchDate == 'optdate'">AND REPLACE(#{searchEndDts},'-','') >= EDC_PROGM_DATE</when>
+									</choose>
+								</if>
+								<if test="searchStatus !=null and searchStatus !=''">
+									<choose>
+										<when test="searchStatus == 'ING'">
+											<![CDATA[
+											AND CONCAT(EDC_RSVN_SDATE,EDC_RSVN_STIME) <= DATE_FORMAT(SYSDATE(),'%Y%m%d%H%i')
+											AND CONCAT(EDC_RSVN_EDATE,EDC_RSVN_ETIME) >=  DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i')
+											]]>
+										</when>
+										<when test="searchStatus == 'ACCT'">AND CONCAT(EDC_RSVN_SDATE,EDC_RSVN_STIME) > DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i')</when>
+										<when test="searchStatus == 'EEND'">AND EDC_EDATE <![CDATA[<]]> DATE_FORMAT(SYSDATE(), '%Y%m%d') </when>
+										<when test="searchStatus == 'EDU'">
+											<![CDATA[
+											AND EDC_SDATE <= DATE_FORMAT(SYSDATE(), '%Y%m%d')
+											AND EDC_EDATE >= DATE_FORMAT(SYSDATE(), '%Y%m%d')
+											]]>
+										</when>
+										<when test="searchStatus == 'END'">
+											<![CDATA[
+											AND CONCAT(EDC_RSVN_EDATE,EDC_RSVN_ETIME) < DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i')
+											]]>
+										</when>
+									</choose>
+								</if>
+								<if test='searchUse !=null and searchUse !=""'>AND A.USE_YN=#{searchUse}</if>
+								<if test='searchOpen !=null and searchOpen !=""'>AND A.EDC_OPEN_YN=#{searchOpen}</if>
+								<if test="searchFree !=null and searchFree !=''">AND A.EDC_FEE_TYPE=#{searchFree}</if>
+								<if test="searchRectype !=null and searchRectype !=''">AND A.EDC_RSVN_RECTYPE=#{searchRectype}</if>
+								<if test="searchCtgcd !=null and searchCtgcd !=''">AND (A.CTG_CD=#{searchCtgcd} OR G.COM_TOPCTGCD=#{searchCtgcd} OR G.COM_PRNCTGCD=#{searchCtgcd})</if>
+								<if test="searchOrgLtype !=null and searchOrgLtype !=''">AND F.ORG_LTYPE = #{searchOrgLtype}</if>
+								<if test="searchOrgkind !=null and searchOrgkind !=''">AND F.ORG_KIND = #{searchOrgkind}</if>
+							</where>
+						 ) SUB_MAIN
+				) MAIN
+			) MAIN2
+			<if test='excelyn ==null or excelyn!="Y"'>
+					<![CDATA[
+	             WHERE  MAIN2.RNUM  > #{firstIndex}
+	               AND  MAIN2.RNUM <= #{firstIndex} + #{recordCountPerPage}
+            ]]>
+            </if>
+	</select>
+
+
+ 	<!-- [교육 프로그램 상세 정보를 조회한다] -->
+	<select id="selectEdcProgramDetail" resultType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.selectEdcProgramDetail */
+		SELECT
+			  MAIN.*
+			, INFO.EDC_RSVNSET_NM
+		FROM (
+		    SELECT A.*
+		    	  , C.ITEM_NO
+			      , (SELECT D.SALE_AMT
+			          FROM PROGRAM_ITEM D
+			         WHERE D.COMCD = A.COMCD
+			           AND D.ITEM_NO = C.ITEM_NO
+			        ) AS SALE_AMT
+			      , F1.FILE_NM AS EDC_IMG_FILENM
+	              , F1.ORG_FILE_NM AS EDC_IMG_ORIGIN
+	              , F1.FILE_PATH AS EDC_IMG_PATH
+	              , F2.FILE_NM AS EDC_PRGM_INTRO_CNTS_FILENM
+	              , F2.ORG_FILE_NM AS EDC_PRGM_INTRO_CNTS_ORIGIN
+	              , F2.FILE_PATH AS EDC_PRGM_INTRO_CNTS_PATH
+	              , F3.FILE_NM AS EDC_PLAN_FILENM
+	              , F3.ORG_FILE_NM AS EDC_PLAN_ORIGIN
+	              , F3.FILE_PATH AS EDC_PLAN_PATH 
+	              , (SELECT MAX(EDC_RSVNSET_SEQ) FROM EDC_RSVN_SET_INFO AS ALIAS_SUB WHERE COMCD=A.COMCD AND EDC_PRGM_NO=A.EDC_PRGM_NO) EDC_RSVNSET_SEQ
+			FROM EDC_PROGRAM A
+				LEFT OUTER JOIN  EDC_PROGRAM_ITEM C ON C.COMCD = A.COMCD AND C.EDC_PRGM_NO = A.EDC_PRGM_NO
+				LEFT OUTER JOIN ATCH_FILE_LIST F1 ON A.COMCD=F1.COMCD AND A.EDC_IMG_FILEID = F1.FILE_GRP_NO AND F1.FILE_SEQ=0
+				LEFT OUTER JOIN ATCH_FILE_LIST F2 ON A.COMCD=F2.COMCD AND A.EDC_PRGM_INTRO_CNTS_FILEID = F2.FILE_GRP_NO AND F2.FILE_SEQ=0
+				LEFT OUTER JOIN ATCH_FILE_LIST F3 ON A.COMCD=F3.COMCD AND A.EDC_PLAN_FILEID = F3.FILE_GRP_NO AND F3.FILE_SEQ=0
+			WHERE A.COMCD = #{comcd}
+			  AND A.EDC_PRGM_NO = #{edcPrgmNo}
+	 	) AS MAIN
+	 	LEFT OUTER JOIN EDC_RSVN_SET_INFO INFO 
+		 	ON MAIN.COMCD=INFO.COMCD 
+		 	AND MAIN.EDC_PRGM_NO = INFO.EDC_PRGM_NO 
+		 	AND MAIN.EDC_RSVNSET_SEQ=INFO.EDC_RSVNSET_SEQ
+	</select>
+
+	<!-- [교육 프로그램 노트 공지 데이타를 조회한다] -->
+	<select id="selectEdcNotice" resultType="com.hisco.admin.eduadm.vo.EdcNoticeVO">
+		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.selectEdcNotice */ 
+	    SELECT
+	    	A.*
+		FROM
+			EDC_PROGRAM_NOTICE A
+		WHERE
+			A.COMCD = #{comcd}
+		  	AND A.EDC_PRGM_NO = #{edcPrgmNo}
+		  	LIMIT 1
+	</select>
+
+	<!-- [교육 프로그램 나이 제한 정보를 조회한다] -->
+	<select id="selectEdcTargetAge" resultType="com.hisco.admin.eduadm.vo.EdcTargetAgeVO">
+		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.selectEdcTargetAge */
+	    SELECT
+	    	A.*
+		FROM
+			TARGET_AGELIST A
+		WHERE
+			A.COMCD = #{comcd}
+		  	AND A.EDC_PRGM_NO = #{edcPrgmNo}
+	    ORDER BY
+	    	EDC_AGE_TARGET_SEQ
+	</select>
+
+
+
+	<!-- 프로그램 입력 -->
+ 	<insert id="insertEdcProgram" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.insertEdcProgram  */
+ 		INSERT INTO EDC_PROGRAM (
+ 				COMCD
+ 		        , EDC_PRGM_NO
+				, ORG_NO
+				, CTG_CD
+				, AREA_CD
+				, EDC_PLACE_NM
+				, EDC_REL_DEPT_NM
+				, EDC_PROGM_DATE
+				, EDC_PROGM_TYPE
+				, EDC_PRGM_NM
+				, EDC_ODR
+				, EDC_CL_CNT
+				, EDC_RTIME
+				, EDC_SDATE
+				, EDC_EDATE
+				, EDC_STIME
+				, EDC_ETIME
+				, EDC_TIME_GUIDE
+				, EDC_TCHMTR_GUIDE_YN
+				, EDC_TCHMTR_GUIDE
+				, EDC_CAPA_DVD_YN
+				, EDC_PNCPA
+				, EDC_ONCAPA
+				, EDC_OFFCAPA
+				, EDC_ENDWAIT_CAPA
+				, EDC_TARGET_AGE_GBN
+				, EDC_TARGET_INFO
+				, EDC_ONLINE_YN
+				, EXCL_DC_YN
+				, EDC_IMG_FILEID
+				, EDC_PRGM_INTRO_CNTS
+				, EDC_PRGM_INTRO_CNTS_FILEID
+				, EDC_PLAN_FILEID
+				, EDC_RSVN_SDATE
+				, EDC_RSVN_STIME
+				, EDC_RSVN_EDATE
+				, EDC_RSVN_ETIME
+				, EDC_RSVN_RECTYPE
+				, EDC_RSVN_PERODTYPE
+				, EDC_RSVN_ACCSSRD
+				, EDC_RSVN_LINK_URL
+				, DRWT_NTCE_DATE
+				, EDC_REFUND_CHAGE_TYPE
+				, RSVN_NONMEB_YN
+				, EDC_LIMIT_AGE_YN
+				, EDC_RSVN_LIMIT_GBN
+				, EDC_RSVN_LIMIT_CNT
+				, EDC_RSVN_LIMIT_PD
+				, EDC_REQ_GENDER
+				, EDC_PAYWAIT_GBN
+				, EDC_PAYWAIT_TIME
+				, EDC_PAYWAIT_DATE
+				, EDC_PAYWAIT_HHMM
+				, EDC_GUIDE_TELNO
+				, EDC_GUIDE_COMMENT
+				, EDC_FEE_ACC_NM
+				, EDC_FEE_BNK_NM
+				, EDC_FEE_ACC_NO
+				, EDC_FEE_TYPE
+				, EDC_OPEN_YN
+				<if test="memNo !=null and memNo !=''">, MEM_NO</if>
+				<if test="instrctrNo !=null and instrctrNo !=''">, INSTRCTR_NO</if>
+			    , INSTRCTR_NM
+			    , EDC_PRG
+			    , EDC_CTFHV_YN
+			    , EDC_RSVNNOTI_HPNO
+			    , RSVN_FORCE_CLOSE_YN
+				, USE_YN
+				, USER_IP
+				, SORT_ORDER
+				, REGDATE
+				, REGUSER
+				, MODDATE
+				, MODUSER
+			) VALUES (
+			      #{comcd}
+ 		        , #{edcPrgmNo}
+				, #{orgNo}
+				, #{CtgCd}
+				, #{areaCd}
+				, #{edcPlacenm}
+				, #{edcRelDeptname}
+				, REPLACE(#{edcProgmDate},'-','')
+				, #{edcProgmType}
+				, #{edcPrgmnm}
+				, #{edcOdr}
+				, NVL(#{edcClcnt},0)
+				, NVL(#{edcRtime},0)
+				, REPLACE(#{edcSdate},'-','')
+				, REPLACE(#{edcEdate},'-','')
+				, CONCAT(#{edcStimeHour}, #{edcStimeMin})
+				, CONCAT(#{edcEtimeHour}, #{edcEtimeMin})
+				, #{edcTimeguide}
+				, NVL(#{edcTchmtrGuideyn},'N')
+				, #{edcTchmtrGuide}
+				, NVL(#{edcCapaDvdyn},'N')
+				, NVL(#{edcPncpa},0)
+				, NVL(#{edcOncapa},0)
+				, NVL(#{edcOffcapa},0)
+				, NVL(#{edcEndwaitCapa},0)
+				, #{edcTargetAgegbn}
+				, #{edcTargetinfo}
+				, NVL(#{edcOnlineyn},'N')
+				, NVL(#{exclDcyn},'N')
+				, #{edcImgFielid}
+				, #{edcPrgmIntroCnts}
+				, #{edcPrgmIntroCntsFileid}
+				, #{edcPlanFileid}
+				, REPLACE(#{edcRsvnSdate},'-','')
+				, CONCAT(#{edcRsvnStimeHour}, #{edcRsvnStimeMin})
+				, REPLACE(#{edcRsvnEdate},'-','')
+				, CONCAT(#{edcRsvnEtimeHour}, #{edcRsvnEtimeMin})
+				, #{edcRsvnRectype}
+				, #{edcRsvnPerodType}
+				, #{edcRsvnAccssrd}
+				, #{edcRsvnLinkurl}
+				, REPLACE(#{drwtNtcedate},'-','')
+				, #{edcRefundchangetype}
+				, NVL(#{rsvnNonmebyn},'N')
+				, NVL(#{edcLimitAgeyn},'N')
+				, #{edcRsvnlmitGbn}
+				, #{edcRsvnlimitCnt}
+				, #{edcRsvnlimitPd}
+				, #{edcReqGender}
+				, #{edcPaywaitGbn}
+				, #{edcPaywaitTime}
+				, REPLACE(#{edcPaywaitDate},'-','')
+				, CONCAT(#{edcPaywaitHour}, #{edcPaywaitMin})
+				, #{edcGuideTelno}
+				, #{edcGuideComment}
+				, #{edcFeeAccNm}
+				, #{edcFeeBnkNm}
+				, #{edcFeeAccno}
+				, NVL(#{edcFeeType},'2001')
+				, NVL(#{edcOpenyn},'N')
+				<if test="memNo !=null and memNo !=''">, #{memNo}</if>
+				<if test="instrctrNo !=null and instrctrNo !=''">, #{instrctrNo}</if>
+			    , #{instrctrName}
+			    , NVL(#{edcPrg},'3001')
+			    , NVL(#{edcCtfhvyn},'N')
+			    , #{edcRsvnnotiHpno}
+			    , 'N'
+				, NVL(#{useYn},'N')
+				, #{userIp}
+				, NVL(#{sortOrder},0)
+				, SYSDATE()
+				, #{reguser}
+				, SYSDATE()
+				, #{reguser}
+			)
+ 	</insert>
+
+ 	<!--교육프로그램 모집설정차수번호 -->
+	<select id="selectProgramSetSeq" resultType="String" >
+		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.selectProgramSetSeq */
+		SELECT
+			NVL(MAX(EDC_RSVNSET_SEQ) , CONCAT(SUBSTR(#{edcRsvnSdate},1,4) , '00')) + 1
+		FROM
+			EDC_RSVN_SET_INFO
+		WHERE
+			COMCD=#{comcd} and  EDC_PRGM_NO=#{edcPrgmNo} AND EDC_RSVNSET_SEQ LIKE CONCAT(SUBSTR(#{edcRsvnSdate},1,4) , '%')
+	</select>
+
+ 	<!-- 프로그램 설정 입력-->
+ 	<update id="insertEdcProgramSetInfo" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.insertEdcProgramSetInfo  */
+ 		INSERT INTO EDC_RSVN_SET_INFO (
+ 				COMCD
+ 		        , EDC_PRGM_NO
+ 		        , EDC_RSVNSET_SEQ
+ 		        , EDC_RSVNSET_NM
+ 		        , EDC_RSVNSET_DATE
+ 		        , EDC_RSVNSET_TIME
+				, EDC_ODR
+				, EDC_SDATE
+				, EDC_EDATE
+				, EDC_STIME
+				, EDC_ETIME
+				, EDC_PNCPA
+				, EDC_ONCAPA
+				, EDC_OFFCAPA
+				, EDC_ENDWAIT_CAPA
+				, EDC_RSVN_SDATE
+				, EDC_RSVN_STIME
+				, EDC_RSVN_EDATE
+				, EDC_RSVN_ETIME
+				, EDC_RSVN_RECTYPE
+				, EDC_RSVN_PERODTYPE
+				, EDC_RSVN_ACCSSRD
+				, DRWT_NTCE_DATE
+				, EDC_PAYWAIT_GBN
+				, EDC_PAYWAIT_TIME
+				, EDC_PAYWAIT_DATE
+				, EDC_PAYWAIT_HHMM
+				, REGDATE
+				, REGUSER
+				, MODDATE
+				, MODUSER
+			)
+			SELECT
+				COMCD
+ 		        , EDC_PRGM_NO
+ 		        , (SELECT
+ 		        	NVL(MAX(EDC_RSVNSET_SEQ) , CONCAT(SUBSTR(#{edcRsvnSdate},1,4) , '00')) + 1
+ 		        	FROM EDC_RSVN_SET_INFO AS SUB_ALIAS
+ 		        	WHERE
+ 		        	 COMCD=A.COMCD and  EDC_PRGM_NO=A.EDC_PRGM_NO AND EDC_RSVNSET_SEQ LIKE CONCAT(SUBSTR(A.EDC_RSVN_SDATE,1,4) , '%')
+ 		        )
+ 		        ,NVL(#{edcRsvnsetNm} , substring(EDC_SDATE , 1,6))
+ 		        , DATE_FORMAT(CURDATE(), '%Y%m%d')
+ 		        , DATE_FORMAT(NOW(), '%H%i')
+				, EDC_ODR
+				, EDC_SDATE
+				, EDC_EDATE
+				, EDC_STIME
+				, EDC_ETIME
+				, EDC_PNCPA
+				, EDC_ONCAPA
+				, EDC_OFFCAPA
+				, EDC_ENDWAIT_CAPA
+				, EDC_RSVN_SDATE
+				, EDC_RSVN_STIME
+				, EDC_RSVN_EDATE
+				, EDC_RSVN_ETIME
+				, EDC_RSVN_RECTYPE
+				, EDC_RSVN_PERODTYPE
+				, EDC_RSVN_ACCSSRD
+				, DRWT_NTCE_DATE
+				, EDC_PAYWAIT_GBN
+				, EDC_PAYWAIT_TIME
+				, EDC_PAYWAIT_DATE
+				, EDC_PAYWAIT_HHMM
+				, SYSDATE()
+				, #{moduser}
+				, SYSDATE()
+				, #{moduser}
+			FROM
+				EDC_PROGRAM A
+			WHERE
+				COMCD=#{comcd}
+		<choose>
+ 		 		<when test="targetOrgNo != null and targetOrgNo!=''">
+					AND ORG_NO=#{targetOrgNo}
+					AND EDC_PRGM_NO IN <foreach collection="targetList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+ 		 		</when>
+ 		 		<otherwise>
+ 		 			AND EDC_PRGM_NO = #{edcPrgmNo}
+ 		 		</otherwise>
+		</choose>
+ 	</update>
+
+ 	<!-- 프로그램 요금 설정 입력 -->
+ 	<insert id="insertProgramItem" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.insertProgramItem  */
+ 		INSERT INTO PROGRAM_ITEM (
+ 			 COMCD
+ 			,ITEM_NO
+ 			,ITEM_NM
+ 			,ORG_NO
+ 			,COST_AMT
+ 			,SALE_AMT
+ 			,VAT_YN
+ 			,USE_LIMIT_CNT_YN
+ 			,KIOSK_DISP_YN
+ 			,GROUP_DC_YN
+ 			,REGDATE
+ 			,REGUSER
+ 			,MODDATE
+ 			,MODUSER)
+ 		VALUES(
+ 			#{comcd}
+ 			,#{itemCd}
+ 			,#{edcPrgmnm}
+ 			,#{orgNo}
+ 			,NVL(REPLACE(#{saleAmt}, ',',''),0)
+ 			,NVL(REPLACE(#{saleAmt}, ',',''),0)
+ 			,'N'
+ 			,'N'
+ 			,'N'
+ 			,'N'
+ 			,SYSDATE()
+ 			,#{reguser}
+ 			,SYSDATE()
+ 			,#{reguser}
+ 		)
+ 	</insert>
+
+ 	<!-- 프로그램 요금 설정 입력 -->
+ 	<insert id="insertEdcProgramItem" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.insertEdcProgramItem  */
+ 		INSERT INTO EDC_PROGRAM_ITEM (
+ 			COMCD
+ 			,EDC_PRGM_NO
+ 			,ITEM_NO
+ 			,REGDATE
+ 			,REGUSER
+ 			,MODDATE
+ 			,MODUSER)
+ 		VALUES(
+ 			#{comcd}
+ 			,#{edcPrgmNo}
+ 			,#{itemCd}
+ 			,SYSDATE()
+ 			,#{reguser}
+ 			,SYSDATE()
+ 			,#{reguser}
+ 		)
+ 	</insert>
+
+ 	<!-- 프로그램 노트 공지 입력 -->
+ 	<insert id="insertEdcProgramNotice" parameterType="com.hisco.admin.eduadm.vo.EdcNoticeVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.insertEdcProgramNotice  */
+ 		INSERT INTO EDC_PROGRAM_NOTICE (
+ 			COMCD
+ 			,EDC_PRGM_NO
+ 			,EDC_NOTI_SEQ
+ 			,NOTI_CNTS
+ 			,NOTI_PERODSET_YN
+ 			,NOTI_SDATE
+ 			,NOTI_EDATE
+ 			,NOTI_POP_YN)
+ 		VALUES(
+ 			#{comcd}
+ 			,#{edcPrgmNo}
+ 			,(SELECT NVL(MAX(EDC_NOTI_SEQ),0)+1 FROM EDC_PROGRAM_NOTICE AS ALIAS_SUB WHERE COMCD=#{comcd} AND EDC_PRGM_NO=#{edcPrgmNo})
+ 			,#{notiCnts}
+ 			,NVL(#{notiPerodsetYn},'N')
+ 			,REPLACE(#{notiSdate},'-','')
+ 			,REPLACE(#{notiEdate},'-','')
+ 			,NVL(#{notiPopyn},'N')
+ 		)
+ 	</insert>
+
+ 	<!-- 교육프로그램별연령제한적용대상 입력 -->
+ 	<insert id="insertEdcProgramTargetAge" parameterType="com.hisco.admin.eduadm.vo.EdcTargetAgeVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.insertEdcProgramTargetAge  */
+ 		INSERT INTO TARGET_AGELIST (
+ 			EDC_AGE_TARGET_SEQ
+ 			, COMCD
+ 			, EDC_PRGM_NO
+ 			, EDC_AGE_ITEM_NO
+ 			,EDC_TARGET_AGE_NM
+ 			,EDC_TARGET_SAGE
+ 			,EDC_TARGET_EAGE
+ 			,EDC_TARGET_CNT
+ 			,REGDATE
+ 			,REGUSER
+ 			,MODDATE
+ 			,MODUSER)
+ 		VALUES(
+ 			(SELECT NVL(MAX(EDC_AGE_TARGET_SEQ),0)+1 FROM TARGET_AGELIST AS ALIAS_TARGET)
+ 			, #{comcd}
+ 			,#{edcPrgmNo}
+ 			,#{edcAgeItemcd}
+ 			,#{edcTargetAgeNm}
+ 			,#{edcTargetSage}
+ 			,#{edcTargetEage}
+ 			,#{edcTargetCnt}
+ 			,SYSDATE()
+ 			,#{reguser}
+ 			,SYSDATE()
+ 			,#{reguser}
+ 		)
+ 	</insert>
+
+ 	<!-- 교육프로그램별 프로그램 신청 제한 입력 -->
+ 	<insert id="insertEdcProgramLimit" parameterType="com.hisco.admin.eduadm.vo.EdcProgmLimitVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.insertEdcProgramLimit  */
+ 		INSERT INTO EDC_PROGRAM_LIMIT (
+ 			COMCD
+ 			, EDC_PRGM_NO
+ 			, CTG_CD
+ 			,REGDATE
+ 			,REGUSER
+ 			,MODDATE
+ 			,MODUSER)
+ 		VALUES(
+ 			#{comcd}
+ 			,#{edcPrgmNo}
+ 			,#{CtgCd}
+ 			,SYSDATE()
+ 			,#{reguser}
+ 			,SYSDATE()
+ 			,#{reguser}
+ 		)
+ 	</insert>
+
+ 	<!-- 교육 요일 입력 -->
+ 	<update id="insertEdcDays" parameterType="com.hisco.admin.eduadm.vo.EdcDaysVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.insertEdcDays  */
+ 		INSERT INTO EDC_DAYS (
+ 			COMCD
+ 			, EDC_PRGM_NO
+ 			, EDC_DAY_GBN
+ 			,REGDATE
+ 			,REGUSER
+ 			,MODDATE
+ 			,MODUSER)
+ 		SELECT
+ 			COMCD
+ 			,EDC_PRGM_NO
+ 			,#{dayChk}
+ 			,SYSDATE()
+ 			,#{reguser}
+ 			,SYSDATE()
+ 			,#{reguser}
+ 		FROM
+ 			EDC_PROGRAM AS SUB_PRG
+ 		WHERE
+ 			COMCD=#{comcd}
+ 			<choose>
+ 		 		<when test="targetOrgNo != null and targetOrgNo!='' and targetCtgcd != null and targetCtgcd !=''">
+					AND ORG_NO=#{targetOrgNo}
+					AND CTG_CD LIKE CONCAT(#{targetCtgcd},'%')
+ 		 		</when>
+ 		 		<otherwise>
+ 		 			AND EDC_PRGM_NO = #{edcPrgmNo}
+ 		 		</otherwise>
+ 		 	</choose>
+ 	</update>
+
+ 	<!--요일 목록 -->
+	<select id="selectProgramDays" resultType="com.hisco.admin.eduadm.vo.EdcDaysVO" >
+		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.selectProgramDays */
+		SELECT
+			T.*,
+			CASE WHEN D.EDC_DAY_GBN IS NULL THEN 'N' ELSE T.EDC_DAY_GBN END AS DAY_CHK
+		FROM (
+			select '1' EDC_DAY_GBN , '월요일' as EDC_DAY_GBN_NM from dual
+			union
+			select '2' EDC_DAY_GBN , '화요일' as EDC_DAY_GBN_NM from dual
+			union
+			select '3' EDC_DAY_GBN , '수요일' as EDC_DAY_GBN_NM from dual
+			union
+			select '4' EDC_DAY_GBN , '목요일' as EDC_DAY_GBN_NM from dual
+			union
+			select '5' EDC_DAY_GBN , '금요일' as EDC_DAY_GBN_NM from dual
+			union
+			select '6' EDC_DAY_GBN , '토요일' as EDC_DAY_GBN_NM from dual
+			union
+			select '7' EDC_DAY_GBN , '일요일' as EDC_DAY_GBN_NM from dual
+		) T
+		LEFT OUTER JOIN	EDC_DAYS D ON D.COMCD=#{comcd} AND EDC_PRGM_NO=#{edcPrgmNo} AND T.EDC_DAY_GBN = D.EDC_DAY_GBN
+
+	</select>
+
+	<!--설정 목록 -->
+	<select id="selectProgramRsvnSetList" resultType="com.hisco.admin.eduadm.vo.EdcProgramVO" >
+		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.selectProgramRsvnSetList */
+		SELECT
+			*
+		FROM
+			EDC_RSVN_SET_INFO
+		WHERE
+			COMCD=#{comcd} AND EDC_PRGM_NO=#{edcPrgmNo}
+		ORDER BY
+			EDC_RSVNSET_SEQ DESC
+	</select>
+
+	<!--설정 MAX 값 -->
+	<select id="selectProgramRsvnSetMax" resultType="String" >
+		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.selectProgramRsvnSetMax */
+		SELECT
+			MAX(EDC_RSVNSET_SEQ)
+		FROM
+			EDC_RSVN_SET_INFO
+		WHERE
+			COMCD=#{comcd} AND EDC_PRGM_NO=#{edcPrgmNo}
+	</select>
+
+	<!--설정 상세 -->
+	<select id="selectProgramRsvnSetDetail" resultType="com.hisco.admin.eduadm.vo.EdcProgramVO" >
+		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.selectProgramRsvnSetDetail */
+		SELECT
+			A.*
+			, B.EDC_RTIME
+			, B.EDC_CAPA_DVD_YN
+			, B.EDC_RSVN_LINK_URL
+			, B.EDC_TIME_GUIDE
+		FROM
+			EDC_RSVN_SET_INFO A , EDC_PROGRAM B
+		WHERE
+			A.COMCD=#{comcd}
+			AND A.EDC_PRGM_NO=#{edcPrgmNo}
+			AND A.EDC_RSVNSET_SEQ=#{edcRsvnsetSeq}
+			AND A.COMCD = B.COMCD AND A.EDC_PRGM_NO = B.EDC_PRGM_NO
+	</select>
+
+	<update id="updateEdcProgramFileid">
+ 			UPDATE EDC_PROGRAM
+			SET
+			<choose>
+				<when test="inputid == 'edcImgFileid'">EDC_IMG_FILEID = #{atchFileId}</when>
+				<when test="inputid == 'edcPrgmIntroCntsFileid'">EDC_PRGM_INTRO_CNTS_FILEID = #{atchFileId}</when>
+				<when test="inputid == 'edcPlanFileid'">EDC_PLAN_FILEID = #{atchFileId}</when>
+			</choose>
+				, MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+		WHERE
+			COMCD = #{comcd}
+			AND EDC_PRGM_NO = #{edcPrgmNo}
+ 	</update>
+
+ 		<!-- [교육 프로그램 정보를 삭제한다] -->
+ 	<delete id="deleteEdcProgram" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.deleteEdcProgram */
+ 		DELETE FROM EDC_PROGRAM WHERE COMCD=#{comcd} AND EDC_PRGM_NO = #{edcPrgmNo}
+ 	</delete>
+
+ 	<!-- [교육 프로그램 정보를 삭제한다] -->
+ 	<delete id="deleteEdcProgramSetinfo" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.deleteEdcProgram */
+ 		DELETE FROM EDC_RSVN_SET_INFO WHERE COMCD=#{comcd} AND EDC_PRGM_NO = #{edcPrgmNo}
+ 	</delete>
+
+ 	<delete id="deleteEdcProgramNotice" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.deleteEdcProgram */
+ 		DELETE FROM EDC_PROGRAM_NOTICE WHERE COMCD=#{comcd} AND EDC_PRGM_NO = #{edcPrgmNo}
+ 	</delete>
+
+
+	<delete id="deleteEdcProgramItem" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.deleteEdcProgram */
+ 		DELETE FROM EDC_PROGRAM_ITEM WHERE COMCD=#{comcd} AND EDC_PRGM_NO = #{edcPrgmNo}
+ 	</delete>
+
+
+
+	<!-- [교육 프로그램 요일 정보를 삭제한다] -->
+ 	<delete id="deleteEdcProgaramWeek">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.deleteEdcProgaramWeek */
+ 		DELETE FROM EDC_DAYS
+ 		WHERE
+ 			COMCD=#{comcd}
+ 			<choose>
+ 		 		<when test="targetOrgNo != null and targetOrgNo!='' and targetCtgcd != null and targetCtgcd !=''">
+					AND EDC_PRGM_NO IN (
+						SELECT EDC_PRGM_NO FROM EDC_PROGRAM AS SUB_PRG
+						 WHERE COMCD=#{comcd} AND ORG_NO=#{targetOrgNo}
+							AND CTG_CD LIKE CONCAT(#{targetCtgcd},'%')
+						)
+ 		 		</when>
+ 		 		<otherwise>
+ 		 			AND EDC_PRGM_NO = #{edcPrgmNo}
+ 		 		</otherwise>
+ 		 	</choose>
+ 	</delete>
+
+
+
+	<!-- [교육 프로그램 정보를 수정한다] -->
+	<!-- 강좌 오픈여부 설정 N으로 설정했을 경우, DB에 null로 넘어가는 오류 수정 -->
+ 	<update id="updateEdcProgram" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.updateEdcProgram */
+ 		UPDATE EDC_PROGRAM
+ 		   SET
+			 	 ORG_NO = #{orgNo}
+				<if test="CtgCd !=null and CtgCd !=''">, CTG_CD=#{CtgCd}</if>
+				<if test="areaCd > 0">, AREA_CD=#{areaCd}</if>
+				, EDC_PLACE_NM = #{edcPlacenm}
+				, EDC_REL_DEPT_NM = #{edcRelDeptNm}
+				, EDC_PRGM_NM = #{edcPrgmnm}
+				, EDC_TARGET_AGE_GBN = #{edcTargetAgegbn}
+				, EDC_TARGET_INFO = #{edcTargetinfo}
+				, EDC_ONLINE_YN = #{edcOnlineyn}
+				, EXCL_DC_YN = NVL(#{exclDcyn},'N')
+				, EDC_REFUND_CHAGE_TYPE = #{edcRefundchangetype}
+				, RSVN_NONMEB_YN = NVL(#{rsvnNonmebyn},'N')
+				, EDC_GUIDE_TELNO = #{edcGuideTelno}
+				, EDC_CL_CNT = #{edcClcnt}
+				, EDC_OPEN_YN = NVL(#{edcOpenyn},'N')
+				, EDC_ODR = #{edcOdr}
+				<if test="instrctrNo !=null and instrctrNo !=''">, INSTRCTR_NO = #{instrctrNo}</if>
+			    , INSTRCTR_NM = #{instrctrName}
+			    , EDC_FEE_TYPE = NVL(#{edcFeeType},'2001')
+			    , EDC_CTFHV_YN = NVL(#{edcCtfhvyn},'N')
+			    , EDC_RSVNNOTI_HPNO = #{edcRsvnnotiHpno}
+				, USE_YN  = NVL(#{useYn},'N')
+				, USER_IP = #{userIp}
+				, MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+ 		 WHERE
+ 		 	COMCD = #{comcd}
+ 		 	AND EDC_PRGM_NO = #{edcPrgmNo}
+ 	</update>
+
+ 	<!-- [교육 프로그램 강제종료 처리] -->
+ 	<update id="updateEdcProgramForceClose" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.updateEdcProgramForceClose */
+ 		UPDATE EDC_RSVN_SET_INFO
+ 		   SET
+			 	 RSVN_FORCE_CLOSE_YN = #{rsvnForceCloseyn}
+				, MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+ 		 WHERE
+ 		 	COMCD = #{comcd}
+ 		 	AND EDC_PRGM_NO = #{edcPrgmNo}
+ 		 	AND EDC_RSVNSET_SEQ = #{edcRsvnsetSeq}
+ 	</update>
+
+ 	<!-- [교육 프로그램 강제종료 처리] -->
+ 	<update id="updateEdcProgramForceClose2" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.updateEdcProgramForceClose2 */
+ 		UPDATE EDC_PROGRAM
+ 		   SET
+			 	 RSVN_FORCE_CLOSE_YN = #{rsvnForceCloseyn}
+				, USER_IP = #{userIp}
+				, MODDATE = SYSDATE()
+				, MODUSER = #{moduser} 
+ 		 WHERE
+ 		 	COMCD = #{comcd}
+ 		 	AND EDC_PRGM_NO = #{edcPrgmNo}
+ 		 	AND #{edcRsvnsetSeq}=(SELECT MAX(EDC_RSVNSET_SEQ) FROM EDC_RSVN_SET_INFO WHERE COMCD = #{comcd} AND EDC_PRGM_NO = #{edcPrgmNo})
+ 	</update>
+
+ 	<!-- [교육 프로그램 소개 정보를 수정한다] -->
+ 	<update id="updateEdcProgramIntro" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.updateEdcProgramIntro */
+ 		UPDATE EDC_PROGRAM
+ 		   SET
+			 	 EDC_TCHMTR_GUIDE = #{edcTchmtrGuide}
+			 	, EDC_TCHMTR_GUIDE_YN = NVL(#{edcTchmtrGuideyn},'N')
+				, EDC_PRGM_INTRO_CNTS = #{edcPrgmIntroCnts}
+				, EDC_GUIDE_COMMENT = #{edcGuideComment}
+				, USER_IP = #{userIp}
+				, MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+ 		 WHERE
+ 		 	COMCD = #{comcd}
+ 		 	AND EDC_PRGM_NO = #{edcPrgmNo}
+ 	</update>
+
+ 	<!-- [교육 프로그램 공지 정보를 수정한다] -->
+ 	<update id="updateEdcProgramNotice" parameterType="com.hisco.admin.eduadm.vo.EdcNoticeVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.updateEdcProgramNotice */
+ 		UPDATE EDC_PROGRAM_NOTICE
+ 		   SET
+			 	 NOTI_CNTS = #{notiCnts} 
+			 	, NOTI_PERODSET_YN = NVL(#{notiPerodsetYn},'N')
+				, NOTI_SDATE = REPLACE(#{notiSdate},'-','')
+				, NOTI_EDATE = REPLACE(#{notiEdate},'-','')
+				, NOTI_POP_YN = NVL(#{notiPopyn},'N')
+ 		 WHERE
+ 		 	COMCD = #{comcd} 
+ 		 	AND EDC_PRGM_NO = #{edcPrgmNo}
+ 	</update>
+
+ 	<!-- [교육 프로그램 연령제한여부를 수정한다] -->
+ 	<update id="updateEdcProgramTarget" parameterType="com.hisco.admin.eduadm.vo.EdcTargetAgeVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.updateEdcProgramTarget */
+ 		UPDATE TARGET_AGELIST
+ 		   SET
+			 	 EDC_TARGET_AGE_NM = #{edcTargetAgeNm}
+			 	, EDC_TARGET_SAGE = #{edcTargetSage}
+				, EDC_TARGET_EAGE = #{edcTargetEage}
+				, MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+ 		 WHERE
+ 		 	EDC_AGE_TARGET_SEQ = #{edcAgeTargetSeq}
+ 	</update>
+
+ 	<!-- [교육 프로그램 연령제한여부를 삭제한다] -->
+ 	<delete id="deleteEdcProgramTarget">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.deleteEdcProgramTarget */
+ 		DELETE FROM TARGET_AGELIST
+ 		 WHERE
+ 		 	COMCD = #{comcd} AND EDC_PRGM_NO = #{edcPrgmNo}
+		<if test="targetSeq != null">
+ 		 	AND EDC_AGE_TARGET_SEQ NOT IN <foreach collection="targetSeq" item="item" open="(" close=")" separator=",">#{item}</foreach>
+ 		</if>
+ 	</delete>
+
+ 	<!-- [교육 프로그램 성별 제한여부를 수정한다] -->
+ 	<update id="updateEdcProgramGender" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.updateEdcProgramGender */
+ 		UPDATE EDC_PROGRAM
+ 		   SET
+			 	 EDC_REQ_GENDER = #{edcReqGender}
+			 	, EDC_LIMIT_AGE_YN = NVL(#{edcLimitAgeyn},'N')
+				, MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+ 		 WHERE
+ 		 	COMCD = #{comcd}
+ 		 	AND EDC_PRGM_NO = #{edcPrgmNo}
+ 	</update>
+
+ 	<!-- [교육 프로그램 모집정보를 수정한다] -->
+ 	<update id="updateEdcProgramRsvn" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.updateEdcProgramRsvn */
+ 		UPDATE EDC_PROGRAM
+ 		   SET
+				 EDC_SDATE = REPLACE(#{edcSdate},'-','')
+				, EDC_EDATE = REPLACE(#{edcEdate},'-','')
+			<if test="edcStimeHour !=null and edcStimeHour !=''">, EDC_STIME = CONCAT(#{edcStimeHour}, #{edcStimeMin})</if>
+			<if test="edcEtimeHour !=null and edcEtimeHour !=''">, EDC_ETIME = CONCAT(#{edcEtimeHour}, #{edcEtimeMin})</if>
+			<if test="edcTimeguide !=null">   , EDC_TIME_GUIDE = #{edcTimeguide}</if>
+			<if test="edcCapaDvdyn !=null and edcCapaDvdyn !=''">	, EDC_CAPA_DVD_YN = NVL(#{edcCapaDvdyn},'N')</if>
+			<if test="edcPncpa !=null and edcPncpa !=''">	, EDC_PNCPA = NVL(#{edcPncpa},0)</if>
+			<if test="edcOncapa !=null and edcOncapa !=''">	, EDC_ONCAPA = NVL(#{edcOncapa},0)</if>
+			<if test="edcOffcapa !=null and edcOffcapa !=''">	, EDC_OFFCAPA = NVL(#{edcOffcapa},0)</if>
+			<if test="edcEndwaitCapa !=null and edcEndwaitCapa !=''">	, EDC_ENDWAIT_CAPA = NVL(#{edcEndwaitCapa},0)</if>
+			<if test="edcRsvnRectype !=null and edcRsvnRectype !=''">	, EDC_RSVN_RECTYPE = #{edcRsvnRectype}</if>
+			<if test="edcRsvnAccssrd !=null and edcRsvnAccssrd !=''">	, EDC_RSVN_ACCSSRD = #{edcRsvnAccssrd}</if>
+				, EDC_RSVN_PERODTYPE = REPLACE(#{edcRsvnPerodType},'-','')
+				, EDC_RSVN_SDATE = REPLACE(#{edcRsvnSdate},'-','')
+				, EDC_RSVN_STIME = CONCAT(#{edcRsvnStimeHour}, #{edcRsvnStimeMin})
+				, EDC_RSVN_EDATE =  REPLACE(#{edcRsvnEdate},'-','')
+				, EDC_RSVN_ETIME = CONCAT(#{edcRsvnEtimeHour}, #{edcRsvnEtimeMin})
+			<choose>
+ 		 		<when test="targetOrgNo != null and targetOrgNo!=''">
+					<if test="edcRsvnAccssrd !=null and edcRsvnAccssrd !=''">	, EDC_RSVN_LINK_URL = #{edcRsvnLinkurl}</if>
+				</when>
+				<otherwise>
+					, EDC_RSVN_LINK_URL = #{edcRsvnLinkurl}
+				</otherwise>
+			</choose>
+				, DRWT_NTCE_DATE = REPLACE(#{drwtNtcedate},'-','')
+				, EDC_PAYWAIT_GBN = #{edcPaywaitGbn}
+				, EDC_PAYWAIT_TIME = #{edcPaywaitTime}
+				, EDC_PAYWAIT_DATE = REPLACE(#{edcPaywaitDate},'-','')
+				, EDC_PAYWAIT_HHMM = CONCAT(#{edcPaywaitHour}, #{edcPaywaitMin})
+			<if test="edcOdr !=null and edcOdr !=''">, EDC_ODR = #{edcOdr}</if>
+			<if test="edcRtime !=null and edcRtime !=''">, EDC_RTIME = #{edcRtime}</if>
+				, MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+ 		 WHERE
+ 		 	COMCD = #{comcd}
+ 		 	<choose>
+ 		 		<when test="targetOrgNo != null and targetOrgNo!=''">
+					AND ORG_NO=#{targetOrgNo}
+					AND EDC_PRGM_NO IN <foreach collection="targetList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+ 		 		</when>
+ 		 		<otherwise>
+ 		 			AND EDC_PRGM_NO = #{edcPrgmNo}
+ 		 		</otherwise>
+ 		 	</choose>
+ 	</update>
+
+ 	<!-- [교육 프로그램 모집정보 히스토리 수정한다] -->
+ 	<update id="updateEdcProgramRsvnSetInfo" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.updateEdcProgramRsvnSetInfo */
+ 		UPDATE EDC_RSVN_SET_INFO
+ 		   SET
+			 	 EDC_RSVNSET_NM= NVL(#{edcRsvnsetNm},#{edcRsvnsetSeq})
+				, EDC_SDATE = REPLACE(#{edcSdate},'-','')
+				, EDC_EDATE = REPLACE(#{edcEdate},'-','')
+				, EDC_STIME = CONCAT(#{edcStimeHour}, #{edcStimeMin})
+				, EDC_ETIME = CONCAT(#{edcEtimeHour}, #{edcEtimeMin})
+				, EDC_PNCPA = NVL(#{edcPncpa},0)
+				, EDC_ONCAPA = NVL(#{edcOncapa},0)
+				, EDC_OFFCAPA = NVL(#{edcOffcapa},0)
+				, EDC_ENDWAIT_CAPA = NVL(#{edcEndwaitCapa},0)
+				, EDC_RSVN_SDATE = REPLACE(#{edcRsvnSdate},'-','')
+				, EDC_RSVN_STIME = CONCAT(#{edcRsvnStimeHour}, #{edcRsvnStimeMin})
+				, EDC_RSVN_EDATE =  REPLACE(#{edcRsvnEdate},'-','')
+				, EDC_RSVN_ETIME = CONCAT(#{edcRsvnEtimeHour}, #{edcRsvnEtimeMin})
+				, EDC_RSVN_RECTYPE = #{edcRsvnRectype}
+				, EDC_RSVN_PERODTYPE = #{edcRsvnPerodType}
+				, EDC_RSVN_ACCSSRD = #{edcRsvnAccssrd}
+				, DRWT_NTCE_DATE = REPLACE(#{drwtNtcedate},'-','')
+				, EDC_PAYWAIT_GBN = NVL(#{edcPaywaitGbn},'1001')
+				, EDC_PAYWAIT_TIME = #{edcPaywaitTime}
+				, EDC_PAYWAIT_DATE = REPLACE(#{edcPaywaitDate},'-','')
+				, EDC_PAYWAIT_HHMM = CONCAT(#{edcPaywaitHour}, #{edcPaywaitMin})
+				, MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+ 		 WHERE
+ 		 	COMCD = #{comcd}
+ 		 	AND EDC_PRGM_NO = #{edcPrgmNo}
+ 		 	AND EDC_RSVNSET_SEQ = #{edcRsvnsetSeq}
+ 	</update>
+
+ 	<!-- 프로그램 요금 설정 입력 -->
+ 	<update id="updateProgramItem" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.updateProgramItem  */
+ 		UPDATE PROGRAM_ITEM
+ 			SET
+ 			ITEM_NM = #{edcPrgmnm}
+ 			, COST_AMT = NVL(REPLACE(#{saleAmt}, ',',''),0)
+ 			, SALE_AMT = NVL(REPLACE(#{saleAmt}, ',',''),0)
+ 	        , MODDATE = SYSDATE()
+ 	        , MODUSER = #{moduser}
+ 	    WHERE
+ 	    	COMCD=#{comcd}
+ 	    	AND ITEM_NO=#{itemNo}
+ 	</update>
+
+ 	<!-- 프로그램 상태 변경 -->
+ 	<update id="updateProgramStatus" >
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.updateProgramStatus  */
+ 		UPDATE EDC_PROGRAM
+ 			SET
+ 			<choose>
+ 				<when test='type == "useyn"'>USE_YN=#{val}</when>
+ 				<when test='type == "openyn"'>EDC_OPEN_YN=#{val}</when>
+ 			</choose>
+ 	        , MODDATE = SYSDATE()
+ 	        , MODUSER = #{moduser}
+ 	    WHERE
+ 	    	COMCD=#{comcd}
+ 	    	AND EDC_PRGM_NO = #{prgmId}
+ 	</update>
+
+
+ 	<!-- [교육 프로그램 모집정보 일괄 수정한다] -->
+ 	<update id="updateEdcProgramOneclick" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.updateEdcProgramOneclick */
+ 		UPDATE EDC_PROGRAM A , ( SELECT
+                    A.EDC_PRGM_NO , MAX(A.EDC_RSVNSET_SEQ) as EDC_RSVNSET_SEQ
+                FROM
+                    EDC_RSVN_SET_INFO A , EDC_PROGRAM B
+                WHERE
+                    A.COMCD=#{comcd} AND A.COMCD=B.COMCD AND A.EDC_PRGM_NO=B.EDC_PRGM_NO
+                    AND B.ORG_NO=#{targetOrgNo}
+            GROUP BY A.EDC_PRGM_NO) B
+ 		   SET
+ 		   		MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+			    , EDC_SDATE = (SELECT EDC_SDATE FROM EDC_RSVN_SET_INFO WHERE EDC_PRGM_NO=B.EDC_PRGM_NO AND  EDC_RSVNSET_SEQ=B.EDC_RSVNSET_SEQ )
+			    , EDC_EDATE =  (SELECT EDC_EDATE FROM EDC_RSVN_SET_INFO WHERE EDC_PRGM_NO=B.EDC_PRGM_NO AND  EDC_RSVNSET_SEQ=B.EDC_RSVNSET_SEQ )
+			   	, EDC_STIME = (SELECT EDC_STIME FROM EDC_RSVN_SET_INFO WHERE EDC_PRGM_NO=B.EDC_PRGM_NO AND  EDC_RSVNSET_SEQ=B.EDC_RSVNSET_SEQ )
+			   	, EDC_ETIME =  (SELECT EDC_ETIME FROM EDC_RSVN_SET_INFO WHERE EDC_PRGM_NO=B.EDC_PRGM_NO AND  EDC_RSVNSET_SEQ=B.EDC_RSVNSET_SEQ )
+			  	, EDC_RSVN_SDATE = (SELECT EDC_RSVN_SDATE FROM EDC_RSVN_SET_INFO WHERE EDC_PRGM_NO=B.EDC_PRGM_NO AND  EDC_RSVNSET_SEQ=B.EDC_RSVNSET_SEQ )
+				, EDC_RSVN_STIME = (SELECT EDC_RSVN_STIME FROM EDC_RSVN_SET_INFO WHERE EDC_PRGM_NO=B.EDC_PRGM_NO AND  EDC_RSVNSET_SEQ=B.EDC_RSVNSET_SEQ )
+				, EDC_RSVN_EDATE =  (SELECT EDC_RSVN_EDATE FROM EDC_RSVN_SET_INFO WHERE EDC_PRGM_NO=B.EDC_PRGM_NO AND  EDC_RSVNSET_SEQ=B.EDC_RSVNSET_SEQ )
+				, EDC_RSVN_ETIME = (SELECT EDC_RSVN_ETIME FROM EDC_RSVN_SET_INFO WHERE EDC_PRGM_NO=B.EDC_PRGM_NO AND  EDC_RSVNSET_SEQ=B.EDC_RSVNSET_SEQ )
+				, DRWT_NTCE_DATE = (SELECT DRWT_NTCE_DATE FROM EDC_RSVN_SET_INFO WHERE EDC_PRGM_NO=B.EDC_PRGM_NO AND  EDC_RSVNSET_SEQ=B.EDC_RSVNSET_SEQ )
+				, EDC_PAYWAIT_GBN =  (SELECT EDC_PAYWAIT_GBN FROM EDC_RSVN_SET_INFO WHERE EDC_PRGM_NO=B.EDC_PRGM_NO AND  EDC_RSVNSET_SEQ=B.EDC_RSVNSET_SEQ )
+				, EDC_PAYWAIT_TIME = (SELECT EDC_PAYWAIT_TIME FROM EDC_RSVN_SET_INFO WHERE EDC_PRGM_NO=B.EDC_PRGM_NO AND  EDC_RSVNSET_SEQ=B.EDC_RSVNSET_SEQ )
+				, EDC_PAYWAIT_DATE = (SELECT EDC_PAYWAIT_DATE FROM EDC_RSVN_SET_INFO WHERE EDC_PRGM_NO=B.EDC_PRGM_NO AND  EDC_RSVNSET_SEQ=B.EDC_RSVNSET_SEQ )
+				, EDC_PAYWAIT_HHMM = (SELECT EDC_PAYWAIT_HHMM FROM EDC_RSVN_SET_INFO WHERE EDC_PRGM_NO=B.EDC_PRGM_NO AND  EDC_RSVNSET_SEQ=B.EDC_RSVNSET_SEQ )
+				<if test="edcRsvnLinkurl !=null and edcRsvnLinkurl !=''">	, EDC_RSVN_LINK_URL = #{edcRsvnLinkurl}</if>
+ 		 WHERE
+ 		 	A.COMCD = #{comcd}
+			AND A.ORG_NO=#{targetOrgNo}
+			AND A.EDC_PRGM_NO IN <foreach collection="targetList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+			AND  A.EDC_PRGM_NO = B.EDC_PRGM_NO
+ 	</update>
+
+
+ 	<!-- [교육 프로그램 모집정보 히스토리를 일괄 수정한다] -->
+ 	<update id="updateEdcProgramRsvnSetInfoOneclick" parameterType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+ 		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.updateEdcProgramRsvnSetInfoOneclick */
+ 		UPDATE EDC_RSVN_SET_INFO A , ( SELECT
+                    A.EDC_PRGM_NO , MAX(A.EDC_RSVNSET_SEQ) as EDC_RSVNSET_SEQ
+                FROM
+                    EDC_RSVN_SET_INFO A , EDC_PROGRAM B
+                WHERE
+                    A.COMCD=#{comcd}
+                    <if test="searchRsvnsetNm != null and searchRsvnsetNm !=''">
+                   	 	AND A.EDC_RSVNSET_NM = #{searchRsvnsetNm}
+                    </if>
+                    AND A.COMCD=B.COMCD AND A.EDC_PRGM_NO=B.EDC_PRGM_NO
+                    AND B.ORG_NO=#{targetOrgNo} AND B.EDC_PRGM_NO IN <foreach collection="targetList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+                GROUP BY A.EDC_PRGM_NO) B
+ 		   SET
+ 		   		MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+				<if test="edcRsvnsetNm != null and edcRsvnsetNm !=''">, EDC_RSVNSET_NM = #{edcRsvnsetNm}</if>
+				<if test="edcSdate !=null and edcSdate !=''">, EDC_SDATE = REPLACE(#{edcSdate},'-','')</if>
+				<if test="edcEdate !=null and edcEdate !=''">, EDC_EDATE = REPLACE(#{edcEdate},'-','')</if>
+				<if test="edcRsvnSdate !=null and edcRsvnSdate !=''">	, EDC_RSVN_SDATE = REPLACE(#{edcRsvnSdate},'-','')</if>
+				<if test="edcRsvnStimeHour !=null and edcRsvnStimeHour !=''">	, EDC_RSVN_STIME = CONCAT(#{edcRsvnStimeHour}, #{edcRsvnStimeMin})</if>
+				<if test="edcRsvnEdate !=null and edcRsvnEdate !=''">	, EDC_RSVN_EDATE =  REPLACE(#{edcRsvnEdate},'-','')</if>
+				<if test="edcRsvnEtimeHour !=null and edcRsvnEtimeHour !=''">	, EDC_RSVN_ETIME = CONCAT(#{edcRsvnEtimeHour}, #{edcRsvnEtimeMin})</if>
+				<if test="drwtNtcedate !=null and drwtNtcedate !=''">	, DRWT_NTCE_DATE = REPLACE(#{drwtNtcedate},'-','')</if>
+				<if test="edcPaywaitGbn !=null and edcPaywaitGbn !=''">	, EDC_PAYWAIT_GBN = #{edcPaywaitGbn}</if>
+				<if test="edcPaywaitTime !=null and edcPaywaitTime !=''">	, EDC_PAYWAIT_TIME = #{edcPaywaitTime}</if>
+				<if test="edcPaywaitDate !=null and edcPaywaitDate !=''">	, EDC_PAYWAIT_DATE = REPLACE(#{edcPaywaitDate},'-','')</if>
+				<if test="edcPaywaitHour !=null and edcPaywaitHour !=''">	, EDC_PAYWAIT_HHMM = CONCAT(#{edcPaywaitHour}, #{edcPaywaitMin})</if>
+ 		 WHERE
+ 		 	COMCD = #{comcd}
+ 		 	AND A.EDC_PRGM_NO = B.EDC_PRGM_NO
+ 		 	AND A.EDC_RSVNSET_SEQ=B.EDC_RSVNSET_SEQ
+ 	</update>
+
+
+ 	<!--수업일 목록 -->
+	<select id="selectClassSchedule" resultType="egovMap" >
+		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.selectClassSchedule */
+		WITH RECURSIVE A AS (
+			SELECT 1 AS LEVEL UNION ALL SELECT 1+A.LEVEL FROM A WHERE A.LEVEL <![CDATA[ <= ]]> ( DATEDIFF(#{edcEdate},#{edcSdate}))
+		)
+		SELECT
+			DT ,
+			CASE WEEKDAY(DT)
+			    WHEN '0' THEN '월'
+			    WHEN '1' THEN '화'
+			    WHEN '2' THEN '수'
+			    WHEN '3' THEN '목'
+			    WHEN '4' THEN '금'
+			    WHEN '5' THEN '토'
+			    WHEN '6' THEN '일'
+			END AS WEEK_NAME
+		FROM (
+			SELECT DATE_ADD(STR_TO_DATE(#{edcSdate},'%Y%m%d') ,interval level-1 day) AS DT FROM A
+		) B
+		WHERE
+			WEEKDAY(DT) IN (select EDC_DAY_GBN-1 from EDC_DAYS where EDC_PRGM_NO=#{edcPrgmNo})
+			AND DT not in (select CAL_DATE from CALENDAR where org_no=#{orgNo} and DATE_TYPE='00')
+		ORDER BY
+		 DT
+		 LIMIT #{edcClcnt}
+	</select>
+
+
+	<!--차수명 목록 -->
+	<select id="selectRsvnsetNameList" resultType="egovMap" >
+		/* com.hisco.admin.eduadm.mapper.EduAdmMapper.selectRsvnsetNameList */
+		SELECT
+		*
+		FROM (
+			SELECT
+				/*mariadb 10.5 이상부터 사용 가능 UNIQUE EDC_RSVNSET_NM*/
+				DISTINCT EDC_RSVNSET_NM
+	 		FROM
+				EDC_RSVN_SET_INFO
+			WHERE
+				COMCD=#{comcd} AND EDC_PRGM_NO IN (SELECT EDC_PRGM_NO FROM EDC_PROGRAM WHERE COMCD=#{comcd} AND ORG_NO=#{searchOrgNo})
+				AND EDC_SDATE >=  DATE_FORMAT(DATE_ADD(NOW(),INTERVAL -2 YEAR ) , '%Y%m%d')
+				AND EDC_RSVNSET_NM IS NOT NULL
+		) AS T
+		ORDER BY EDC_RSVNSET_NM DESC
+	</select>
+
+
+</mapper>

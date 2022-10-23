@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 
+통합매출정보
+작성자: 박우진
+ -->
+ 
+<mapper namespace="com.hisco.intrfc.sale.mapper.CancelMapper">
+
+	<!-- 취소시입력 -->
+	<update id="insertCancel">
+		/* com.hisco.intrfc.sale.mapper.CancelMapper.insertCancel */
+		INSERT INTO CANCEL (
+			COMCD /*운영사업자고유번호*/
+			, SALE_SEQ /*매출고유번호. 매출건의 selng_info.selng_id*/
+			, RET_REGDATE /*등록일자*/
+			, MEM_NO /*회원번호*/
+			, CANCEL_CD /*환불사유코드.CM_RETREASON_CD*/
+			, CANCEL_DATE /*환불일자. 환불정산기준일자를 기록한다.*/
+			, RETURN_AMT /*환불금액*/
+			, VAT_AMT /*부가세*/
+			, BREAK_AMT /*위약금*/
+			, USE_AMT /*이용금액*/
+			, RATE_AMT /*카드수수료*/
+			, REMARK /*비고*/
+			, RETURN_SELNGID /*환불매출고유번호: 취소건의 selng_info.selng_id*/
+			, OLD_ITEM_EDATE /*환불이전매출상품이용종료일자*/
+			, TOTAL_BASED_DAY_CNT /*총이용기준일수*/
+			, USED_DAYS_CNT /*정산이용일수*/
+			, UPDOWN_AMT_UNIT /*위약금및이용금액절상절사금액단위*/
+			, UPDOWN_AMT_GBN /*위약금및이용금액절상절사구분*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		SELECT
+			#{comcd}
+			, #{saleSeq}
+			, DATE_FORMAT(SYSDATE(), '%Y%m%d') RET_REGDATE
+			, #{memNo}
+			, #{cancelCd}
+			, NVL(#{cancelDate}, DATE_FORMAT(SYSDATE(), '%Y%m%d')) CANCEL_DATE
+			, -1 * #{returnAmt}
+			, 0 /*vatAmt*/
+			, #{breakAmt}
+			, #{useAmt}
+			, 0 /*rateAmt*/
+			, #{remark}
+			, #{returnSelngid}
+			, REPLACE(#{oldItemEdate}, '-', '')
+			, #{totalBasedDaycnt}
+			, #{usedDaysCount}
+			, #{updownAmtUnit}
+			, #{updownAmtGbn}
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser}
+	</update>
+
+	<select id="selectCancel" resultType="com.hisco.intrfc.sale.vo.CancelVO" >
+		/* com.hisco.intrfc.sale.mapper.CancelMapper.selectCancel */
+		SELECT A.*
+			FROM CANCEL A
+			WHERE A.COMCD = #{comcd}
+				AND A.SALE_SEQ = #{saleSeq}
+	</select>
+
+ 	<select id="selectCancelList" resultType="com.hisco.intrfc.sale.vo.CancelVO" >
+		/* com.hisco.intrfc.sale.mapper.CancelMapper.selectCancelList */
+		SELECT A.*
+			FROM CANCEL A
+			WHERE A.COMCD = #{comcd}
+				AND A.SALE_SEQ = #{saleSeq}
+			ORDER BY A.SALE_SEQ
+	</select>
+
+</mapper>

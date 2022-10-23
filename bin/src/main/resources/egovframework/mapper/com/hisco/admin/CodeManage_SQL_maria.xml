@@ -1,0 +1,455 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일          수정자                          수정내용
+  ===========      ========    =================================================
+  2021.03.24		진수진     	 	코드 관리
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.admin.code.mapper.CodeManageMapper">
+
+	<select id="selectCodeGrpList2" parameterType="HashMap" resultType="HashMap">
+	<![CDATA[
+		{
+			Call USP_GET_CODE_GROUP_LIST
+			(
+				#{comcd, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchCondition, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchKeyword, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{orgGrpcdyn, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchOrder, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchOrderDir, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{recordCountPerPage, mode=IN},
+				#{pageIndex, mode=IN}
+			)
+		}	
+		]]>
+	</select>
+	
+	<select id="selectCodeGrpList" parameterType="com.hisco.cmm.vo.CodeVO" resultType="com.hisco.cmm.vo.CodeVO">
+	<![CDATA[
+		{
+			Call USP_GET_CODE_GROUP_LIST
+			(
+				#{comcd, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchCondition, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchKeyword, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{orgGrpcdyn, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchOrder, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{searchOrderDir, mode=IN, jdbcType=VARCHAR, javaType=java.lang.String},
+				#{recordCountPerPage, mode=IN, jdbcType=INTEGER, javaType=java.lang.Integer},
+				#{firstIndex, mode=IN, jdbcType=INTEGER, javaType=java.lang.Integer}
+			)
+		}	
+		]]>
+	</select>
+	
+	<select id="selectCodeGrpList_bak" parameterType="com.hisco.cmm.vo.CodeVO" resultType="com.hisco.cmm.vo.CodeVO">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.selectCodeGrpList */
+			SELECT
+				COMCD
+				, GRP_CD
+				, GRP_NM
+				, CASE WHEN ORG_GRP_CD_YN IS NULL OR LENGTH(ORG_GRP_CD_YN)=0 THEN 'N' ELSE ORG_GRP_CD_YN END  AS ORG_GRP_CD_YN
+				, UPD_YN
+				, DEL_YN
+				, REGDATE
+				, REGUSER
+				, MODDATE
+				, MODUSER
+			FROM COT_GRP
+			WHERE
+	  			COMCD=#{comcd}
+	  		<if test="searchCondition == 1">	<![CDATA[	AND
+				GRP_CD LIKE CONCAT('%', #{searchKeyword}, '%')	]]>
+			</if>
+			<if test="searchCondition == 2">	<![CDATA[	AND
+				GRP_NM LIKE CONCAT('%', #{searchKeyword}, '%')	]]>
+			</if>
+	  		<if test="orgGrpcdyn !=null and orgGrpcdyn !=''">	<![CDATA[	AND
+				CASE WHEN ORG_GRP_CD_YN IS NULL OR LENGTH(ORG_GRP_CD_YN)=0 THEN 'N' ELSE ORG_GRP_CD_YN END = #{orgGrpcdyn}	]]>
+			</if>
+			ORDER BY
+				${searchOrder} ${searchOrderDir}
+			LIMIT #{recordCountPerPage} OFFSET #{firstIndex}
+	</select>
+
+
+	<select id="selectCodeGrpCount" parameterType="com.hisco.cmm.vo.CodeVO" resultType="int">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.selectCodeGrpCount */
+		<![CDATA[
+			SELECT
+				COUNT(*) totcnt
+			FROM COT_GRP
+			WHERE 1=1
+				AND COMCD=#{comcd}
+			 ]]>
+
+			<if test="searchCondition == 1">	<![CDATA[	AND
+				GRP_CD LIKE CONCAT('%', #{searchKeyword}, '%')	]]>
+			</if>
+			<if test="searchCondition == 2">	<![CDATA[	AND
+				GRP_NM LIKE CONCAT('%', #{searchKeyword}, '%')	]]>
+			</if>
+	  		<if test="orgGrpcdyn !=null and orgGrpcdyn !=''">	<![CDATA[	AND
+				CASE WHEN ORG_GRP_CD_YN IS NULL OR LENGTH(ORG_GRP_CD_YN)=0 THEN 'N' ELSE ORG_GRP_CD_YN END = #{orgGrpcdyn}	]]>
+			</if>
+
+	</select>
+
+	<select id="selectCodeGrpDetail" parameterType="com.hisco.cmm.vo.CodeVO" resultType="com.hisco.cmm.vo.CodeVO">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.selectCodeGrpDetail */
+		<![CDATA[
+			SELECT
+				COMCD
+				, GRP_CD
+				, GRP_NM
+				, CASE WHEN ORG_GRP_CD_YN IS NULL OR LENGTH(ORG_GRP_CD_YN)=0 THEN 'N' ELSE ORG_GRP_CD_YN END  AS ORG_GRP_CD_YN
+				, UPD_YN
+				, DEL_YN
+				, REGDATE
+				, REGUSER
+				, MODDATE
+				, MODUSER
+			FROM COT_GRP
+			WHERE 1=1
+				AND COMCD = #{comcd}
+				AND GRP_CD = #{grpCd}
+             ]]>
+
+	</select>
+
+	<insert id="insertCodeGrp">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.insertCodeGrp */
+		<![CDATA[
+			INSERT INTO COT_GRP (
+							COMCD
+							, GRP_CD
+							, GRP_NM
+							, ORG_GRP_CD_YN
+							, UPD_YN
+							, DEL_YN
+							, REGDATE
+							, REGUSER
+				)
+			VALUES (
+							#{comcd}
+							, #{grpCd}
+							, #{grpNm}
+							, #{orgGrpcdyn}
+							, #{updYn}
+							, #{delYn}
+							, SYSDATE()
+							, #{reguser}
+		         )
+		         ]]>
+
+	</insert>
+
+	<update id="updateCodeGrp">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.updateCodeGrp */
+		<![CDATA[
+			UPDATE COT_GRP
+					SET GRP_NM = #{grpNm}
+					, ORG_GRP_CD_YN = #{orgGrpcdyn}
+                 	, UPD_YN = #{updYn}
+                 	, DEL_YN = #{delYn}
+                 	, MODDATE = SYSDATE()
+                 	, MODUSER = #{reguser}
+			WHERE 1=1
+					AND COMCD = #{comcd}
+					AND GRP_CD = #{grpCd}
+             ]]>
+
+	</update>
+
+
+	<delete id="deleteCodeGrp">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.deleteCodeGrp */
+		<![CDATA[
+            DELETE FROM  COT_GRP
+             WHERE  GRP_CD = #{grpCd}
+             ]]>
+
+	</delete>
+
+	<select id="selectCodeDetailList" parameterType="com.hisco.cmm.vo.CodeVO" resultType="com.hisco.cmm.vo.CodeVO">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.selectCodeDetailList */
+		SELECT
+			*
+	  FROM
+	  		COT_GRPCD
+	  	<where>
+	  		COMCD = #{comcd}
+	  		<if test="grpCd !=null and grpCd !=''">	<![CDATA[	AND
+				GRP_CD = #{grpCd}	]]>
+			</if>
+	  	</where>
+	  ORDER BY
+	  		SORT_ORDER
+	</select>
+
+
+	<select id="selectCodeDetail" parameterType="com.hisco.cmm.vo.CodeVO" resultType="com.hisco.cmm.vo.CodeVO">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.selectCodeDetail */
+		<![CDATA[
+            SELECT
+            	*
+              FROM  COT_GRPCD
+             WHERE
+             	COMCD=#{comcd} AND GRP_CD    = #{grpCd} AND CD=#{cd}
+             ]]>
+	</select>
+
+
+	<insert id="insertCodeDetail">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.insertCodeDetail */
+		<![CDATA[
+		    INSERT
+		      INTO  COT_GRPCD
+		         (  COMCD
+		         ,  GRP_CD
+		         ,  CD
+		         ,  CD_NM
+		         ,  SORT_ORDER
+		         ,  REMARK
+		         ,  ITEM1
+		         ,  ITEM2
+		         ,  ITEM3
+		         ,  ITEM4
+		         ,  ITEM5
+		         ,  ITEM6
+		         ,  ITEM7
+		         ,  ITEM8
+		         ,  ITEM9
+		         ,  ITEM10
+		         , UPD_YN
+		         , DEL_YN
+		         , USE_YN
+		         , REGDATE
+		         , REGUSER
+		         )
+		    VALUES
+		         (  #{comcd}
+		         ,  #{grpCd}
+		         ,  #{cd}
+		         ,  #{cdNm}
+		         , #{sortOrder}
+		         , #{remark}
+		         , #{item1}
+		         , #{item2}
+		         , #{item3}
+		         , #{item4}
+		         , #{item5}
+		         , #{item6}
+		         , #{item7}
+		         , #{item8}
+		         , #{item9}
+		         , #{item10}
+		         , #{updYn}
+		         , #{delYn}
+		         , #{useYn}
+		         ,  SYSDATE()
+		         ,  #{reguser}
+		         )
+		         ]]>
+
+	</insert>
+
+	<update id="updateCodeDetail">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.updateCodeDetail */
+		<![CDATA[
+            UPDATE  COT_GRPCD
+               SET  CD_NM        = #{cdNm}
+                 ,  SORT_ORDER        = #{sortOrder}
+                 ,  REMARK            = #{remark}
+                 , ITEM1 = #{item1}
+                 , ITEM2= #{item2}
+                 , ITEM3 = #{item3}
+                 , ITEM4 = #{item4}
+                 , ITEM5 = #{item5}
+                 , ITEM6 = #{item6}
+                 , ITEM7 = #{item7}
+                 , ITEM8 = #{item8}
+                 , ITEM9 = #{item9}
+                 , ITEM10 = #{item10}
+                 , UPD_YN = #{updYn}
+                 , DEL_YN = #{delYn}
+                 , USE_YN = #{useYn}
+                 ,  MODDATE = SYSDATE()
+                 ,  MODUSER    = #{reguser}
+             WHERE
+             	COMCD=#{comcd} AND GRP_CD    = #{grpCd} AND CD=#{cd}
+             ]]>
+
+	</update>
+
+	<update id="useCodeDetail">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.useCodeDetail */
+		<![CDATA[
+            UPDATE  COT_GRPCD
+               SET  USE_YN = #{useYn}
+                 ,  MODDATE = SYSDATE()
+                 ,  MODUSER    = #{reguser}
+             WHERE
+             	COMCD=#{comcd} AND GRP_CD    = #{grpCd} AND CD=#{cd}
+             ]]>
+
+	</update>
+
+	<update id="sortCodeDetail">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.sortCodeDetail */
+		<![CDATA[
+            UPDATE  COT_GRPCD
+               SET  SORT_ORDER        = #{sortOrder}
+             WHERE
+             	COMCD=#{comcd} AND GRP_CD    = #{grpCd} AND CD=#{cd}
+             ]]>
+
+	</update>
+
+	<delete id="deleteCodeDetail">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.deleteCodeDeteil */
+		<![CDATA[
+            DELETE FROM   COT_GRPCD
+             WHERE  COMCD=#{comcd} AND GRP_CD    = #{grpCd} AND CD=#{cd}
+             ]]>
+
+	</delete>
+
+
+	<select id="selectOrgCodeDetailList" parameterType="com.hisco.cmm.vo.CodeVO" resultType="com.hisco.cmm.vo.CodeVO">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.selectOrgCodeDetailList */
+		SELECT
+			*
+		FROM
+	  		COT_GRP_ORGCD
+	  	<where>
+	  		COMCD = #{comcd}
+	  		<if test="orgNo !=null and orgNo !=0">	<![CDATA[	AND
+	  			ORG_NO = #{orgNo}	]]>
+	  		</if>
+	  		<if test="grpCd !=null and grpCd !=''">	<![CDATA[	AND
+				GRP_CD = #{grpCd}	]]>
+			</if>
+			<if test="useYn !=null and useYn !=''">	<![CDATA[	AND
+				USE_YN = #{useYn}	]]>
+			</if>
+	  	</where>
+	  ORDER BY
+	  		SORT_ORDER
+	</select>
+
+
+	<select id="selectOrgCodeDetail" parameterType="com.hisco.cmm.vo.CodeVO" resultType="com.hisco.cmm.vo.CodeVO">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.selectOrgCodeDetail */
+		<![CDATA[
+            SELECT
+            	*
+              FROM  COT_GRP_ORGCD
+             WHERE
+             	COMCD=#{comcd} AND ORG_NO = #{orgNo} AND GRP_CD = #{grpCd} AND CD=#{cd}
+             ]]>
+	</select>
+
+
+	<insert id="insertOrgCodeDetail">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.insertOrgCodeDetail */
+		<![CDATA[
+		    INSERT
+		      INTO  COT_GRP_ORGCD
+		         (  COMCD
+				 ,  ORG_NO
+		         ,  GRP_CD
+		         ,  CD
+		         ,  CD_NM
+		         ,  SORT_ORDER
+		         ,  REMARK
+		         ,  ITEM1
+		         ,  ITEM2
+		         ,  ITEM3
+		         , UPD_YN
+		         , DEL_YN
+		         , USE_YN
+		         , REGDATE
+		         , REGUSER
+		         )
+		    VALUES
+		         (  #{comcd}
+		         ,  #{orgNo}
+		         ,  #{grpCd}
+		         ,  #{cd}
+		         ,  #{cdNm}
+		         , #{sortOrder}
+		         , #{remark}
+		         , #{item1}
+		         , #{item2}
+		         , #{item3}
+		         , #{updYn}
+		         , #{delYn}
+		         , #{useYn}
+		         ,  SYSDATE()
+		         ,  #{reguser}
+		         )
+		         ]]>
+
+	</insert>
+
+	<update id="updateOrgCodeDetail">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.updateOrgCodeDetail */
+		<![CDATA[
+            UPDATE  COT_GRP_ORGCD
+               SET  CD_NM        = #{cdNm}
+                 ,  SORT_ORDER        = #{sortOrder}
+                 ,  REMARK            = #{remark}
+                 , ITEM1 = #{item1}
+                 , ITEM2= #{item2}
+                 , ITEM3 = #{item3}
+                 , UPD_YN = #{updYn}
+                 , DEL_YN = #{delYn}
+                 , USE_YN = #{useYn}
+                 ,  MODDATE = SYSDATE()
+                 ,  MODUSER    = #{reguser}
+             WHERE
+             	COMCD=#{comcd} AND ORG_NO = #{orgNo} AND GRP_CD    = #{grpCd} AND CD=#{cd}
+             ]]>
+
+	</update>
+
+
+	<update id="useOrgCodeDetail">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.useOrgCodeDetail */
+		<![CDATA[
+            UPDATE  COT_GRP_ORGCD
+               SET  USE_YN = #{useYn}
+                 ,  MODDATE = SYSDATE()
+                 ,  MODUSER    = #{reguser}
+             WHERE
+             	COMCD=#{comcd} AND ORG_NO = #{orgNo} AND GRP_CD    = #{grpCd} AND CD=#{cd}
+             ]]>
+
+	</update>
+
+	<update id="sortOrgCodeDetail">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.sortOrgCodeDetail */
+		<![CDATA[
+            UPDATE  COT_GRP_ORGCD
+               SET  SORT_ORDER        = #{sortOrder}
+             WHERE
+             	COMCD=#{comcd} AND GRP_CD = #{grpCd} AND ORG_NO = #{orgNo} AND CD=#{cd}
+             ]]>
+
+	</update>
+
+
+	<delete id="deleteOrgCodeDetail">
+		/* com.hisco.admin.code.mapper.CodeManageMapper.deleteOrgCodeDeteil */
+		<![CDATA[
+            DELETE FROM   COT_GRP_ORGCD
+             WHERE  COMCD=#{comcd} AND ORG_NO    = #{orgNo} AND GRP_CD    = #{grpCd} AND CD=#{cd}
+             ]]>
+
+	</delete>
+
+
+
+</mapper>

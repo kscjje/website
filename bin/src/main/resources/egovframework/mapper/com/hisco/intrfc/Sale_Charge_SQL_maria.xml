@@ -1,0 +1,714 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	수정일      수정자     수정내용
+  =========     =======    =================================================
+  2020.09.08   	전영석     결제 Tibero Mapper
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hisco.intrfc.sale.mapper.SaleChargeMapper">
+
+ 	<update id="insertPgOrdMst">
+		/* SaleChargeMapper.insertPgOrdMst */
+		INSERT INTO PG_ORD_MST (
+           	COMCD
+			, OID /*거래주문번호*/
+			, OID_AMT /*거래요청금액*/
+			, OID_STAT /*거래요청상태. . 1001 : 거래요청. 2001 : 거래완료. 3001 : 거래취소. 4001 : 거래실패*/
+			, OID_DET_ROW_CNT /*거래요청상세건수*/
+			, REQUEST_RESULT /*거래요청및응답정보. 거래요청응답정보  및 실패정보를 기록한다.*/
+			, OID_CNL_DATE /*거래취소일자*/
+			, OID_CNL_TIME /*거래취소시간*/
+			, OID_CNL_RESULT /*거래취소응답정보*/
+			, OID_APP_NO /*거래승인번호*/
+			, REGDATE
+			, REGUSER
+			, MODDATE
+			, MODUSER
+		)
+		VALUES (
+			#{comcd}
+			, #{oid}
+			, #{oidAmt}
+			, #{oidStat}
+			, #{oidDetRowcnt}
+			, #{requestResult}
+			, #{oidCnlDate}
+			, #{oidCnlTime}
+			, #{oidCnlResult}
+			, #{oidAppNo}
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser}
+		)
+		ON DUPLICATE KEY
+			UPDATE 
+				OID_AMT = #{oidAmt}
+				, OID_STAT = #{oidStat}
+				, MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+ 	</update>
+
+ 	<update id="insertPgOrdDet">
+		INSERT INTO /* SaleChargeMapper.insertPgOrdDet */
+           PG_ORD_DET (
+				COMCD
+				, OID /*거래주문번호*/
+				, OID_SEQ /*거래내역순번. OID별 일련번호부여(MAX+1)*/
+				, OID_RSVN_NO /*주문예약번호*/
+				, OID_ITEMCD /*품목고유번호. 품목고유번호는 예약번호가 없는  거래상품에 대하여 품목고유번호를 기록함.. 예시> 연회원권 결제 거래*/
+				, OID_PCANCEL_NO /*부분취소요청번호. . 거래당 부분 거래취소요청된 번호순번을 . 3자리 '001' 로 번호룰 부여한다.*/
+				, REGDATE
+				, REGUSER
+				, MODDATE
+				, MODUSER
+			)
+			SELECT
+				#{comcd}
+				, #{oid}
+				, (SELECT NVL(MAX(OID_SEQ), 0) + 1 FROM PG_ORD_DET WHERE COMCD = #{comcd} AND OID = #{oid})
+				, #{oidRsvnNo}
+				, #{oidItemcd}
+				, #{oidPcancelNo}
+				, SYSDATE()
+				, #{reguser}
+				, SYSDATE()
+				, #{moduser}
+			WHERE NOT EXISTS (
+				SELECT 1 FROM PG_ORD_DET WHERE COMCD = #{comcd} AND OID = #{oid} AND OID_SEQ = #{oidSeq} 
+			) 
+ 	</update>
+ 	
+ 	<update id="cancelPgOrdDet">
+		INSERT INTO /* SaleChargeMapper.cancelPgOrdDet */
+           PG_ORD_DET (
+				COMCD
+				, OID /*거래주문번호*/
+				, OID_SEQ /*거래내역순번. OID별 일련번호부여(MAX+1)*/
+				, OID_RSVN_NO /*주문예약번호*/
+				, OID_ITEMCD /*품목고유번호. 품목고유번호는 예약번호가 없는  거래상품에 대하여 품목고유번호를 기록함.. 예시> 연회원권 결제 거래*/
+				, OID_PCANCEL_NO /*부분취소요청번호. . 거래당 부분 거래취소요청된 번호순번을 . 3자리 '001' 로 번호룰 부여한다.*/
+				, REGDATE
+				, REGUSER
+				, MODDATE
+				, MODUSER
+			)
+			SELECT
+				COMCD
+				, OID
+				, (SELECT MAX(OID_SEQ) + 1 FROM PG_ORD_DET WHERE COMCD = #{comcd} AND OID = #{oid}) AS OID_SEQ
+				, OID_RSVN_NO
+				, OID_ITEMCD
+				, #{oidPcancelNo}
+				, REGDATE
+				, REGUSER
+				, MODDATE
+				, MODUSER
+			FROM PG_ORD_DET
+			WHERE 1 = 1
+				AND COMCD = #{comcd}
+				AND OID = #{oid}
+ 	</update>
+ 	
+
+ 	<update id="updatePgOrdMst">
+		UPDATE PG_ORD_MST /* SaleChargeMapper.updatePgOrdMst */
+		    SET OID_STAT = #{OID_STAT}
+		      , REQUEST_RESULT = #{REQUEST_RESULT}
+		      , MODUSER = #{MODUSER}
+		      , MODDATE = SYSDATE()
+		   WHERE COMCD = #{COMCD}
+		     AND OID = #{LGD_OID}
+		     AND OID_STAT = '1001' /*1001:거래요청상태. ex)가상계좌입금*/
+ 	</update>
+
+	<!-- 카드사별 수수료 구하기 -->
+ 	<select id="selectPaymethodRate" parameterType="Map" resultType="cMap">
+		SELECT /* SaleChargeMapper.selectPaymethodRate */
+	           CARD_RATE
+	         , CHECK_RATE
+		FROM PAY_COM_RATE
+		WHERE 1 = 1
+			AND COMCD = #{comcd}
+			AND ORG_NO = #{orgNo}
+			AND P_COMCD = #{pComcd}
+			AND P_TYPE = #{pType}
+			AND METHOD_CD = #{methodCd}
+	</select>
+
+	<!-- PG 기승인 내역 조회 -->
+ 	<select id="selectCardAppHistCnt" resultType="int">
+		SELECT /* SaleChargeMapper.selectCardAppHistCnt */
+	           COUNT(*)
+		FROM
+			CARD_APP_HIST
+		WHERE 1 = 1
+			AND COMCD = #{comcd}
+			AND OID = #{oid}
+			AND PARTIAL_CNL_YN = 'N'
+	</select>
+
+	<!-- PG거래승인내역 -->
+	<update id="insertCardAppHist">
+		/* SaleChargeMapper.insertCardAppHist */
+		INSERT INTO CARD_APP_HIST (
+			COMCD /*운영사업자고유번호*/
+			, ORG_NO /*평생학습포털을 강좌를 운영하는 등록된 기관의 고유번호로. 시퀀스(SEQ_ORGNO) 를 사용*/
+			, APP_DATE /*거래승인일시. PG 또는 VAN사 응답전문에 기록된 승인거래일시. . YYYYMMDDHHMMSS*/
+			, APP_NO /*거래승인번호. PG 또는 VAN사에서 응답받은 승인번호 . . - 오프라인 카드승인 거래인경우 응답받은 승인번호 기록 . - 온라인 카드승인，실시간계좌이체 거래인겨우 TID 를 기록함. - LG데이콤 카드부분취소인경우 .   취소거래 원승인번호를 기록한다..   */
+			, MEM_NO /*회원번호. 결제한 회원번호를 기록함*/
+			, APP_GBN /*승인구분. 1: 카드승인. 2: 카드승인취소. 3: 현금영수증승인. 4: 현금영수증취소 */
+			, CNL_DATE /*취소일자*/
+			, PARTIAL_CNL_YN /*부분취소거래여부. . 신용승인거래시 부분취소거래인경우 Y'를 기록한다.*/
+			, CARD_NO1 /*카드번호1*/
+			, CARD_NO2 /*카드번호2*/
+			, CARD_NO3 /*카드번호3*/
+			, CARD_NO4 /*카드번호4(MASKING). * 마스킹후 저장*/
+			, P_COMCD /*결제대행사분류*/
+			, P_TYPE /*결제수단구분*/
+			, CARD_SEC /*VAN사(카드사/은행)코드. 카드승인전문정보의 카드매입사 코드를 기록한다.*/
+			, BANK_CD /*은행코드*/
+			, CARD_CD /*카드수수료. VAN 사 카드사코드를 기록한다.*/
+			, HALBU_CNT /*할부개월*/
+			, APP_AMT /*승인금액*/
+			, CASH_USER_INFO /*현금영수증 사용자정보. 현금영수증 사용자정보 :전화번호 및 주민번호를 나타냄*/
+			, CASH_APP_GBN /*현금영수증발급구분*/
+			, CASH_APP_CNL_DATE /*현금영수증취소일자*/
+			, CARD_SALE_NO /*카드사매출번호. 올앳결제서비스 인경우 거래일련번호를 생성 기록함*/
+			, STORE_NO /*카드사별가맹점번호. 카드사별 가맹계약한 가맹번호가 기록된다.*/
+			, PAY_LIST_YN /*지급내역적용여부*/
+			, FORCE_YN /*강제입력여부. 신용카드 수동입력데이터 구분을 나타낸다*/
+			, PG_VAN /*PG사VAN사 구분*/
+			, KEYIN_TYPE /*카드입력 방법*/
+			, IN_DATE /*입금예정일자*/
+			, CHECK_GBN /*체크카드구분*/
+			, CARDANDBANK_RATE_AMT /*카드및계좌수수료요금*/
+			, CARDANDBANK_RATE /*카드및계좌수수료요율. 신용카드 승인 결제 및 계좌 이체 결제시 결제수단에 따른 수수료요율을 기록한다.*/
+			, REMARK /*비고*/
+			, MID /*PG상점ID*/
+			, OID /*거래주문번호. PG거래시 전달되었던 PG 사 응답전문으로 받은 거래 주문번호를 기록한다.. . */
+			, TID /*트랜젝션ID. PG사별 주문완료 거래번호를 기록한다.*/
+			, ORDER_TERMINALID /*거래단말ID. PC별 단말ID 운영시 거래승인에 대한 단말ID를 기록한다.*/
+			, PCANCEL_NO /*부분취소요청번호. . 거래당 부분 거래취소요청된 번호순번을 . 3자리 '001' 로 번호룰 부여한다.*/
+			, UIP /*결제IP*/
+			, RESULTMSG /*결과메세지*/
+			, TERMINAL_TYPE /*등록터미널타입*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		VALUES (
+			#{comcd}
+			, #{orgNo}
+			, CASE WHEN #{appDate} IS NULL OR #{appDate} = '' THEN DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s') ELSE #{appDate} END /*테스트를 위해 NVL적용. 동일한 APPDATE+APPNO일경우 PK오류*/
+			, #{appNo}
+			, #{memNo}
+			, #{appGbn}
+			, #{cnlDate}
+			, #{partialCnlyn}
+			, #{cardNo1}
+			, #{cardNo2}
+			, #{cardNo3}
+			, '****'
+			, #{pComcd}
+			, #{pType}
+			, #{cardSec}
+			, #{bankCd}
+			, #{cardCd}
+			, #{halbuCnt}
+			, #{appAmt}
+			, #{cashUserInfo}
+			, #{cashAppGbn}
+			, #{cashAppCnldate}
+			, #{cardSaleNo}
+			, #{storeNo}
+			, #{payListYn}
+			, #{forceYn}
+			, #{pgVan}
+			, #{keyinType}
+			, #{inDate}
+			, #{checkGbn}
+			, #{appAmt}*(#{cardandbankRate}/100)
+			, #{cardandbankRate}
+			, #{remark}
+			, #{mid}
+			, #{oid}
+			, #{tid}
+			, #{orderTerminalid}
+			, #{pcancelNo}
+			, #{uip}
+			, #{resultmsg}
+			, #{terminalType}
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser}
+		);
+		
+		UPDATE PG_ORD_MST /*PG결제승인시*/ 
+			SET MODUSER = #{moduser}
+				, MODDATE = SYSDATE()
+				, OID_AMT = #{appAmt}
+				, OID_APP_NO = #{appNo}
+				<choose>
+					<when test='appGbn != null and appGbn == "1"'>
+						, OID_STAT = (CASE WHEN TRIM(#{resultmsg}) = '0000|결제성공' THEN '2001'/*거래완료*/ ELSE '4001'/*거래실패*/ END)
+					</when>
+					<otherwise>
+					</otherwise>
+				</choose>
+				, REQUEST_RESULT = CONCAT(NVL(REQUEST_RESULT, ''), (CASE WHEN REQUEST_RESULT IS NULL THEN '' ELSE '>' END), #{resultmsg})				
+		WHERE COMCD = #{comcd}
+			AND OID = #{oid}
+			AND #{appGbn} = '1';
+ 	</update>
+ 	
+ 	<update id="cancelCardAppHist">
+		/* SaleChargeMapper.cancelCardAppHist */
+		INSERT INTO CARD_APP_HIST (
+			COMCD /*운영사업자고유번호*/
+			, ORG_NO /*평생학습포털을 강좌를 운영하는 등록된 기관의 고유번호로. 시퀀스(SEQ_ORGNO) 를 사용*/
+			, APP_DATE /*거래승인일시. PG 또는 VAN사 응답전문에 기록된 승인거래일시. . YYYYMMDDHHMMSS*/
+			, APP_NO /*거래승인번호. PG 또는 VAN사에서 응답받은 승인번호 . . - 오프라인 카드승인 거래인경우 응답받은 승인번호 기록 . - 온라인 카드승인，실시간계좌이체 거래인겨우 TID 를 기록함. - LG데이콤 카드부분취소인경우 .   취소거래 원승인번호를 기록한다..   */
+			, MEM_NO /*회원번호. 결제한 회원번호를 기록함*/
+			, APP_GBN /*승인구분. 1: 카드승인. 2: 카드승인취소. 3: 현금영수증승인. 4: 현금영수증취소 */
+			, CNL_DATE /*취소일자*/
+			, PARTIAL_CNL_YN /*부분취소거래여부. . 신용승인거래시 부분취소거래인경우 Y'를 기록한다.*/
+			, CARD_NO1 /*카드번호1*/
+			, CARD_NO2 /*카드번호2*/
+			, CARD_NO3 /*카드번호3*/
+			, CARD_NO4 /*카드번호4(MASKING). * 마스킹후 저장*/
+			, P_COMCD /*결제대행사분류*/
+			, P_TYPE /*결제수단구분*/
+			, CARD_SEC /*VAN사(카드사/은행)코드. 카드승인전문정보의 카드매입사 코드를 기록한다.*/
+			, BANK_CD /*은행코드*/
+			, CARD_CD /*카드수수료. VAN 사 카드사코드를 기록한다.*/
+			, HALBU_CNT /*할부개월*/
+			, APP_AMT /*승인금액*/
+			, CASH_USER_INFO /*현금영수증 사용자정보. 현금영수증 사용자정보 :전화번호 및 주민번호를 나타냄*/
+			, CASH_APP_GBN /*현금영수증발급구분*/
+			, CASH_APP_CNL_DATE /*현금영수증취소일자*/
+			, CARD_SALE_NO /*카드사매출번호. 올앳결제서비스 인경우 거래일련번호를 생성 기록함*/
+			, STORE_NO /*카드사별가맹점번호. 카드사별 가맹계약한 가맹번호가 기록된다.*/
+			, PAY_LIST_YN /*지급내역적용여부*/
+			, FORCE_YN /*강제입력여부. 신용카드 수동입력데이터 구분을 나타낸다*/
+			, PG_VAN /*PG사VAN사 구분*/
+			, KEYIN_TYPE /*카드입력 방법*/
+			, IN_DATE /*입금예정일자*/
+			, CHECK_GBN /*체크카드구분*/
+			, CARDANDBANK_RATE_AMT /*카드및계좌수수료요금*/
+			, CARDANDBANK_RATE /*카드및계좌수수료요율. 신용카드 승인 결제 및 계좌 이체 결제시 결제수단에 따른 수수료요율을 기록한다.*/
+			, REMARK /*비고*/
+			, MID /*PG상점ID*/
+			, OID /*거래주문번호. PG거래시 전달되었던 PG 사 응답전문으로 받은 거래 주문번호를 기록한다.. . */
+			, TID /*트랜젝션ID. PG사별 주문완료 거래번호를 기록한다.*/
+			, ORDER_TERMINALID /*거래단말ID. PC별 단말ID 운영시 거래승인에 대한 단말ID를 기록한다.*/
+			, PCANCEL_NO /*부분취소요청번호. . 거래당 부분 거래취소요청된 번호순번을 . 3자리 '001' 로 번호룰 부여한다.*/
+			, UIP /*결제IP*/
+			, RESULTMSG /*결과메세지*/
+			, TERMINAL_TYPE /*등록터미널타입*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		SELECT
+			COMCD
+			, ORG_NO
+			, NVL(#{appDate}, DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s')) /*동일한 APPDATE+APPNO일경우 PK오류*/
+			, APP_NO
+			, MEM_NO
+			, #{appGbn} /*승인구분. 1: 카드승인. 2: 카드승인취소. 3: 현금영수증승인. 4: 현금영수증취소 */
+			, NVL(#{cnlDate}, DATE_FORMAT(SYSDATE(), '%Y%m%d'))  /*취소일자*/
+			, NVL(#{partialCnlyn}, 'N') /*부분취소거래여부. . 신용승인거래시 부분취소거래인경우 Y'를 기록한다.*/
+			, CARD_NO1
+			, CARD_NO2
+			, CARD_NO3
+			, CARD_NO4
+			, P_COMCD
+			, P_TYPE
+			, CARD_SEC
+			, BANK_CD
+			, CARD_CD
+			, HALBU_CNT
+			, -1 * #{appAmt}
+			, CASH_USER_INFO
+			, #{cashAppGbn}
+			, #{cashAppCnldate}
+			, CARD_SALE_NO
+			, STORE_NO
+			, PAY_LIST_YN
+			, FORCE_YN
+			, PG_VAN
+			, KEYIN_TYPE
+			, IN_DATE
+			, CHECK_GBN
+			, CARDANDBANK_RATE_AMT
+			, CARDANDBANK_RATE
+			, REMARK
+			, MID
+			, OID
+			, TID
+			, ORDER_TERMINALID
+			, #{pcancelNo} /*부분취소요청번호. . 거래당 부분 거래취소요청된 번호순번을 . 3자리 '001' 로 번호룰 부여한다.*/
+			, UIP
+			, #{resultmsg} /*결과메세지*/
+			, TERMINAL_TYPE /*등록터미널타입*/
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser}
+		FROM CARD_APP_HIST
+		WHERE 1 = 1
+			AND APP_NO = #{appNo}
+			AND TID = #{tid}
+		LIMIT 1
+		ON DUPLICATE KEY UPDATE 
+			  REGDATE = VALUES(REGDATE)
+			, REGUSER = VALUES(REGUSER)
+			, MODDATE = VALUES(MODDATE)
+			, MODUSER = VALUES(MODUSER);
+			
+		UPDATE PG_ORD_MST
+			SET OID_STAT = '3001' /*3001:거래취소*/
+				, OID_CNL_DATE = NVL(#{cnlDate}, DATE_FORMAT(SYSDATE(), '%Y%m%d'))
+				, OID_CNL_TIME = NVL(#{cnlTime}, DATE_FORMAT(SYSDATE(), '%H%i%s'))
+				, OID_CNL_RESULT = CONCAT(NVL(OID_CNL_RESULT, ''), (CASE WHEN LENGTH(NVL(OID_CNL_RESULT, '')) <![CDATA[>]]> 0 THEN '>' ELSE '' END), #{resultmsg})
+				, MODUSER = #{moduser}
+				, MODDATE = SYSDATE()
+		WHERE COMCD = #{comcd}
+			AND OID = #{oid}
+			AND #{appGbn} = '2';
+ 	</update>
+
+    <select id="selectNextOid" resultType="java.lang.String">
+    	SELECT CONCAT(DATE_FORMAT(SYSDATE(), '%Y%m%d'), LPAD(NEXTVAL(SEQ_OID), 7, '0')) FROM DUAL
+    </select>
+
+ 	<!--  주문번호 생성(No Pg) -->
+ 	<select id="selectOrderIdNoPg" parameterType="Map" resultType="int">
+		select NEXTVAL(ORDERID_NOPG_SEQ) from dual
+    </select>
+
+    <!-- PG거래승인 취소 -->
+	<update id="updateCardAppCancel" >
+		UPDATE /* SaleChargeMapper.updateCardAppCancel */
+           CARD_APP_HIST
+          SET
+			CNL_DATE = DATE_FORMAT(SYSDATE(),'%Y%m%d'),
+			APP_GBN = '2', /*2: 카드승인취소*/
+			MODDATE = SYSDATE(),
+			MODUSER = #{moduser}
+       WHERE COMCD = #{comcd}
+       		AND OID = #{oid}
+       		AND NVL(PAY_LIST_YN, 'Y') = 'Y' /*지급내역적용여부*/
+       		AND PARTIAL_CNL_YN = 'N' /*부분취소여부*/
+       		AND APP_GBN = '1' /*1: 카드승인*/
+    </update>
+
+    <update id="updatePartialNo">
+    	/* SaleChargeMapper.updatePartialNo */
+    	UPDATE PG_ORD_DET
+    		SET OID_PCANCEL_NO = #{oidPcancelNo}
+    		WHERE COMCD = #{comcd}
+    			AND OID = #{oid}
+    			AND OID_SEQ IN (
+		    		SELECT MAX(OID_SEQ)
+		    		FROM PG_ORD_DET
+		    		WHERE COMCD = #{comcd}
+		    			AND OID = #{oid}
+						AND OID_RSVN_NO IN
+		  				<foreach collection="rsvnNoList" item="item"  open="(" close=")" separator=",">#{oidRsvnNo}</foreach>
+		  				GROUP BY OID_RSVN_NO
+		  			)
+	</update>
+
+	<!-- 환불 규정 -->
+ 	<select id="selectRefundRule" resultType="cMap">
+		SELECT /* SaleChargeMapper.selectRefundRule */
+	           RFND_NOFDAY /*환불마감시간.예약이용일 24시간 기준 이전 일수를 기록함*/
+	         , RFND_RATE /*환불기준율*/
+	         , RFND_ETIME /*환불마감시간.환불기준일수가 이용일 전일인경우 마감시간을 시간분(HHMM) 으로 기록한다.*/
+		FROM
+			REFUN_STDMNG
+		WHERE
+			COMCD = #{comcd}
+			AND PART_CD = #{partCd}
+		ORDER BY
+			RFND_NOFDAY DESC
+	</select>
+
+	<update id="insertVbankPaymentInfo">
+		/* SaleChargeMapper.insertVbankPaymentInfo */
+		<selectKey keyProperty="vbankSeq" resultType="java.lang.Integer" order="BEFORE">
+			SELECT NEXTVAL(SEQ_VBANK_IDX)
+		</selectKey>
+		INSERT INTO VBANK_PAYMENT_INFO (
+			COMCD /**/
+			, VBANK_SEQ /*시퀀스(SEQ_VBANK_IDX) 순번부여*/
+			, VBANK_MEM_NO /**/
+			, VBANK_REQTYPE /**/
+			, VBANK_ACCOUNT_NO /**/
+			, VBANK_REQ_DATE /*요청일자*/
+			, VBANK_REQ_TIME /*요청일시*/
+			, VBANK_NM /**/
+			, VBANK_PNAME /**/
+			, VBANK_PTEL /**/
+			, VBANK_PEMAIL /**/
+			, VBANK_PAY_WAITDATE /*가상계좌가 소멸되는 마감일자를 기록한다.*/
+			, VBANK_PAY_WAITTIME /*가상계좌가 소멸되는 마감시간을 기록한다.*/
+			, VBANK_STATUS /*입금완료시update*/
+			, VBANK_BANKCD /**/
+			, VBANK_AMOUNT /*입금예정금액insert*/
+			, VBANK_PAYAMT /*입금액update*/
+			, VBANK_OVERAMT /*과오금액update*/
+			, VBANK_PAYMENT_DATE /*입금일자:입금완료시update*/
+			, VBANK_PAYMENT_TIME /*입금일시:입금완료시update*/
+			, VBANK_MID /*insert*/
+			, VBANK_TID /*insert*/
+			, VBANK_OID /*insert*/
+			, VBANK_ETC /**/
+			, RET_DPSTR_NM /*환불계좌주명:우리화면에서입력*/
+			, RET_BANK_CD /*환불계좌은행:null*/
+			, RET_BANK_NM /*환불계좌은행명:우리화면에서입력*/
+			, RET_ACOUNT_NUM /*환불계좌번호:우리화면에서입력*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		VALUES (
+			#{comcd}
+			, #{vbankSeq}
+			, NVL(#{vbankMemNo}, 'NONMEMB') /*not null 칼럼이라 비회원의 경우 NONMEMB으로 저장*/
+			, #{vbankReqtype}
+			, NVL(#{vbankAccountNo}, 'NA')
+			, NVL(#{vbankReqDate}, DATE_FORMAT(SYSDATE(), '%Y%m%d'))
+			, NVL(#{vbankReqTime}, DATE_FORMAT(SYSDATE(), '%H%i%s'))
+			, NVL(#{vbankName}, 'NA')
+			, NVL(#{vbankPname}, 'NA')
+			, FN_AES_ENCRYPT(#{vbankPtel}, #{dbEncKey})
+			, FN_AES_ENCRYPT(#{vbankPemail}, #{dbEncKey})
+			, #{vbankPayWaitdate}
+			, #{vbankPayWaittime}
+			, #{vbankStatus}
+			, #{vbankBankcd}
+			, #{vbankAmount}
+			, #{vbankPayamt}
+			, #{vbankOveramt}
+			, NULL /*vbankPaymentDate*/
+			, NULL /*vbankPaymentTime*/
+			, #{vbankMid}
+			, #{vbankTid}
+			, #{vbankOid}
+			, #{vbankEtc}
+			, #{retDpstrNm}
+			, #{retBankCd}
+			, #{retBankNm}
+			, FN_AES_ENCRYPT(#{retAcountNum}, #{dbEncKey})
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser}
+		)
+	</update>
+	
+	<update id="deleteVbankInfo" >
+		<selectKey keyProperty="vbankSeq" resultType="java.lang.Integer" order="BEFORE">
+			SELECT NVL((SELECT VBANK_SEQ FROM VBANK_ORDER_LIST WHERE COMCD = #{comcd} AND TR_NO = #{trNo} AND VBANK_ORDSEQ = 1), -1)
+		</selectKey>
+		DELETE FROM VBANK_ORDER_LIST WHERE COMCD = #{comcd} AND VBANK_SEQ = #{vbankSeq};
+		
+		DELETE FROM VBANK_PAYMENT_INFO WHERE COMCD = #{comcd} AND VBANK_SEQ = #{vbankSeq};
+	</update>
+	
+	<update id="updateVbankPaymentInfo" >
+		UPDATE /* SaleChargeMapper.updateVbankPaymentInfo */
+			VBANK_PAYMENT_INFO
+			SET MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+				, VBANK_ACCOUNT_NO = #{vbankAccountNo}
+				, VBANK_REQ_DATE = #{vbankReqDate}
+				, VBANK_REQ_TIME = #{vbankReqTime}
+				, VBANK_NM = #{vbankName}
+				, VBANK_BANKCD = #{vbankBankcd}
+				, VBANK_PNAME = #{vbankPname}
+				, VBANK_PTEL = FN_AES_ENCRYPT(#{vbankPtel}, #{dbEncKey})
+				, VBANK_PEMAIL = FN_AES_ENCRYPT(#{vbankPemail}, #{dbEncKey})
+				, VBANK_PAY_WAITDATE = #{vbankPayWaitdate}
+				, VBANK_PAY_WAITTIME = #{vbankPayWaittime}				
+				, VBANK_STATUS = #{vbankStatus}
+				, VBANK_MID = #{vbankMid} 
+				, VBANK_TID = #{vbankTid}
+			WHERE COMCD = #{comcd}
+				AND VBANK_OID = #{vbankOid};
+    </update>
+	
+	<update id="completeVbankPaymentInfo" >
+		UPDATE /* SaleChargeMapper.completeVbankPaymentInfo-1 */
+			VBANK_PAYMENT_INFO
+			SET MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+				<if test="vbankEtc != null and vbankEtc != ''">
+				, VBANK_ETC = CONCAT(NVL(VBANK_ETC, ''), (CASE WHEN NVL(VBANK_ETC, '') = '' THEN '' ELSE '>' END), #{vbankEtc})
+				</if>
+				<choose>
+					<when test="vbankStatus == '2001' or vbankStatus == '2002' or vbankStatus == '2003'">
+						, VBANK_STATUS = #{vbankStatus} /*2001:입금신청취소,2002:고객입금취소,2003:대기시간경과취소*/
+					</when>
+					<when test="vbankStatus == '3001' or vbankStatus == '3002'">
+						, VBANK_STATUS = (CASE WHEN VBANK_AMOUNT - #{vbankPayamt} = 0 THEN '3001' ELSE '3002' END)  /*3001:입금완료, 3002:과오납입금완료*/
+						, VBANK_PAYAMT = #{vbankPayamt}
+						, VBANK_OVERAMT = VBANK_AMOUNT - #{vbankPayamt}
+						, VBANK_PAYMENT_DATE = #{vbankPaymentDate}
+						, VBANK_PAYMENT_TIME = #{vbankPaymentTime}
+					</when>
+				</choose>
+			WHERE COMCD = #{comcd}
+				AND VBANK_SEQ = #{vbankSeq};
+				
+		UPDATE /* SaleChargeMapper.completeVbankPaymentInfo-PG_ORD_MST */
+			PG_ORD_MST
+			SET MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+				, OID_STAT = (CASE WHEN #{vbankStatus} IN ('3001', '3002') THEN '2001'/*거래완료*/ ELSE '4001'/*거래취소*/ END)
+				, REQUEST_RESULT = CONCAT(NVL(REQUEST_RESULT, ''), (CASE WHEN NVL(REQUEST_RESULT, '') = '' THEN '' ELSE '>' END), #{vbankEtc})
+			WHERE COMCD = #{comcd}
+				AND OID = #{oid};			
+    </update>
+
+	<update id="insertVbankOrderList">
+		/* SaleChargeMapper.insertVbankOrderList */
+		INSERT INTO VBANK_ORDER_LIST (
+			COMCD /**/
+			, VBANK_SEQ /**/
+			, VBANK_ORDSEQ /*가상계좌신청정보별 MAX(순번) 을 기록한다.*/
+			, VBANK_REQTYPE /**/
+			, TR_NO /*가상계좌입금에 대한 교육예약신청 고유번호를 기록한다. edcRsvnNo*/
+			, COST_AMT /**/
+			, DC_AMT /**/
+			, TOTAL_AMT /**/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		SELECT
+			#{comcd}
+			, #{vbankSeq}
+			, (SELECT NVL(MAX(VBANK_ORDSEQ), 0) + 1 FROM VBANK_ORDER_LIST WHERE COMCD = #{comcd} AND VBANK_SEQ = #{vbankSeq})
+			, #{vbankReqtype}
+			, #{trNo}
+			, #{costAmt}
+			, #{dcAmt}
+			, #{totalAmt}
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser};
+			
+		UPDATE EDC_RSVN_INFO 
+			SET EDC_PAYWAIT_ENDDATETIME = DATE_ADD( NVL((SELECT MIN(PAYWAIT_DATETIME) FROM RSVN_PAYWAITTIME_LOG WHERE COMCD = #{comcd} AND RSVN_NO = EDC_RSVN_NO),EDC_PAYWAIT_ENDDATETIME), INTERVAL 10 MINUTE)
+			WHERE COMCD = #{comcd}
+				AND EDC_RSVN_REQID = #{trNo};
+		
+		INSERT RSVN_PAYWAITTIME_LOG (
+			LOG_SEQ
+			, COMCD
+			, PART_GBN
+			, RSVN_NO
+			, PAYWAIT_DATETIME
+			, REGDATE
+		)
+		SELECT 
+			NEXTVAL(SEQ_PAYWAITITME_LOG)
+			, COMCD
+			, '2001' AS PART_GBN
+			, EDC_RSVN_NO
+			, EDC_PAYWAIT_ENDDATETIME
+			, SYSDATE()
+		FROM EDC_RSVN_INFO
+		WHERE COMCD = #{comcd}
+			AND EDC_RSVN_REQID = #{trNo};
+	</update>
+
+	<select id="selectPaySummary" resultType="com.hisco.intrfc.sale.vo.PaySummaryVO">
+		/* SaleChargeMapper.selectPaySummary */
+		SELECT C.RECEIPT_NO
+			, D.P_COMCD AS PAY_COMCD
+			, CASE WHEN D.P_COMCD = 'TOSS' THEN '온라인결제' ELSE '오프라인결제' END AS ONOFF_PAY_GBN_NM 
+			, D.P_TYPE AS PAY_METHOD
+			, (SELECT CD_NM FROM COT_GRPCD WHERE COMCD = D.COMCD AND GRP_CD = 'SM_PAYMENT_TYPE' AND CD = D.P_TYPE) AS PAY_METHOD_NM
+			, D.METHOD_CD AS FINANCE_CD /*은행코드,카드사코드*/
+			, E.METHOD_NM AS FINANCE_NM /*은행명,카드사명*/
+			, D.APP_NO /*승인번호*/
+			, D.PAY_DATE
+			, D.PAY_TIME
+			, D.OID
+			, D.PAY_AMT
+			, NVL((SELECT SUM(PAY_AMT) FROM PAY_LIST WHERE COMCD = A.COMCD AND (SELNG_ID = A.SELNG_ID OR PARENT_SELNG_ID = A.SELNG_ID)), 0) TOT_PAY_AMT
+			, NVL(B.DPSTR_NM, V1.RET_DPSTR_NM) AS RET_DPSTR_NM
+			, NVL(B.BANK_CD, V1.RET_BANK_CD) AS RET_BANK_CD
+			, NVL(B.BANK_NM, V1.RET_BANK_NM) AS RET_BANK_NM
+			, FN_AES_DECRYPT(NVL(B.ACOUNT_NUM, V1.RET_ACOUNT_NUM), #{dbEncKey}) AS RET_BANK_ACOUNT_NUM
+			, NVL((SELECT SUM(PAY_AMT) FROM PAY_LIST WHERE COMCD = A.COMCD AND (SELNG_ID = A.SELNG_ID OR PARENT_SELNG_ID = A.SELNG_ID) AND SLIP_TYPE IN ('2', '3')), 0) CANCEL_AMT
+			, (SELECT CONCAT(PAY_DATE, PAY_TIME) FROM PAY_LIST WHERE COMCD = A.COMCD AND (SELNG_ID = A.SELNG_ID OR PARENT_SELNG_ID = A.SELNG_ID) AND SLIP_TYPE IN ('2', '3') ORDER BY PAY_DATE DESC, PAY_TIME DESC LIMIT 1) CANCEL_DTIME
+			, NVL((SELECT SUM(DISCOUNT_AMT) FROM SALESDISCOUNTS WHERE COMCD = A.COMCD AND DISCOUNT_AMT <![CDATA[<]]> 0 AND SALE_SEQ IN (SELECT SELNG_ID FROM SELNG_INFO WHERE COMCD = A.COMCD AND (SELNG_ID = A.SELNG_ID OR PARENT_SELNG_ID = A.SELNG_ID))), 0) CANCEL_DC_AMT
+			, S.DISCOUNT_RATE
+			, S.DISCOUNT_AMT
+			, S.DISCOUNT_CD
+			, CASE 
+				WHEN S.DISCOUNT_CD = 'NWPY' THEN '노원PAY ' 
+				ELSE (SELECT CD_NM FROM COT_GRPCD WHERE COMCD = A.COMCD AND GRP_CD = 'CM_REASON_DC' AND CD = S.DISCOUNT_CD)
+			  END AS DISCOUNT_NM
+			, V1.VBANK_ACCOUNT_NO
+			, V1.VBANK_NM
+			, V1.RET_DPSTR_NM
+			, V1.RET_BANK_NM
+			, FN_AES_DECRYPT(V1.RET_ACOUNT_NUM, #{dbEncKey}) AS RET_ACOUNT_NUM 
+			, CONCAT(H.CARD_NO1, '-', H.CARD_NO2, '-', H.CARD_NO3, '-', H.CARD_NO4) AS CARD_NO
+			, NVL(H.TID,  V1.VBANK_TID) AS TID
+		FROM EDC_RSVN_COMPT_INFO A
+			INNER JOIN SELNG_INFO B ON B.COMCD = A.COMCD AND B.SELNG_ID = A.SELNG_ID AND B.SLIP_TYPE = '1'
+			INNER JOIN RECEPIT_INFO C ON C.COMCD = B.COMCD AND C.RECEIPT_NO = B.RECEIPT_NO
+			LEFT OUTER JOIN PAY_LIST D ON D.COMCD = A.COMCD AND D.SELNG_ID = A.SELNG_ID AND D.SLIP_TYPE = '1'
+			LEFT OUTER JOIN PAY_METHOD E ON E.P_COMCD = D.P_COMCD AND E.P_TYPE = D.P_TYPE AND E.METHOD_CD = D.METHOD_CD
+			LEFT OUTER JOIN SALESDISCOUNTS S ON S.COMCD = B.COMCD AND S.SALE_SEQ = B.SELNG_ID AND S.SEQ = 1
+			LEFT OUTER JOIN VBANK_PAYMENT_INFO V1 ON V1.COMCD = D.COMCD AND V1.VBANK_OID = D.OID
+			LEFT OUTER JOIN CARD_APP_HIST H ON H.COMCD = D.COMCD AND H.OID = D.OID AND H.APP_GBN = '1' AND D.APP_NO = H.APP_NO
+		WHERE 1 = 1
+			AND A.COMCD = #{comcd}
+			AND A.EDC_RSVN_REQID = #{edcRsvnReqid}
+	</select>
+	
+	<select id="selectCancelHistory" resultType="com.hisco.intrfc.sale.vo.PaySummaryVO">
+		/* SaleChargeMapper.selectCancelHistory */
+		SELECT B.SELNG_ID
+			, D.P_COMCD AS PAY_COMCD
+			, D.P_TYPE AS PAY_METHOD
+			, (SELECT CD_NM FROM COT_GRPCD WHERE COMCD = D.COMCD AND GRP_CD = 'SM_PAYMENT_TYPE' AND CD = D.P_TYPE) AS PAY_METHOD_NM
+			, D.METHOD_CD AS FINANCE_CD /*은행코드,카드사코드*/
+			, E.METHOD_NM AS FINANCE_NM /*은행명,카드사명*/
+			, D.APP_NO /*승인번호*/
+			, D.PAY_DATE
+			, D.PAY_TIME
+			, D.OID
+			, D.PAY_AMT
+			, S.DISCOUNT_AMT
+			, S.DISCOUNT_CD
+			, (SELECT CD_NM FROM COT_GRPCD WHERE COMCD = A.COMCD AND GRP_CD = 'CM_REASON_DC' AND CD = S.DISCOUNT_CD) AS DISCOUNT_NM
+		FROM EDC_RSVN_COMPT_INFO A
+			INNER JOIN SELNG_INFO B ON B.COMCD = A.COMCD AND B.PARENT_SELNG_ID = A.SELNG_ID AND B.SLIP_TYPE IN ('2', '3') AND B.SLIP_STATE = '10'
+			LEFT OUTER JOIN PAY_LIST D ON D.COMCD = A.COMCD AND D.SELNG_ID = B.SELNG_ID
+			LEFT OUTER JOIN PAY_METHOD E ON E.P_COMCD = D.P_COMCD AND E.P_TYPE = D.P_TYPE AND E.METHOD_CD = D.METHOD_CD
+			LEFT OUTER JOIN SALESDISCOUNTS S ON S.COMCD = B.COMCD AND S.SALE_SEQ = B.SELNG_ID
+		WHERE 1 = 1
+			AND A.COMCD = #{comcd}
+			AND A.EDC_RSVN_REQID = #{edcRsvnReqid}
+		ORDER BY D.PAY_DATE, D.PAY_TIME
+	</select>
+</mapper>

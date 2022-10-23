@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2020.8.25   	진수진     	 	강연/행사/영화 기본 정보
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="MyCouponDAO">
+
+	<select id="selectMemberCoupon" resultType="com.hisco.user.member.service.MemberCouponVO">
+		SELECT * 
+			FROM
+		(SELECT 		rownum RN, 
+					 CPN.* 
+		FROM
+		(SELECT 	A.CPN_ID,
+					A.CPN_TYPE,
+					A.CPN_STDT,
+					A.CPN_NAME,
+					A.CPN_STTIME,
+					A.CPN_EDDT,
+					A.CPN_EDTIME,
+					(A.CPN_EDDT || A.CPN_EDTIME) AS ENDTIME,
+					A.CPN_DCRATE,
+					A.CPN_GUIDE,
+					A.CPN_EXPSR_SUMRY,
+					A.CPN_TARGET_GBN,					
+					B.CPN_UID,
+					B.CPN_PYMNTMEMNO,
+					B.CPN_PYMNTDATE ,
+					B.CPN_USEYN,
+					B.REGDATE,
+					B.OPENYN 					
+		FROM CPN_ISUMANGE A INNER JOIN CPN_PYMNT_INFO B 
+			ON A.COMCD = B.COMCD AND A.CPN_ID = B.CPN_ID 
+		WHERE B.CPN_PYMNTMEMNO = #{cpnPymntmemno}
+		<choose>
+		 <when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(searchKey,'eddt')">
+                 ORDER BY ENDTIME DESC
+              </when>
+			  <when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(searchKey, 'rcnt')">
+	              ORDER BY B.REGDATE DESC
+	           </when>
+	            <when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(searchKey,'dscnt')">
+	              ORDER BY A.CPN_DCRATE DESC
+	           </when>
+           </choose>
+		) CPN  
+		 WHERE 1=1
+		 <choose>
+		 	  <when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(searchKey,'avail')">
+	               AND CPN.CPN_USEYN = 'N'
+	               AND CPN.ENDTIME <![CDATA[>]]> TO_CHAR(SYSDATE,'YYYYMMDDHHMM')
+	          </when>
+           </choose>  
+		) A
+		WHERE A.RN BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+         ORDER BY A.RN ASC          
+	</select>
+
+	<select id="countMemberCoupon" resultType="int">
+			SELECT COUNT(*) 
+			FROM
+			(SELECT 	
+						A.CPN_ID,
+						A.CPN_TYPE,
+						A.CPN_STDT,
+						A.CPN_NAME,
+						A.CPN_STTIME,
+						A.CPN_EDDT,
+						A.CPN_EDTIME,
+						(A.CPN_EDDT || A.CPN_EDTIME) AS ENDTIME,
+						A.CPN_DCRATE,
+						A.CPN_GUIDE,
+						A.CPN_EXPSR_SUMRY,
+						A.CPN_TARGET_GBN,					
+						B.CPN_UID,
+						B.CPN_PYMNTMEMNO,
+						B.CPN_PYMNTDATE ,
+						B.CPN_USEYN,
+						B.REGDATE,
+						B.OPENYN 							
+			FROM CPN_ISUMANGE A INNER JOIN CPN_PYMNT_INFO B 
+				ON A.COMCD = B.COMCD AND A.CPN_ID = B.CPN_ID 
+			WHERE B.CPN_PYMNTMEMNO = #{cpnPymntmemno}
+			) CPN
+			WHERE 1=1
+			 <choose>
+		 	  <when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(searchKey,'avail')">
+	               AND CPN.CPN_USEYN = 'N'
+	               AND CPN.ENDTIME <![CDATA[>]]> TO_CHAR(SYSDATE,'YYYYMMDDHHMM')
+	          </when>
+           </choose>
+		</select>
+	
+	<select id="selectMyCouponDtl" resultType="com.hisco.user.member.service.MemberCouponVO">
+		SELECT 		A.CPN_ID,
+					A.CPN_TYPE,
+					A.CPN_STDT,
+					A.CPN_NAME,
+					A.CPN_STTIME,
+					A.CPN_EDDT,
+					A.CPN_EDTIME,
+					(CASE WHEN (A.CPN_EDDT || A.CPN_EDTIME)<![CDATA[>]]> TO_CHAR(SYSDATE, 'YYYYMMDDHHMM') THEN 'U' ELSE 'E' END ) AS ENDTIME,
+					A.CPN_DCRATE,
+					A.CPN_EXPSR_SUMRY,
+					A.CPN_TARGET_GBN,
+					B.CPN_UID,
+					B.CPN_PYMNTMEMNO,
+					B.CPN_PYMNTDATE ,
+					B.CPN_USEYN,
+					B.CPN_PYMNT_MESG,
+					B.OPENYN,
+					B.MODDATE,
+					B.MODUSER				
+		FROM CPN_ISUMANGE A INNER JOIN CPN_PYMNT_INFO B 
+			ON A.COMCD = B.COMCD AND A.CPN_ID = B.CPN_ID 
+		WHERE B.CPN_PYMNTMEMNO = #{cpnPymntmemno}
+		AND A.CPN_ID = #{cpnId}
+		AND B.CPN_UID LIKE '%' || #{cpnUid} || '%'
+	</select>
+	
+	<select id="selectMyCouponMobileDtl" resultType="com.hisco.user.member.service.MemberCouponVO">
+		SELECT 		A.CPN_ID,
+					A.CPN_TYPE,
+					A.CPN_STDT,
+					A.CPN_NAME,
+					A.CPN_STTIME,
+					A.CPN_EDDT,
+					A.CPN_EDTIME,
+					(CASE WHEN (A.CPN_EDDT || A.CPN_EDTIME)<![CDATA[>]]> TO_CHAR(SYSDATE, 'YYYYMMDDHHMM') THEN 'U' ELSE 'E' END ) AS ENDTIME,
+					A.CPN_DCRATE,
+					A.CPN_EXPSR_SUMRY,
+					A.CPN_TARGET_GBN,
+					B.CPN_UID,
+					B.CPN_PYMNTMEMNO,
+					B.CPN_PYMNTDATE ,
+					B.CPN_USEYN,
+					B.CPN_PYMNT_MESG,
+					B.OPENYN,
+					B.MODDATE,
+					B.MODUSER				
+		FROM CPN_ISUMANGE A INNER JOIN CPN_PYMNT_INFO B 
+			ON A.COMCD = B.COMCD AND A.CPN_ID = B.CPN_ID 
+		WHERE B.CPN_UID = #{cpnUid}  
+	</select>
+		
+</mapper>

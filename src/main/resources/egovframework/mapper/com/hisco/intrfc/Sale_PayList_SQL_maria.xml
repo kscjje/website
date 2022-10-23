@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 
+통합매출정보
+작성자: 박우진
+ -->
+ 
+<mapper namespace="com.hisco.intrfc.sale.mapper.PayListMapper">
+
+	<update id="insertPayList">
+		<if test="pComcd != null and pComcd != ''">
+		/* com.hisco.intrfc.sale.mapper.PayListMapper.mergePayMethod */
+		INSERT INTO PAY_METHOD (
+			P_COMCD
+			, P_TYPE
+			, METHOD_CD
+			, METHOD_NM
+			, COMPANY_GUBUN
+			, PG_VAN
+			, USE_YN
+			, REGDATE
+			, REGUSER
+			, MODDATE
+			, MODUSER
+		) VALUES (
+			#{pComcd}
+			, #{pType}
+			, #{methodCd}
+			, #{methodNm}
+			, #{financeBrandCd}
+			, 'PG'
+			, 'Y'
+			, SYSDATE()
+			, 'program'
+			, SYSDATE()
+			, 'program'
+		)
+		ON DUPLICATE KEY
+		UPDATE COMPANY_GUBUN = NVL(#{financeBrandCd}, COMPANY_GUBUN)
+			, MODDATE = SYSDATE()
+			, MODUSER = 'program';
+		</if>
+	
+		/* com.hisco.intrfc.sale.mapper.PayListMapper.insertPayList */
+		INSERT INTO PAY_LIST (
+			COMCD /*운영사업자고유번호*/
+			, SELNG_ID /*매출고유번호.SELING_INFO.SELNG_ID*/
+			, PAY_SEQ /*납부순번*/
+			, SLIP_TYPE /*전표구분. 1: 정상 2: 환불 3: 취소*/
+			, RECEIPT_NO /*영수증번호*/
+			, PAY_DATE /*결제일자*/
+			, PAY_TIME /*결제시간*/
+			, PAY_AMT /*결제금액*/
+			, APP_DATE /*거래승인일시*/
+			, APP_NO /*거래승인번호*/
+			, CASHIER /*수납자*/
+			, IN_DATE /*입금예정일자*/
+			, P_COMCD /*결제대행사분류*/
+			, P_TYPE /*결제수단구분*/
+			, METHOD_CD /*결제수단코드 . 결제구분별 지불수단코드를 기록. 현금결제수단은 'CH'  현금영수증은 'CV， 무통장계좌입금 'CA'. */
+			, CHECK_GBN /*체크카드구분. */
+			, OID /*거래주문번호*/
+			, CANCEL_YN /*취소여부*/
+			, TERMINAL_TYPE /*등록터미널타입*/
+			, REMARK /*비고*/
+			, SLIP_STATE /*전표상태*/
+			, ORG_PAY_DATE /*환불취소원거래일자. 환불취소전표인경우 원전표의 거래일자를 기록한다.*/
+			, PARENT_COMCD /*상위결제내역기관고유번호*/
+			, PARENT_SELNG_ID /*상위결제내역매출고유번호*/
+			, PARENT_PAY_SEQ /*상위결제내역납부순*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		SELECT
+			#{comcd}
+			, #{selngId}
+			, (SELECT NVL(MAX(PAY_SEQ), 0) + 1 FROM PAY_LIST WHERE COMCD = #{comcd} AND SELNG_ID = #{selngId})
+			, #{slipType}
+			, #{receiptNo}
+			, NVL(#{payDate}, DATE_FORMAT(SYSDATE(), '%Y%m%d')) PAY_DATE
+			, NVL(#{payTime}, DATE_FORMAT(SYSDATE(), '%H%i%s')) PAY_TIME
+			, #{payAmt}
+			, CASE 
+				WHEN #{appNo} IS NULL THEN NULL
+				WHEN #{payAmt} = 0 THEN NULL
+				WHEN #{oid} IS NULL THEN NULL
+				ELSE NVL(#{appDate}, DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s'))
+			  END AS APP_DATE
+			, #{appNo}
+			, CASE WHEN #{pComcd} IS NULL THEN #{moduser} ELSE NULL END /*cashier*/
+			, NULL /*inDate*/
+			, #{pComcd}
+			, #{pType}
+			, #{methodCd}
+			, #{checkGbn}
+			, #{oid}
+			, #{cancelYn}
+			, #{terminalType}
+			, #{remark}
+			, #{slipState}
+			, #{orgPayDate}
+			, NULL AS PARENT_COMCD
+			, NULL AS PARENT_SELNG_ID
+			, NULL AS PARENT_PAY_SEQ
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser};
+	</update>
+	
+	<update id="cancelPayList">
+		/* com.hisco.intrfc.sale.mapper.PayListMapper.cancelPayList */
+		INSERT INTO PAY_LIST (
+			COMCD /*운영사업자고유번호*/
+			, SELNG_ID /*매출고유번호.SELING_INFO.SELNG_ID*/
+			, PAY_SEQ /*납부순번*/
+			, SLIP_TYPE /*전표구분. 1: 정상 2: 환불 3: 취소*/
+			, RECEIPT_NO /*영수증번호*/
+			, PAY_DATE /*결제일자*/
+			, PAY_TIME /*결제시간*/
+			, PAY_AMT /*결제금액*/
+			, APP_DATE /*거래승인일시*/
+			, APP_NO /*거래승인번호*/
+			, CASHIER /*수납자*/
+			, IN_DATE /*입금예정일자*/
+			, P_COMCD /*결제대행사분류*/
+			, P_TYPE /*결제수단구분*/
+			, METHOD_CD /*결제수단코드 . 결제구분별 지불수단코드를 기록. 현금결제수단은 'CH'  현금영수증은 'CV， 무통장계좌입금 'CA'. */
+			, CHECK_GBN /*체크카드구분. */
+			, OID /*거래주문번호*/
+			, CANCEL_YN /*취소여부*/
+			, TERMINAL_TYPE /*등록터미널타입*/
+			, REMARK /*비고*/
+			, SLIP_STATE /*전표상태*/
+			, ORG_PAY_DATE /*환불취소원거래일자. 환불취소전표인경우 원전표의 거래일자를 기록한다.*/
+			, PARENT_COMCD /*상위결제내역기관고유번호*/
+			, PARENT_SELNG_ID /*상위결제내역매출고유번호*/
+			, PARENT_PAY_SEQ /*상위결제내역납부순*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		SELECT
+			COMCD
+			, #{selngId}
+			, (SELECT NVL(MAX(PAY_SEQ), 0) + 1 FROM PAY_LIST WHERE COMCD = #{comcd} AND SELNG_ID = #{selngId}) AS PAY_SEQ
+			, #{slipType}
+			, RECEIPT_NO
+			, NVL(#{payDate}, DATE_FORMAT(SYSDATE(), '%Y%m%d'))
+			, NVL(#{payTime}, DATE_FORMAT(SYSDATE(), '%H%i%s'))
+			<choose>
+				<when test='slipType != null and slipType == "3"'>
+			, -1*PAY_AMT AS PAY_AMT /*취소매출금액*/
+				</when>
+				<otherwise> 
+			, -1*#{payAmt} AS PAY_AMT /*환불매출금액*/
+				</otherwise>
+			</choose>
+			, CASE 
+				WHEN PAY_AMT = 0 THEN NULL
+				WHEN OID IS NULL THEN NULL
+				ELSE NVL(#{appDate}, DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s'))
+			  END AS APP_DATE
+			, NVL(#{appNo}, APP_NO) AS APP_NO
+			, CASE 
+				WHEN REGUSER = #{moduser} THEN NULL 
+				ELSE #{moduser}
+			  END /*cashier*/
+			, IN_DATE
+			, NVL(#{pComcd}, P_COMCD) AS P_COMCD
+			, NVL(#{pType}, P_TYPE) AS P_TYPE
+			, NVL(#{methodCd}, METHOD_CD) AS METHOD_CD
+			, CHECK_GBN
+			, OID
+			, 'Y' CANCEL_YN
+			, NVL(#{terminalType}, TERMINAL_TYPE)
+			, #{remark}
+			, #{slipState}
+			, PAY_DATE
+			, COMCD AS PARENT_COMCD
+			, SELNG_ID AS PARENT_SELNG_ID
+			, PAY_SEQ AS PARENT_PAY_SEQ
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser}
+		FROM PAY_LIST A
+		WHERE COMCD = #{comcd}
+			AND SELNG_ID = #{orgSelngId}
+			AND PAY_SEQ = #{orgPaySeq};
+		
+		UPDATE PAY_LIST
+			SET CANCEL_YN = 'Y'
+				, SLIP_STATE = CONCAT(#{slipType}, '0')
+		WHERE COMCD = #{comcd}
+			AND SELNG_ID = #{orgSelngId}
+			AND PAY_SEQ = #{orgPaySeq}; 
+	</update>
+
+	<select id="selectPayList" resultType="com.hisco.intrfc.sale.vo.PayListVO" >
+		/* com.hisco.intrfc.sale.mapper.PayListMapper.selectPayList */
+		SELECT A.*
+			FROM PAY_LIST A
+			WHERE A.COMCD = #{comcd}
+				AND A.SELNG_ID = #{selngId}
+				AND A.PAY_SEQ = #{paySeq}
+	</select>
+
+ 	<select id="selectPayListList" resultType="com.hisco.intrfc.sale.vo.PayListVO" >
+		/* com.hisco.intrfc.sale.mapper.PayListMapper.selectPayListList */
+		SELECT A.*
+			FROM PAY_LIST A
+			WHERE A.COMCD = #{comcd}
+				AND A.SELNG_ID = #{selngId}
+			ORDER BY A.SELNG_ID, A.PAY_SEQ
+	</select>
+
+	<select id="selectPayMethodList" resultType="com.hisco.intrfc.sale.vo.PayMethodVO" >
+		/* com.hisco.intrfc.sale.mapper.PayListMapper.selectPayMethodList */
+		SELECT P_COMCD, P_TYPE, METHOD_CD, METHOD_NM FROM PAY_METHOD
+			WHERE P_COMCD = #{pComcd}
+				AND P_TYPE = #{pType}
+				<if test="pComcd == 'TOSS'">
+				AND LENGTH(METHOD_CD) = 3
+				</if>
+				AND USE_YN = 'Y'
+		ORDER BY METHOD_CD
+	</select>
+
+</mapper>

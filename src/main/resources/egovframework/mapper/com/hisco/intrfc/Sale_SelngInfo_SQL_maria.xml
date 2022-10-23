@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 
+통합매출정보
+작성자: 박우진
+ -->
+ 
+<mapper namespace="com.hisco.intrfc.sale.mapper.SelngInfoMapper">
+
+	<update id="insertSelngInfo">
+		<selectKey keyProperty="selngId" resultType="java.lang.Integer" order="BEFORE">
+			SELECT NEXTVAL(SEQ_SELNGID) 
+		</selectKey>
+		/* com.hisco.intrfc.sale.mapper.SelngInfoMapper.insertSelngInfo */
+		INSERT INTO SELNG_INFO (
+			COMCD /*운영사업자고유번호*/
+			, SELNG_ID /*매출고유번호*/
+			, MEM_NO /*회원번호. 비회원인경우 NULL 기록*/
+			, RERGIST_GBN /*등록구분*/
+			, REGIST_PART_CD /*매출등록사업장고유번호*/
+			, ORG_NO /*매출기준이용기관고유번호. 매출수입을 정산하는 이용기관고유번호로 매출상품의 등록운영 이용기관을 지정함*/
+			, SELNG_PART_CD /*매출기준사업장. (매출수입을 정산기준이 되는 사업장 고유번호를 기록함 매출품목 등록운영되는 사업장 고유번호를 기록함). 매출사업장이 없는 경우는 NULL 기록한다.*/
+			, ITEM_CTGD /*품목분류*/
+			, ITEM_NO /*품목고유번호*/
+			, SELNG_DATE /*매출일자.NO.10*/
+			, SELNG_TIME /*매출시간*/
+			, SLIP_TYPE /*전표구분*/
+			, SLIP_KIND /*확장성*/
+			, USE_MONTHCNT /*품목이용개월수*/
+			, USE_ITEM_SDATE /*품목이용시작일*/
+			, USE_ITEM_EDATE /*품목이용종료일*/
+			, COST_AMT /*원가*/
+			, UNIT_AMT /*단가*/
+			, SALNUM /*판매수량*/
+			, DC_AMT /*할인총액.NO.20*/
+			, SALAMT /*매출금액*/
+			, SALAMT_UPDN_UNIT /*매출금액절상절사적용금액단위*/
+			, SALAMT_UPDN_GBN /*매출금액절상절사적용구분*/
+			, VAT_YN /*과세여부. Y: 과세. N: 비과세*/
+			, VAT_AMT /*부가세*/
+			, SETLE_MEM_NO /*결제회원번호*/
+			, MID_RETURN_YN /*중도환불여부:환불되었을때 상위로우 업데이트*/
+			, RETURN_YN /*환불여부. Y:환불. N:정상매출*/
+			, ORG_SELNG_DATE /*환불취소 전표발생시 원거래전표의 거래일자를 기록한다.*/
+			, DEL_YN /*거래삭제여부.NO.30*/
+			, RECESS_YN /*기간연장여부*/
+			, REMARK /*비고*/
+			, TERMINAL_TYPE /*등록터미널타입*/
+			, OID /*거래주문번호를 기록한다.. */
+			, RECEIPT_NO /*영수증번*/
+			, SLIP_STATE /*전표상태*/
+			, PARENT_COMCD /*상위전표기관고유번호. 매출거래내역의 환불 마이너스 매출 발생시 원거래의 PK 기록*/
+			, PARENT_SELNG_ID /*상위전표정산번호. 매출거래내역의 환불 마이너스 매출 발생시 원거래의 PK 기록*/
+			, DPSTR_NM /*어드민,프로트에서 환불계좌 받는 경우 입력. 계좌주이름*/
+			, BANK_CD /*어드민,프로트에서 환불계좌 받는 경우 입력. 은행코드.NO.40*/
+			, BANK_NM /*어드민,프로트에서 환불계좌 받는 경우 입력. 은행이름*/
+			, ACOUNT_NUM /*어드민,프로트에서 환불계좌 받는 경우 입력. 계좌번호*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		VALUES (
+			#{comcd}
+			, #{selngId}
+			, #{memNo}
+			, #{registGbn}
+			, NULL /*registPartcd*/
+			, #{orgNo}
+			, NULL /*selngPartCd*/
+			, NULL /*itemCtgd*/
+			, #{itemCd}			
+			, NVL(#{selngDate}, DATE_FORMAT(SYSDATE(), '%Y%m%d')) /*취소일자.NO.10*/
+			, NVL(#{selngTime}, DATE_FORMAT(SYSDATE(), '%H%i%s')) /*매출시간*/
+			, #{slipType} /*SM_SLIP_TYPE*/
+			, NULL /*slipKind*/ /*확장성*/
+			, #{useMonthcnt} /*기본값1로*/
+			, #{useItemSdate}
+			, #{useItemEdate}
+			, #{costAmt}
+			, #{unitAmt}
+			, #{salnum}
+			, #{dcAmt} /*NO.20*/
+			, #{salamt}
+			, NULL /*salamtUpdnUnit*/
+			, NULL /*salamtUpdnGbn*/
+			, #{vatYn}
+			, 0 /*vatAmt*/
+			, #{setleMemno}
+			, #{midReturnyn}
+			, #{returnYn}
+			, #{orgSelngDate} 
+			, CASE WHEN #{slipState} = '10' THEN NULL ELSE #{delYn} END /*NO.30*/
+			, NULL /*recessYn*/
+			, #{remark}
+			, #{terminalType}
+			, #{oid}
+			, #{receiptNo}
+			, #{slipState}
+			, CASE WHEN #{slipState} = '10' THEN NULL ELSE #{parentcomcd} END
+			, CASE WHEN #{slipState} = '10' THEN NULL ELSE #{parentselngid} END 
+			, #{dpstrNm} /*어드민,프로트에서 환불계좌 받는 경우 입력. 계좌주이름*/
+			, #{bankCd} /*어드민,프로트에서 환불계좌 받는 경우 입력. 은행코드.NO.40*/
+			, #{bankNm} /*어드민,프로트에서 환불계좌 받는 경우 입력. 은행이름*/
+			, FN_AES_ENCRYPT(#{acountNum}, #{dbEncKey})/*어드민,프로트에서 환불계좌 받는 경우 입력. 계좌번호*/
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser}
+		)
+	</update>
+	
+	<select id="selectNextSelngId" resultType="java.lang.Integer">
+		SELECT NEXTVAL(SEQ_SELNGID)
+	</select>	
+	
+	<update id="cancelSelngInfo">
+		<selectKey keyProperty="selngId" resultType="java.lang.Integer" order="BEFORE">
+			SELECT NEXTVAL(SEQ_SELNGID) 
+		</selectKey>	
+		/* com.hisco.intrfc.sale.mapper.SelngInfoMapper.cancelSelngInfo.INSERT */
+		INSERT INTO SELNG_INFO (
+			COMCD /*운영사업자고유번호*/
+			, SELNG_ID /*매출고유번호*/
+			, MEM_NO /*회원번호. 비회원인경우 NULL 기록*/
+			, RERGIST_GBN /*등록구분*/
+			, REGIST_PART_CD /*매출등록사업장고유번호*/
+			, ORG_NO /*매출기준이용기관고유번호. 매출수입을 정산하는 이용기관고유번호로 매출상품의 등록운영 이용기관을 지정함*/
+			, SELNG_PART_CD /*매출기준사업장. (매출수입을 정산기준이 되는 사업장 고유번호를 기록함 매출품목 등록운영되는 사업장 고유번호를 기록함). 매출사업장이 없는 경우는 NULL 기록한다.*/
+			, ITEM_CTGD /*품목분류*/
+			, ITEM_NO /*품목고유번호*/
+			, SELNG_DATE /*매출일자.NO.10*/
+			, SELNG_TIME /*매출시간*/
+			, SLIP_TYPE /*전표구분*/
+			, SLIP_KIND /*확장성*/
+			, USE_MONTHCNT /*품목이용개월수*/
+			, USE_ITEM_SDATE /*품목이용시작일*/
+			, USE_ITEM_EDATE /*품목이용종료일*/
+			, COST_AMT /*원가*/
+			, UNIT_AMT /*단가*/
+			, SALNUM /*판매수량*/
+			, DC_AMT /*할인총액.NO.20*/
+			, SALAMT /*매출금액*/
+			, SALAMT_UPDN_UNIT /*매출금액절상절사적용금액단위*/
+			, SALAMT_UPDN_GBN /*매출금액절상절사적용구분*/
+			, VAT_YN /*과세여부. Y: 과세. N: 비과세*/
+			, VAT_AMT /*부가세*/
+			, SETLE_MEM_NO /*결제회원번호*/
+			, MID_RETURN_YN /*중도환불여부:환불되었을때 상위로우 업데이트*/
+			, RETURN_YN /*환불여부. Y:환불. N:정상매출*/
+			, ORG_SELNG_DATE /*환불취소 전표발생시 원거래전표의 거래일자를 기록한다.*/
+			, DEL_YN /*거래삭제여부.NO.30*/
+			, RECESS_YN /*기간연장여부*/
+			, REMARK /*비고*/
+			, TERMINAL_TYPE /*등록터미널타입*/
+			, OID /*거래주문번호를 기록한다.. */
+			, RECEIPT_NO /*영수증번*/
+			, SLIP_STATE /*전표상태*/
+			, PARENT_COMCD /*상위전표기관고유번호. 매출거래내역의 환불 마이너스 매출 발생시 원거래의 PK 기록*/
+			, PARENT_SELNG_ID /*상위전표정산번호. 매출거래내역의 환불 마이너스 매출 발생시 원거래의 PK 기록*/
+			, DPSTR_NM /*어드민,프로트에서 환불계좌 받는 경우 입력. 계좌주이름*/
+			, BANK_CD /*어드민,프로트에서 환불계좌 받는 경우 입력. 은행코드.NO.40*/
+			, BANK_NM /*어드민,프로트에서 환불계좌 받는 경우 입력. 은행이름*/
+			, ACOUNT_NUM /*어드민,프로트에서 환불계좌 받는 경우 입력. 계좌번호*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		SELECT
+			COMCD /*운영사업자고유번호*/
+			, #{selngId} /*취소매출고유번호*/
+			, MEM_NO /*회원번호. 비회원인경우 NULL 기록*/
+			, RERGIST_GBN /*등록구분*/
+			, REGIST_PART_CD /*매출등록사업장고유번호*/
+			, ORG_NO /*매출기준이용기관고유번호. 매출수입을 정산하는 이용기관고유번호로 매출상품의 등록운영 이용기관을 지정함*/
+			, SELNG_PART_CD /*매출기준사업장. (매출수입을 정산기준이 되는 사업장 고유번호를 기록함 매출품목 등록운영되는 사업장 고유번호를 기록함). 매출사업장이 없는 경우는 NULL 기록한다.*/
+			, ITEM_CTGD /*품목분류*/
+			, ITEM_NO /*품목고유번호*/
+			, NVL(#{selngDate}, DATE_FORMAT(SYSDATE(), '%Y%m%d')) AS SELNG_DATE /*취소일자.NO.10*/
+			, NVL(#{selngTime}, DATE_FORMAT(SYSDATE(), '%H%i%s')) AS SELNG_TIME /*매출시간*/
+			, #{slipType} AS SLIP_TYPE /*취소전표*/
+			, SLIP_KIND /*확장성*/
+			, USE_MONTHCNT /*품목이용개월수*/
+			, USE_ITEM_SDATE /*품목이용시작일*/
+			, USE_ITEM_EDATE /*품목이용종료일*/
+			, COST_AMT /*원가*/
+			, UNIT_AMT /*단가*/
+			, SALNUM /*판매수량*/
+			<choose>
+				<when test='slipType eq "3"'>
+			, -1*DC_AMT AS DC_AMT /*취소할인총액.NO.20*/
+			, -1*SALAMT AS SALAMT /*취소매출금액*/
+				</when>
+				<otherwise>
+			, -1*#{dcAmt} AS DC_AMT /*환불할인총액.NO.20*/
+			, -1*#{salamt} AS SALAMT /*환불매출금액*/
+				</otherwise>
+			</choose>
+			, SALAMT_UPDN_UNIT /*매출금액절상절사적용금액단위*/
+			, SALAMT_UPDN_GBN /*매출금액절상절사적용구분*/
+			, VAT_YN /*과세여부. Y: 과세. N: 비과세*/
+			, VAT_AMT /*부가세*/
+			, SETLE_MEM_NO /*결제회원번호*/
+			, (CASE WHEN SALAMT != #{salamt} THEN 'Y' ELSE 'N' END) AS MID_RETURN_YN /*중도환불여부:취소금액이 원장의결제금액과 동일하지 않으면*/ 
+			, 'Y' AS RETURN_YN /*환불여부. Y:환불. N:정상매출*/
+			, SELNG_DATE AS ORG_SELNG_DATE /*환불취소 전표발생시 원거래전표의 거래일자를 기록한다.*/
+			, DEL_YN /*거래삭제여부.NO.30*/
+			, RECESS_YN /*기간연장여부*/
+			, #{remark} REMARK /*비고*/
+			, NVL(#{terminalType}, TERMINAL_TYPE) /*등록터미널타입*/
+			, OID /*거래주문번호를 기록한다.. */
+			, RECEIPT_NO /*영수증번*/
+			, #{slipState} AS SLIP_STATE /*전표상태*/
+			, COMCD AS PARENT_COMCD /*상위전표기관고유번호. 매출거래내역의 환불 마이너스 매출 발생시 원거래의 PK 기록*/
+			, SELNG_ID AS PARENT_SELNG_ID /*상위전표정산번호. 매출거래내역의 환불 마이너스 매출 발생시 원거래의 PK 기록*/
+			, NVL(#{dpstrNm}, DPSTR_NM) /*어드민,프로트에서 환불계좌 받는 경우 입력. 계좌주이름*/
+			, NVL(#{bankCd}, BANK_CD) /*어드민,프로트에서 환불계좌 받는 경우 입력. 은행코드.NO.40*/
+			, NVL(#{bankNm}, BANK_NM) /*어드민,프로트에서 환불계좌 받는 경우 입력. 은행이름*/
+			, NVL(FN_AES_ENCRYPT(#{acountNum}, #{dbEncKey}), ACOUNT_NUM)/*어드민,프로트에서 환불계좌 받는 경우 입력. 계좌번호*/
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser}
+		FROM SELNG_INFO
+		WHERE COMCD = #{comcd}
+			AND SELNG_ID = #{orgSelngId};
+		
+		/* com.hisco.intrfc.sale.mapper.SelngInfoMapper.cancelSelngInfo.UPDATE */
+		UPDATE SELNG_INFO
+			SET RETURN_YN = 'Y'
+				, MID_RETURN_YN = (CASE WHEN SALAMT != #{salamt} THEN 'Y' ELSE 'N' END)
+				, SLIP_STATE = CONCAT(#{slipType}, '0')
+		WHERE COMCD = #{comcd}
+			AND SELNG_ID = #{orgSelngId};
+	</update>
+</mapper>

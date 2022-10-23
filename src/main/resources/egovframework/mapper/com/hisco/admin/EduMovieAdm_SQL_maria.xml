@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  Description : 동영상강좌
+
+   수정일                  수정자           수정내용
+  =========     =======    =================================================
+  2022.10.14	김범수		최초작성
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hisco.admin.edumovie.mapper.EduMovieAdmMapper">
+
+<sql id="listCondition">
+
+</sql>
+
+	<select id="selectEduMovieList" parameterType="com.hisco.admin.edumovie.vo.EduMovieVO" resultType="EgovMap">
+	/*com.hisco.admin.edumovie.mapper.EduMovieAdmMapper.selectEduMovieList*/
+			SELECT
+			  OML.ORG_MOVIE_LEC_NO
+			, OML.ORG_NO
+			, OML.COMCD
+			, OML.TITLE
+			, OML.URL
+			, OML.THUMB_IMG
+			, OML.THUMB_PATH
+			, OML.THUMB_ORGIMG
+			, OML.PLAY_TIME
+			, OML.COMPLETION_PERMIT_TIME
+			, OML.USE_YN
+			, OML.DEL_YN
+			, OML.REGDATE
+			, OML.REGUSER
+			, OML.MODDATE
+			, OML.MODUSER
+			, OI.ORG_NM
+		FROM
+			ORG_MOVIE_LEC OML
+		INNER JOIN
+			ORG_INFO OI
+		ON
+			OML.ORG_NO = OI.ORG_NO
+			AND OML.COMCD = OI.COMCD
+		<trim prefix="where" suffixOverrides="and">
+			<if test="comcd !=null and comcd !=''">OML.COMCD = #{comcd} AND</if>
+			<if test="orgMovieLecNo !=null and orgMovieLecNo !='' and orgMovieLecNo != 0.0">OML.ORG_MOVIE_LEC_NO=#{orgMovieLecNo} AND</if>
+			<if test="searchOrgNo !=null and searchOrgNo !=''">OML.ORG_NO=#{searchOrgNo} AND</if>
+			OML.DEL_YN = 'N' AND
+			<if test="searchKeyword != null and searchKeyword != ''">
+				<choose>
+					<when test="searchCondition = 1">
+						OML.TITLE LIKE CONCAT('%', #{searchKeyword}, '%') AND
+					</when>
+				</choose>
+			</if>
+		</trim>
+	</select>
+	
+	<select id="selectEduMovieCount" parameterType="com.hisco.admin.edumovie.vo.EduMovieVO" resultType="int">
+	/*com.hisco.admin.edumovie.mapper.EduMovieAdmMapper.selectEduMovieCount*/
+		SELECT
+			COUNT(ORG_MOVIE_LEC_NO)
+		FROM
+			ORG_MOVIE_LEC
+		<trim prefix="where" suffixOverrides="and">
+			COMCD = #{comcd} AND
+			<if test="searchOrgNo !=null and searchOrgNo !=''">ORG_NO=#{searchOrgNo} AND</if>
+			DEL_YN = 'N' AND
+			<if test="searchKeyword != null and searchKeyword != ''">
+				<choose>
+					<when test="searchCondition = 1">
+						TITLE LIKE CONCAT('%', #{searchKeyword}, '%') AND
+					</when>
+				</choose>
+			</if>
+		</trim>
+	</select>
+	
+	<select id="selectEduMovieIdx" resultType="float">
+	/*com.hisco.admin.edumovie.mapper.EduMovieAdmMapper.selectEduMovieIdx*/
+	SELECT NEXTVAL(ORG_MOVIE_LEC_SEQ) FROM DUAL
+	</select>
+	
+	<insert id="insertEduMovie">
+	/*com.hisco.admin.edumovie.mapper.EduMovieAdmMapper.insertEduMovie*/
+		INSERT INTO ORG_MOVIE_LEC(
+			  ORG_MOVIE_LEC_NO
+			, ORG_NO
+			, COMCD
+			, TITLE
+			, URL
+			, THUMB_IMG
+			, THUMB_ORGIMG
+			, THUMB_PATH
+			, PLAY_TIME
+			, COMPLETION_PERMIT_TIME
+			, USE_YN
+			, DEL_YN
+			, REGDATE
+			, REGUSER
+		) VALUE(
+			  #{orgMovieLecNo}
+			, #{orgNo}
+			, #{comcd}
+			, #{title}
+			, #{url}
+			, #{thumbImg}
+			, #{thumbOrgimg}
+			, #{thumbPath}
+			, #{playTime}
+			, #{completionPermitTime}
+			, #{useYn}
+			, 'N'
+			, SYSDATE()
+			, #{reguser}
+		)
+	</insert>
+	
+	<update id="updateEduMovie">
+	/*com.hisco.admin.edumovie.mapper.EduMovieAdmMapper.updateEduMovie*/
+	UPDATE ORG_MOVIE_LEC
+	<trim prefix="set" prefixOverrides=",">
+		  <if test="title !=null and title !=''">,TITLE = #{title}</if>
+		<if test="url !=null and url !=''">,URL = #{url}</if>
+		<if test="thumbImg !=null and thumbImg !=''">,THUMB_IMG = #{thumbImg}</if>
+		<if test="thumbPath !=null and thumbPath !=''">,THUMB_PATH = #{thumbPath}</if>
+		<if test="thumbOrgimg !=null and thumbOrgimg !=''">,THUMB_ORGIMG = #{thumbOrgimg}</if>
+		<if test="playTime !=null and playTime !='' and playTime != 0">,PLAY_TIME = #{playTime}</if>
+		<if test="useYn !=null and useYn !=''">, USE_YN = #{useYn}</if>
+		<if test="delYn !=null and delYn !=''">, DEL_YN = #{delYn}</if>
+		<if test="completionPermitTime !=null and completionPermitTime !='' and completionPermitTime != 0">,COMPLETION_PERMIT_TIME = #{completionPermitTime}</if>
+		,MODDATE = SYSDATE()
+		<if test="moduser !=null and moduser !=''">,MODUSER = #{moduser}</if>
+	</trim>
+	<trim prefix="where" suffixOverrides="and">
+		<if test="comcd !=null and comcd !=''">COMCD = #{comcd} AND</if>
+		<if test="orgMovieLecNo !=null and orgMovieLecNo !='' and orgMovieLecNo != 0.0">ORG_MOVIE_LEC_NO=#{orgMovieLecNo} AND</if>
+		<if test="orgNo !=null and orgNo !=''">ORG_NO=#{orgNo} AND</if>
+	</trim>
+	</update>
+	
+	<update id="deleteEduMovie">
+	/*com.hisco.admin.edumovie.mapper.EduMovieAdmMapper.deleteEduMovie*/
+	UPDATE ORG_MOVIE_LEC
+	<trim prefix="set" prefixOverrides=",">
+		, THUMB_IMG = NULL
+		, THUMB_PATH = NULL
+		, THUMB_ORGIMG = NULL
+		, USE_YN = 'N'
+		, DEL_YN = 'Y'
+		, MODDATE = SYSDATE()
+		, MODUSER = #{moduser}
+	</trim>
+	<trim prefix="where" suffixOverrides="and">
+		<if test="comcd !=null and comcd !=''">COMCD = #{comcd} AND</if>
+		<if test="orgMovieLecNo !=null and orgMovieLecNo !='' and orgMovieLecNo != 0.0">ORG_MOVIE_LEC_NO=#{orgMovieLecNo} AND</if>
+		<if test="orgNo !=null and orgNo !=''">ORG_NO=#{orgNo} AND</if>
+	</trim>
+	</update>
+	
+		<!--차수명 목록 -->
+	<select id="selectRsvnsetNameList" resultType="egovMap" >
+		/* com.hisco.admin.edumovie.mapper.EduMovieAdmMapper.selectRsvnsetNameList */
+		SELECT
+		*
+		FROM (
+			SELECT
+				/*mariadb 10.5 이상부터 사용 가능 UNIQUE EDC_RSVNSET_NM*/
+				DISTINCT EDC_RSVNSET_NM
+	 		FROM
+				EDC_RSVN_SET_INFO
+			WHERE
+				COMCD=#{comcd} AND EDC_PRGM_NO IN (SELECT EDC_PRGM_NO FROM EDC_PROGRAM WHERE COMCD=#{comcd} AND ORG_NO=#{searchOrgNo})
+				AND EDC_SDATE >=  DATE_FORMAT(DATE_ADD(NOW(),INTERVAL -2 YEAR ) , '%Y%m%d')
+				AND EDC_RSVNSET_NM IS NOT NULL
+		) AS T
+		ORDER BY EDC_RSVNSET_NM DESC
+	</select>
+	
+	<select id="selectEduMovieUserAjax" parameterType="com.hisco.admin.edumovie.vo.EduMovieVO" resultType="com.hisco.admin.edumovie.vo.EduMovieVO">
+	/* com.hisco.admin.edumovie.mapper.EduMovieAdmMapper.selectEduMovieUserAjax */
+	select * from ORG_MOVIE_LEC_user
+	</select>
+</mapper>

@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+	xmlns:jsp="http://java.sun.com/xml/ns/javaee/jsp"
+	xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
+	id="WebApp_ID" version="3.1">
+	
+	<welcome-file-list>
+		<welcome-file>index.jsp</welcome-file>
+	</welcome-file-list>
+	
+	<listener>
+		<listener-class>ch.qos.logback.ext.spring.web.LogbackConfigListener</listener-class>
+	</listener>
+	<context-param>
+		<param-name>logbackConfigLocation</param-name>
+		<param-value>classpath:logback_${spring.profiles.myactive}.xml</param-value>
+	</context-param>
+	
+	<login-config>
+		<auth-method>BASIC</auth-method>
+	</login-config>	
+	<session-config>
+		<session-timeout>0</session-timeout>
+		<cookie-config>
+			<name>JSESSIONID</name>
+			<path>/</path>
+			<secure>false</secure>
+		</cookie-config>
+		<tracking-mode>COOKIE</tracking-mode>
+	</session-config>
+	
+	<filter>
+		<filter-name>httpHeaderSecurityFilter</filter-name>
+		<filter-class>com.hisco.cmm.security.HttpHeaderSecurityFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>httpHeaderSecurityFilter</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+	<filter>
+		<filter-name>XSS</filter-name>
+		<filter-class>com.hisco.cmm.security.CrossScriptingFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>XSS</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+	<filter>
+		<filter-name>readableRequestWrapperFilter</filter-name>
+		<filter-class>com.hisco.cmm.config.ReadableRequestWrapperFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>readableRequestWrapperFilter</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+	<filter>
+		<filter-name>loggingFilter</filter-name>
+		<filter-class>com.hisco.cmm.config.LoggingFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>loggingFilter</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+	
+	
+	<jsp-config>
+		<jsp-property-group>
+			<url-pattern>*.jsp</url-pattern>
+			<el-ignored>false</el-ignored>
+			<include-prelude>/WEB-INF/jsp/include/includeTop.jsp</include-prelude>
+			<trim-directive-whitespaces>true</trim-directive-whitespaces>
+		</jsp-property-group>
+	</jsp-config>
+	
+	<!-- ================= Sitemesh ================= -->
+	<filter>
+		<filter-name>sitemesh</filter-name>
+		<filter-class>com.opensymphony.sitemesh.webapp.SiteMeshFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>sitemesh</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+	
+	<error-page>
+		<error-code>404</error-code>
+		<location>/web/exception/system/errorPage</location>
+	</error-page>
+	<error-page>
+		<error-code>500</error-code>
+		<location>/web/exception/system/errorPage</location>
+	</error-page>
+	<error-page>
+		<error-code>400</error-code>
+		<location>/web/exception/system/errorPage</location>
+	</error-page>
+	<error-page>
+		<error-code>403</error-code>
+		<location>/web/exception/system/errorPage</location>
+	</error-page>
+</web-app>

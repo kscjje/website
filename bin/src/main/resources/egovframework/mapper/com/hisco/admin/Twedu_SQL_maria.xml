@@ -1,0 +1,715 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 마음배움터 관리
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2021.11.04   	이기태          최초 작성
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.admin.twedu.mapper.TweduMapper">
+	<select id="selectList" parameterType="com.hisco.admin.twedu.vo.TweduVO" resultType="com.hisco.admin.twedu.vo.TweduVO">
+		SELECT
+			  X.*
+			, B.MEM_NM
+			, fn_aes_decrypt(B.HP ,#{dbEncKey}) AS MEM_HP
+			, C.CD_NM AS EDC_PRGCDNM
+			, CASE WHEN LECT_CNT >0 THEN
+				 (SELECT COUNT(*) FROM LECT_CONTENTS WHERE COMCD = X.COMCD AND EDC_PRGM_NO = X.EDC_PRGM_NO AND DATE_FORMAT(NOW(), '%Y%m%d') >=LECT_DATE)
+			  ELSE
+			  	 (SELECT COUNT(*) FROM EDC_PLAN WHERE COMCD = X.COMCD AND EDC_PRGM_NO = X.EDC_PRGM_NO AND DATE_FORMAT(NOW(), '%Y%m%d')>=EDC_DATE) END AS CUR_EDC_CL_CNT
+			, (SELECT GROUP_CONCAT(fn_WeekName_Convert(1, C.EDC_DAY_GBN) ORDER BY (case C.EDC_DAY_GBN when '1' then '9' else C.EDC_DAY_GBN end) ASC SEPARATOR ', ')
+			  		FROM EDC_DAYS C
+			  		WHERE C.COMCD = X.COMCD
+			  			AND C.EDC_PRGM_NO = X.EDC_PRGM_NO
+			  	) AS EDC_DAY_GBN_NM
+		    , ( SELECT
+					COUNT(*)
+				FROM EDC_RSVN_COMPT_INFO F
+				WHERE 1=1
+				AND F.COMCD = X.COMCD
+				AND EDC_PRGM_NO = X.EDC_PRGM_NO
+				AND EDC_RETYN='N'
+		     ) AS CUR_STU_CNT
+		FROM (
+			SELECT
+				  ROW_NUMBER() OVER( ORDER BY EDC_PRGM_NO DESC) AS RNUM
+				 ,COUNT(*) OVER() AS TOT_CNT
+				, COMCD
+				, EDC_PRGM_NO
+				, MEM_NO
+				, EDC_PRGM_NM
+				, DATE_FORMAT(EDC_PROGM_DATE, '%Y-%m-%d') AS EDC_PROGM_DATE
+				, DATE_FORMAT(EDC_SDATE, '%Y-%m-%d') AS EDC_SDATE
+				, DATE_FORMAT(EDC_EDATE, '%Y-%m-%d') AS EDC_EDATE
+				, EDC_SDATE AS EDC_START_DT
+				, EDC_PRG
+				, EDC_CL_CNT
+				, EDC_PNCPA
+				, EDC_OPEN_YN
+				, EDC_RSVN_SDATE
+				, EDC_RSVN_STIME
+				, (SELECT COUNT(*) FROM LECT_CONTENTS WHERE COMCD = A.COMCD AND EDC_PRGM_NO = A.EDC_PRGM_NO) LECT_CNT
+			FROM EDC_PROGRAM A
+			WHERE 1=1
+			AND COMCD = #{comcd}
+			AND EDC_PROGM_TYPE = '4001'
+		<choose>
+			<when test="searchKeyword !=null and searchKeyword !='' and searchCondition == 1">
+			AND EDC_PRGM_NM LIKE CONCAT('%',#{searchKeyword},'%')
+			</when>
+			<when test="searchKeyword !=null and searchKeyword !='' and searchCondition == 2">
+			AND MEM_NO IN ( SELECT MEM_NO FROM member WHERE MEM_NM LIKE CONCAT('%',#{searchKeyword},'%') )
+			</when>
+		</choose>
+		<if test="searchStat !=null and searchStat !=''">
+			AND EDC_PRG = #{searchStat}
+		</if>
+		<if test="memNo !=null and memNo !=''">
+			AND MEM_NO = #{memNo}
+		</if>
+		<choose>
+			<when test="searchDate == 'regdate'">
+				<if test="searchStartDts !=null and searchStartDts !=''">
+				<![CDATA[	AND EDC_PROGM_DATE >= REPLACE(#{searchStartDts},'-','') ]]>
+				</if>
+				<if test="searchEndDts !=null and searchEndDts !=''">
+				<![CDATA[	AND EDC_PROGM_DATE <= REPLACE(#{searchEndDts},'-','')	]]>
+				</if>
+			</when>
+			<when test="searchDate == 'edcdate'">
+				<if test="searchStartDts !=null and searchStartDts !=''">
+				<![CDATA[	AND EDC_SDATE >= REPLACE(#{searchStartDts},'-','')	]]>
+				</if>
+				<if test="searchEndDts !=null and searchEndDts !=''">
+				<![CDATA[	AND EDC_SDATE <= REPLACE(#{searchEndDts},'-','')	]]>
+				</if>
+			</when>
+		</choose>
+		) X
+		INNER JOIN member B ON X.MEM_NO = B.MEM_NO
+		LEFT OUTER JOIN cot_grpcd C ON ( X.EDC_PRG = C.CD AND C.GRP_CD = 'SM_EDCPG_ESTBL_STAT')
+		WHERE 1=1
+		<![CDATA[
+             AND  RNUM  > #{firstIndex}
+             AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+        ]]>
+        ORDER BY EDC_PRGM_NO DESC
+	</select>
+
+	<select id="select" parameterType="com.hisco.admin.twedu.vo.TweduVO" resultType="com.hisco.admin.twedu.vo.TweduDetailVO">
+		SELECT
+			A.COMCD,
+			D.MEM_NO,
+			D.MEM_NM,
+			D.ID,
+			fn_aes_decrypt(D.HP ,#{dbEncKey}) AS MEM_HP,
+			A.ORG_NO,
+			A.EDC_PRGM_NO,
+			A.EDC_PRGM_NM,
+			A.EDC_PRGMINTRCN,
+			A.EDC_IMG_FILEID,
+			A.EDC_TARGET_AGEGBN,
+			(SELECT CD_NM FROM COT_GRPCD WHERE COMCD = A.COMCD AND GRP_CD = 'CM_AGEGBN' AND CD = A.EDC_TARGET_AGEGBN) TARGET_NAME,
+			A.EDC_TARGETINFO,
+			A.AREA_CD,
+			A.EDC_PLACENM,
+			A.EDC_PNCPA,
+			A.EDC_LIMIT_AGEYN,
+			A.EDC_FEE_ACCNAME,
+			A.EDC_FEE_BNKNAME,
+			A.EDC_FEE_ACCNO,
+			A.EDC_FEE_TYPE,
+			C.ITEM_CD,
+			C.SALAMT,
+			E.COM_TOPCTGCD,
+			E.COM_CTGCD,
+			E.COM_CTGNM,
+			A.EDC_CL_CNT,
+			A.EDC_ODR,
+			A.EDC_RTIME,
+			A.EDC_STIME,
+			A.EDC_ETIME,
+			CASE
+				WHEN  A.EDC_SDATE  > DATE_FORMAT(NOW(), '%Y%m%d') THEN '교육대기'
+				WHEN DATE_FORMAT(NOW(), '%Y%m%d') BETWEEN A.EDC_SDATE AND A.EDC_EDATE THEN '교육중'
+				ELSE '교육종료' END AS EDC_STATUS,
+			DATE_FORMAT(A.EDC_SDATE, '%Y-%m-%d') AS EDC_SDATE,
+			SUBSTR(A.EDC_STIME, 1, 2) AS EDC_STIME_HOUR,
+			SUBSTR(A.EDC_STIME, 3, 2) AS EDC_STIME_MIN,
+			DATE_FORMAT(A.EDC_EDATE, '%Y-%m-%d') AS EDC_EDATE,
+			SUBSTR(A.EDC_ETIME, 1, 2) AS EDC_ETIME_HOUR,
+			SUBSTR(A.EDC_ETIME, 3, 2) AS EDC_ETIME_MIN,
+			DATE_FORMAT(A.EDC_RSVN_SDATE, '%Y-%m-%d') AS EDC_RSVN_SDATE,
+			SUBSTR(A.EDC_RSVN_STIME, 1, 2) AS EDC_RSVN_STIME_HOUR,
+			SUBSTR(A.EDC_RSVN_STIME, 3, 2) AS EDC_RSVN_STIME_MIN,
+			DATE_FORMAT(A.EDC_RSVN_EDATE, '%Y-%m-%d') AS EDC_RSVN_EDATE,
+			SUBSTR(A.EDC_RSVN_ETIME, 1, 2) AS EDC_RSVN_ETIME_HOUR,
+			SUBSTR(A.EDC_RSVN_ETIME, 3, 2) AS EDC_RSVN_ETIME_MIN,
+			A.EDC_GUIDE_TELNO,
+			A.EDC_OPEN_YN,
+			A.EDC_PRG,
+			A.EDC_TCHMTR_GUIDE,
+			F1.FILE_NAME AS EDC_IMG_FILENM,
+			F1.FILE_PATH AS EDC_IMG_PATH,
+	        F1.ORGIN_FILE_NAME AS EDC_IMG_ORIGIN,
+	        F2.FILE_PATH AS EDC_PLAN_PATH,
+			F2.FILE_NAME AS EDC_PLAN_FILENM,
+	        F2.ORGIN_FILE_NAME AS EDC_PLAN_ORIGIN,
+	        A.INSTRCTR_NO,
+	        NVL(S.NAME_KOR, A.INSTRCTR_NAME) AS INSTRCTR_NAME,
+	        fn_aes_decrypt(S.HP_NO ,#{dbEncKey}) AS INSTRCTR_HP,
+	        A.EDC_CTFHVYN,
+	        (SELECT MAX(EDC_RSVNSET_SEQ) FROM EDC_RSVNSET_INFO WHERE COMCD = A.COMCD AND EDC_PRGM_NO = A.EDC_PRGM_NO) AS EDC_RSVNSET_SEQ,
+	        A.REGDATE,
+	        A.MODDATE,
+	        A.REGUSER,
+	        A.MODUSER
+		FROM EDC_PROGRAM A
+			INNER JOIN edc_prgm_item B ON (A.COMCD = B.COMCD AND A.EDC_PRGM_NO = B.EDC_PRGM_NO)
+			INNER JOIN program_item C  ON (B.COMCD = C.COMCD AND B.ITEM_CD = C.ITEM_CD)
+			INNER JOIN member D			ON (A.COMCD = D.COMCD AND A.MEM_NO = D.MEM_NO)
+			LEFT OUTER JOIN com_ctgr E ON (A.COMCD = E.COMCD AND A.COM_CTGCD = E.COM_CTGCD)
+			LEFT OUTER JOIN ATCH_FILE_LIST F1 ON A.COMCD=F1.COMCD AND A.EDC_IMG_FILEID = F1.FILE_GRPINNB AND F1.FILE_SN=0
+			LEFT OUTER JOIN ATCH_FILE_LIST F2 ON A.COMCD=F2.COMCD AND A.EDC_PLAN_FILEID = F2.FILE_GRPINNB AND F2.FILE_SN=0
+			LEFT OUTER JOIN EDC_INSTRCTR_INFO S ON A.INSTRCTR_NO = S.INSTRCTR_NO
+		WHERE 1=1
+		AND A.COMCD = #{comcd}
+		AND A.EDC_PRGM_NO = #{edcPrgmid}
+	</select>
+
+	<select id="selectPlans" parameterType="com.hisco.admin.twedu.vo.TweduVO" resultType="com.hisco.admin.twedu.vo.TweduPlanVO">
+		SELECT
+			EDC_CLASS_NO,
+			DATE_FORMAT(EDC_DATE, '%Y-%m-%d') AS EDC_DATE,
+			EDC_TITLE,
+			EDC_CNTS,
+			EDC_ETCCNTS,
+			(SELECT COUNT(*) FROM EDC_RSVN_COMPT_INFO WHERE COMCD=A.COMCD AND EDC_PRGM_NO=A.EDC_PRGM_NO AND EDC_RETYN='N' AND EDC_EDATE>=A.EDC_DATE) AS TOTAL_MEM_CNT,
+			CASE WEEKDAY(EDC_DATE)
+			    WHEN '0' THEN '월'
+			    WHEN '1' THEN '화'
+			    WHEN '2' THEN '수'
+			    WHEN '3' THEN '목'
+			    WHEN '4' THEN '금'
+			    WHEN '5' THEN '토'
+			    WHEN '6' THEN '일'
+				END AS WEEK_NAME,
+			CASE WHEN DATE_FORMAT(NOW(), '%Y%m%d')>=EDC_DATE THEN 'Y' ELSE 'N' END AS PASS_YN
+		FROM
+			EDC_PLAN A
+		WHERE 1=1
+			AND COMCD = #{comcd}
+			AND EDC_PRGM_NO = #{edcPrgmid}
+	</select>
+
+	<update id="update" parameterType="com.hisco.admin.twedu.vo.TweduDetailVO">
+		UPDATE EDC_PROGRAM
+		SET
+			EDC_FEE_ACC_NM = #{edcFeeAccNm},
+			EDC_FEE_BNK_NM = #{edcFeeBnkNm},
+			EDC_FEE_ACC_NO = #{edcFeeAccNo},
+			EDC_FEE_TYPE = NVL(#{edcFeeType}, '2001'),
+			EDC_PRGM_NM = #{edcPrgmnm},
+			EDC_PRGMINTRCN = #{edcPrgmintrcn},
+			EDC_IMG_FILEID = #{edcImgFileid},
+			EDC_TARGET_AGEGBN = #{edcTargetAgegbn},
+			<if test="CtgCd !=null and CtgCd !=''">COM_CTGCD = #{CtgCd},</if>
+			<if test="instrctrNo !=null and instrctrNo !=''">INSTRCTR_NO = #{instrctrNo},</if>
+			INSTRCTR_NAME = #{instrctrName},
+			AREA_CD = #{areaCd},
+			EDC_PLACENM = #{edcPlacenm},
+			EDC_PNCPA = #{edcPncpa},
+			EDC_LIMIT_AGEYN = NVL(#{edcLimitAgeyn},'N'),
+			EDC_CL_CNT = #{edcClcnt},
+			EDC_ODR = #{edcOdr},
+			EDC_SDATE = REPLACE(#{edcSdate},'-',''),
+			EDC_EDATE = REPLACE(#{edcEdate},'-',''),
+			EDC_STIME = CONCAT(#{edcStimeHour},#{edcStimeMin}),
+			EDC_ETIME = CONCAT(#{edcEtimeHour},#{edcEtimeMin}),
+			EDC_RSVN_SDATE = REPLACE(#{edcRsvnSdate},'-',''),
+			EDC_RSVN_STIME = CONCAT(#{edcRsvnStimeHour},#{edcRsvnStimeMin}),
+			EDC_GUIDE_TELNO = #{edcGuideTelno},
+			<if test="edcPrg !=null and edcPrg !=''">EDC_PRG = #{edcPrg},</if>
+			<if test="edcOpenyn !=null and edcOpenyn !=''">EDC_OPEN_YN=#{edcOpenyn},</if>
+			EDC_TCHMTR_GUIDE = #{edcTchmtrGuide},
+			MODUSER = #{moduser},
+			MODDATE = NOW()
+		WHERE 1=1
+		AND COMCD = #{comcd}
+		AND EDC_PRGM_NO = #{edcPrgmid}
+	</update>
+
+	<delete id="deletePlans" parameterType="com.hisco.admin.twedu.vo.TweduDetailVO">
+		DELETE FROM EDC_PLAN
+		WHERE 1=1
+		AND COMCD = #{comcd}
+		AND EDC_PRGM_NO = #{edcPrgmid}
+	</delete>
+
+	<insert id="insertPlans" parameterType="list">
+		INSERT INTO EDC_PLAN (COMCD, EDC_PRGM_NO, EDC_CLASS_NO, EDC_DATE, EDC_TITLE,  EDC_CNTS , EDC_ETCCNTS , REGDATE, REGUSER, MODDATE, MODUSER)
+		VALUES
+		<foreach item="item" index="index" collection="list" separator=",">
+		(#{item.comcd}, #{item.edcPrgmid}, #{item.edcClassNo}, REPLACE(#{item.edcDate},'-',''), #{item.edcTitle}, #{item.edcCnts},#{item.edcEtccnts},
+		 NOW(), #{item.reguser}, NOW(), #{item.reguser})
+		</foreach>
+	</insert>
+
+	<update id="updateStatus" parameterType="com.hisco.admin.twedu.vo.TweduVO">
+		UPDATE EDC_PROGRAM
+		SET
+			EDC_PRG = #{edcPrg},
+			<if test="edcPrg !=null and edcPrg !='3001'">
+			EDC_OPEN_YN = 'N',
+			</if>
+			MODUSER = #{moduser},
+			MODDATE = NOW()
+		WHERE 1=1
+		AND COMCD = #{comcd}
+		AND EDC_PRGM_NO = #{edcPrgmid}
+	</update>
+
+	<update id="updateRsvn" parameterType="com.hisco.admin.twedu.vo.TweduDetailVO">
+		UPDATE EDC_PROGRAM
+		SET
+			EDC_RSVN_SDATE = REPLACE(#{edcRsvnSdate},'-',''),
+			EDC_RSVN_STIME = #{edcRsvnStime},
+			MODUSER = #{moduser},
+			MODDATE = NOW()
+		WHERE 1=1
+		AND COMCD = #{comcd}
+		AND EDC_PRGM_NO = #{edcPrgmid}
+	</update>
+
+	<update id="updateRsvnSet" parameterType="com.hisco.admin.twedu.vo.TweduDetailVO">
+		UPDATE EDC_RSVNSET_INFO
+		SET
+			EDC_RSVN_SDATE = REPLACE(#{edcRsvnSdate},'-',''),
+			EDC_RSVN_STIME = #{edcRsvnStime},
+			MODUSER = #{moduser},
+			MODDATE = NOW()
+		WHERE 1=1
+		AND COMCD = #{comcd}
+		AND EDC_PRGM_NO = #{edcPrgmid}
+	</update>
+
+	<select id="selectStudentList" parameterType="com.hisco.admin.twedu.vo.TweduVO" resultType="com.hisco.admin.twedu.vo.TweduStudentVO">
+		SELECT
+			A.COMCD,
+			A.EDC_RSVN_REQID,
+			A.EDC_RSVN_COMPTID,
+			A.REGDATE,
+			C.ID AS MEM_ID,
+			C.MEM_NM,
+			DATE_FORMAT(C.BIRTH_DATE, '%Y-%m-%d') AS BIRTH_DATE,
+			(CASE C.GENDER WHEN 1 THEN '남'
+				  WHEN 2 THEN '여'
+				  ELSE '모름' END) AS GENDER,
+			fn_aes_decrypt(C.HP ,#{dbEncKey}) AS MEM_HP,
+			A.EDC_COMPLSTAT,
+			A.EDC_RETYN,
+			A.EDC_EDATE,
+			(SELECT COUNT(*) FROM EDC_ATEND_MNG WHERE COMCD=A.COMCD AND EDC_PRGM_NO=A.EDC_PRGM_NO AND EDC_RSVN_REQID=A.EDC_RSVN_REQID AND EDC_ATEND_GBN='2001') AS ATTEND_CNT,
+			(SELECT COUNT(*) FROM LECT_CONTENTS WHERE COMCD=A.COMCD AND EDC_PRGM_NO=A.EDC_PRGM_NO AND A.EDC_EDATE>=LECT_DATE) AS TOT_CNT,
+			CASE
+				WHEN A.EDC_COMPLSTAT = '2001' THEN '수료'
+				WHEN A.EDC_COMPLSTAT = '1001' THEN '중퇴'
+				WHEN  A.EDC_SDATE  > DATE_FORMAT(NOW(), '%Y%m%d') THEN '교육전'
+				WHEN DATE_FORMAT(NOW(), '%Y%m%d') BETWEEN A.EDC_SDATE AND A.EDC_EDATE THEN '교육중'
+				ELSE '교육종료' END AS EDC_STAT
+		FROM EDC_RSVN_COMPT_INFO A
+			INNER JOIN member C	 ON (A.EDC_MEM_NO = C.MEM_NO)
+		WHERE 1=1
+			AND A.COMCD = #{comcd}
+			AND A.EDC_PRGM_NO = #{edcPrgmid}
+			AND A.EDC_RETYN = 'N'
+		ORDER BY
+			C.MEM_NM
+	</select>
+
+	<update id="updateStudStatus" parameterType="com.hisco.admin.twedu.vo.TweduStudentVO">
+		UPDATE
+			EDC_RSVN_COMPT_INFO A
+		SET
+			<choose>
+				<when test='edcComplstat !=null and edcComplstat !=""'>
+					EDC_CONFIRM_DATE = (CASE WHEN EDC_COMPLSTAT=#{edcComplstat} THEN EDC_CONFIRM_DATE ELSE NOW() END),
+					EDC_COMPL_USERID = (CASE WHEN EDC_COMPLSTAT=#{edcComplstat} THEN EDC_COMPL_USERID ELSE #{moduser} END),
+					EDC_EDATE = (CASE WHEN EDC_COMPLSTAT=#{edcComplstat} THEN EDC_EDATE WHEN #{edcComplstat}='2001'
+						THEN (
+						SELECT MIN(EDC_EDATE) FROM (
+							SELECT DATE_FORMAT(SYSDATE(),'%Y%m%d') AS EDC_EDATE FROM DUAL
+							UNION
+							SELECT EDC_EDATE FROM EDC_RSVNSET_INFO WHERE COMCD=#{comcd} AND EDC_PRGM_NO= #{edcPrgmid} LIMIT 1
+							) AS T
+						)
+						ELSE EDC_EDATE
+						END),
+				</when>
+				<otherwise>
+					EDC_EDATE = (SELECT EDC_EDATE FROM EDC_RSVNSET_INFO WHERE COMCD=#{comcd} AND EDC_PRGM_NO= #{edcPrgmid} LIMIT 1),
+				</otherwise>
+			</choose>
+			EDC_COMPLSTAT = (CASE WHEN #{edcComplstat} = '' THEN NULL ELSE #{edcComplstat} END),
+			MODUSER = #{moduser},
+			MODDATE = NOW()
+		WHERE 1=1
+		AND COMCD = #{comcd}
+		AND EDC_PRGM_NO = #{edcPrgmid}
+		AND EDC_RSVN_REQID = #{edcRsvnReqid}
+	</update>
+
+	<select id="selectPlanList" parameterType="com.hisco.admin.twedu.vo.TweduVO" resultType="com.hisco.admin.twedu.vo.TweduPlanVO">
+		WITH TOT AS (
+			SELECT COUNT(*) AS tot_cnt FROM edc_plan
+			WHERE 1=1
+			AND COMCD = #{comcd}
+			AND EDC_PRGM_NO = #{edcPrgmid}
+		)
+		SELECT
+			X.*,
+			T.tot_cnt
+		FROM (
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY EDC_CLASS_NO DESC) AS RNUM,
+				C.MEM_NM,
+				DATE_FORMAT(A.EDC_DATE, '%Y-%m-%d') AS EDC_DATE,
+				A.EDC_TITLE,
+				A.EDC_CNTS
+			FROM lect_plan A
+			INNER JOIN EDC_PROGRAM B ON A.COMCD = B.COMCD AND A.EDC_PRGM_NO = B.EDC_PRGM_NO
+			INNER JOIN member C ON B.COMCD = C.COMCD AND B.MEM_NO = C.MEM_NO
+			WHERE 1=1
+			AND A.COMCD = #{comcd}
+			AND A.EDC_PRGM_NO = #{edcPrgmid}
+		) X
+		CROSS JOIN TOT T
+		WHERE 1=1
+		<![CDATA[
+             AND  RNUM  > #{firstIndex}
+             AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+        ]]>
+	</select>
+
+	<select id="selectAttendanceList" parameterType="com.hisco.admin.twedu.vo.TweduVO" resultType="com.hisco.admin.twedu.vo.TweduAttendVO">
+		SELECT
+			MEM_NO,
+			EDC_ATEND_DATE,
+			EDC_ATEND_GBN,
+			EDC_RSVN_REQID,
+			EDC_RSVN_COMPTID
+		FROM edc_atend_mng
+		WHERE 1=1
+		AND COMCD = #{comcd}
+		AND EDC_PRGM_NO = #{edcPrgmid}
+	</select>
+
+	<select id="selectAttendStudents" parameterType="com.hisco.admin.twedu.vo.TweduVO" resultType="com.hisco.admin.twedu.vo.TweduAttendVO">
+		SELECT
+			 B.MEM_NM
+			,B.MEM_NO
+			,fn_aes_decrypt(B.HP ,#{dbEncKey}) AS MEM_HP
+			,A.PASS_CNT
+			,A.NOPASS_CNT
+			,D.CD_NM AS EDC_COMPLSTAT
+		FROM (
+			SELECT
+				A.MEM_NO,
+				SUM(CASE WHEN A.EDC_ATEND_GBN = '2001' THEN 1 ELSE 0 END) AS PASS_CNT,
+				SUM(CASE WHEN A.EDC_ATEND_GBN = '1001' THEN 1 ELSE 0 END) AS NOPASS_CNT,
+				MAX(A.EDC_RSVN_COMPTID) AS EDC_RSVN_COMPTID
+			FROM edc_atend_mng A
+			WHERE 1=1
+			AND A.COMCD = #{comcd}
+			AND A.EDC_PRGM_NO = #{edcPrgmid}
+			AND A.EDC_ATEND_DATE BETWEEN REPLACE(#{searchStartDts}, '-', '') AND REPLACE(#{searchEndDts}, '-', '')
+			GROUP BY A.MEM_NO
+		) A
+		INNER JOIN member B ON A.MEM_NO = B.MEM_NO
+		LEFT OUTER JOIN EDC_RSVN_COMPT_INFO C ON A.EDC_RSVN_COMPTID = C.EDC_RSVN_COMPTID
+		LEFT OUTER JOIN cot_grpcd D ON (C.EDC_COMPLSTAT = D.CD AND D.GRP_CD = 'SM_EDC_COMPLSTATE')
+	</select>
+
+    <update id="updateAttendance" parameterType="com.hisco.admin.twedu.vo.TweduAttendVO">
+    	UPDATE edc_atend_mng
+    	SET
+    		EDC_ATEND_GBN = (CASE WHEN #{edcAtendGbn} = '' THEN NULL ELSE #{edcAtendGbn} END),
+    		MODUSER = #{moduser},
+    		MODDATE = NOW()
+    	WHERE 1=1
+    		 AND COMCD = #{comcd}
+    		 AND EDC_PRGM_NO=#{edcPrgmid}
+    		 AND EDC_RSVN_REQID = #{edcRsvnReqid}
+    		 AND EDC_ATEND_DATE = #{edcAtendDate}
+    </update>
+
+
+    <insert id="insertAttendance" parameterType="com.hisco.admin.twedu.vo.TweduAttendVO">
+    	INSERT edc_atend_mng
+    	(COMCD , EDC_PRGM_NO , MEM_NO, EDC_ATEND_DATE , EDC_ATEND_GBN , EDC_RSVN_REQID , EDC_RSVN_COMPTID , REGDATE , REGUSER , MODDATE , MODUSER)
+    	SELECT
+    		COMCD,
+    		EDC_PRGM_NO,
+    		EDC_MEM_NO,
+    		#{edcAtendDate},
+    		#{edcAtendGbn},
+    		EDC_RSVN_REQID,
+    		EDC_RSVN_COMPTID,
+    		NOW(),
+    		#{reguser},
+    		NOW(),
+    		#{reguser}
+    	FROM
+    		EDC_RSVN_COMPT_INFO
+    	WHERE
+    		COMCD=#{comcd}
+    		AND EDC_PRGM_NO=#{edcPrgmid}
+    		AND EDC_RSVN_REQID = #{edcRsvnReqid}
+    </insert>
+
+    <insert id="insertLog" parameterType="com.hisco.admin.twedu.vo.TweduPlanVO">
+    	INSERT INTO lect_contents (COMCD, EDC_PRGM_NO, LECT_SEQ, LECT_DATE, LECT_TITLE, `LECT_CONTENTS`, LECT_FILEID, REGDATE, REGUSER, MODDATE, MODUSER)
+    	SELECT
+	    	 #{comcd} AS COMCD,
+	    	 #{edcPrgmid} AS EDC_PRGM_NO,
+	    	 (SELECT NVL(MAX(LECT_SEQ),0)+1 FROM lect_contents WHERE COMCD=#{comcd} AND EDC_PRGM_NO=#{edcPrgmid}) AS LECT_SEQ,
+	    	 REPLACE(#{edcDate},'-', '') AS LECT_DATE,
+	    	 #{edcTitle} AS LECT_TITLE,
+	    	 #{edcCnts} AS LECT_CONTENTS,
+	    	 #{lectFileid} AS LECT_FILEID,
+	    	 SYSDATE(),
+	    	 #{reguser} AS REGUSER,
+	    	 SYSDATE(),
+	    	 #{reguser} AS MODUSER
+    	 FROM DUAL
+    </insert>
+
+    <update id="updateLog" parameterType="com.hisco.admin.twedu.vo.TweduPlanVO">
+    	UPDATE
+    		lect_contents
+    	SET
+    		<if test="edcDate !=null and edcDate != ''">LECT_DATE = REPLACE(#{edcDate},'-', ''),</if>
+    		<if test="edcTitle !=null and edcTitle !=''">LECT_TITLE = #{edcTitle},</if>
+    		<if test="edcCnts !=null and edcCnts !=''">LECT_CONTENTS = #{edcCnts},</if>
+    		LECT_FILEID = #{lectFileid},
+    		MODDATE = NOW(),
+    		MODUSER = #{moduser}
+    	WHERE 1=1
+	    	AND COMCD = #{comcd}
+	    	AND EDC_PRGM_NO = #{edcPrgmid}
+	    	AND LECT_SEQ = #{lectSeq}
+    </update>
+
+    <select id="selectReportHead" parameterType="com.hisco.admin.twedu.vo.TweduVO" resultType="com.hisco.admin.twedu.vo.TweduDetailVO">
+		WITH STUD AS (
+			SELECT 1 AS M FROM edc_atend_mng WHERE COMCD = #{comcd} AND EDC_PRGM_NO = #{edcPrgmid} GROUP BY MEM_NO
+		), TRG AS (
+		   SELECT
+				COMCD, EDC_PRGM_NO, EDC_TARGET_SAGE,	EDC_TARGET_EAGE
+			FROM TARGET_AGELIST
+			WHERE COMCD = #{comcd} AND EDC_PRGM_NO = #{edcPrgmid} LIMIT 1
+		)
+		SELECT
+			INSTRCTR_NAME,
+			EDC_PRGM_NM,
+			DATE_FORMAT(EDC_SDATE, '%Y-%m-%d') AS EDC_SDATE,
+			DATE_FORMAT(EDC_EDATE, '%Y-%m-%d') AS EDC_EDATE,
+			EDC_ODR,
+			NVL( (SELECT COUNT(*) FROM lect_contents WHERE COMCD = A.COMCD AND EDC_PRGM_NO = A.EDC_PRGM_NO),0) AS EDC_CL_CNT,
+			EDC_RTIME,
+			NVL( (SELECT SUM(M) FROM STUD), 0) AS STD_CNT,
+			DATE_FORMAT(NOW(), '%Y-%m-%d') AS REPORT_DATE,
+			EDC_TARGET_SAGE,
+			EDC_TARGET_EAGE,
+			CONCAT(NVL(EDC_TARGET_SAGE,''), '~', NVL(EDC_TARGET_EAGE,'')) AS EDC_TARGET_AGE
+		FROM EDC_PROGRAM A
+		LEFT OUTER JOIN TRG B
+		ON (A.COMCD = B.COMCD AND A.EDC_PRGM_NO = B.EDC_PRGM_NO)
+		WHERE 1=1
+		AND A.COMCD = #{comcd}
+		AND A.EDC_PRGM_NO = #{edcPrgmid}
+    </select>
+    <select id="selectReportAtend" parameterType="com.hisco.admin.twedu.vo.TweduVO" resultType="com.hisco.admin.twedu.vo.TweduAttendVO">
+		SELECT
+			A.*,
+			B.MEM_NM,
+			(CASE WHEN pass_cnt+nopass_cnt > 0 THEN FLOOR(pass_cnt/(pass_cnt+nopass_cnt)*100) ELSE 0 END) AS PASS_RATE,
+			NVL(D.CD_NM, '') AS EDC_COMPLSTAT
+		FROM (
+			SELECT
+				MEM_NO,
+				SUM(CASE WHEN EDC_ATEND_GBN = '2001' THEN 1 ELSE 0 END) AS PASS_CNT,
+				SUM(CASE WHEN EDC_ATEND_GBN = '1001' THEN 1 ELSE 0 END) AS NOPASS_CNT,
+				MAX(EDC_RSVN_COMPTID) AS EDC_RSVN_COMPTID
+			FROM edc_atend_mng
+			WHERE 1=1
+			AND COMCD = #{comcd}
+			AND EDC_PRGM_NO = #{edcPrgmid}
+			AND EDC_ATEND_DATE BETWEEN REPLACE(#{searchStartDts}, '-', '') AND REPLACE(#{searchEndDts}, '-', '')
+			GROUP BY MEM_NO
+		) A
+		INNER JOIN member B ON A.MEM_NO = B.MEM_NO
+		LEFT OUTER JOIN EDC_RSVN_COMPT_INFO C ON A.EDC_RSVN_COMPTID = C.EDC_RSVN_COMPTID
+		LEFT OUTER JOIN cot_grpcd D ON (C.EDC_COMPLSTAT = D.CD AND D.GRP_CD = 'SM_EDC_COMPLSTATE')
+    </select>
+
+    <select id="selectReportLog" parameterType="com.hisco.admin.twedu.vo.TweduVO" resultType="com.hisco.admin.twedu.vo.TweduPlanVO">
+		WITH ATTEND AS (
+			SELECT
+				EDC_ATEND_DATE,
+				SUM(CASE EDC_ATEND_GBN WHEN '2001' THEN 1 ELSE 0 END) AS PASS_CNT,
+				SUM(CASE EDC_ATEND_GBN WHEN '1001' THEN 1 ELSE 0 END) AS MISS_CNT
+			FROM edc_atend_mng
+			WHERE 1=1
+			AND COMCD = #{comcd}
+			AND EDC_PRGM_NO = #{edcPrgmid}
+			GROUP BY EDC_ATEND_DATE
+		)
+		SELECT
+			A.LECT_SEQ,
+			A.LECT_TITLE AS EDC_TITLE,
+			A.LECT_CONTENTS AS EDC_CNTS,
+			DATE_FORMAT(A.LECT_DATE, '%Y-%m-%d') AS EDC_DATE,
+			CASE WEEKDAY(LECT_DATE)
+			    WHEN '0' THEN '월'
+			    WHEN '1' THEN '화'
+			    WHEN '2' THEN '수'
+			    WHEN '3' THEN '목'
+			    WHEN '4' THEN '금'
+			    WHEN '5' THEN '토'
+			    WHEN '6' THEN '일'
+				END AS WEEK_NAME,
+			CASE WHEN DATE_FORMAT(NOW(), '%Y%m%d')>=A.LECT_DATE THEN 'Y' ELSE 'N' END AS PASS_YN,
+			A.LECT_FILEID,
+			F1.FILE_NAME AS LECT_IMG_FILENM,
+		    F1.ORGIN_FILE_NAME AS LECT_IMG_ORIGIN,
+		    F1.FILE_PATH AS LECT_IMG_PATH,
+		    NVL(C.PASS_CNT,0) AS PASS_CNT,
+  		    NVL(C.MISS_CNT,0) AS MISS_CNT,
+  		    (SELECT COUNT(*) FROM EDC_RSVN_COMPT_INFO WHERE COMCD=A.COMCD AND EDC_PRGM_NO=A.EDC_PRGM_NO AND EDC_RETYN='N' AND EDC_EDATE>=A.LECT_DATE) AS TOTAL_MEM_CNT
+		FROM
+			lect_contents A
+			LEFT OUTER JOIN ATCH_FILE_LIST F1 ON A.COMCD = F1.COMCD AND A.LECT_FILEID = F1.FILE_GRPINNB AND F1.FILE_SN=0
+			LEFT OUTER JOIN ATTEND C ON A.LECT_DATE = C.EDC_ATEND_DATE
+		WHERE 1=1
+			AND A.COMCD = #{comcd}
+			AND A.EDC_PRGM_NO = #{edcPrgmid}
+		ORDER BY
+			A.LECT_DATE
+
+    </select>
+
+    <select id="selectReportPlan" parameterType="com.hisco.admin.twedu.vo.TweduVO" resultType="com.hisco.admin.twedu.vo.TweduPlanVO">
+		SELECT
+			C.MEM_NM,
+			DATE_FORMAT(A.EDC_DATE, '%Y-%m-%d') AS EDC_DATE,
+			A.EDC_TITLE
+		FROM lect_plan A
+		INNER JOIN EDC_PROGRAM B ON A.COMCD = B.COMCD AND A.EDC_PRGM_NO = B.EDC_PRGM_NO
+		INNER JOIN member C ON B.COMCD = C.COMCD AND B.MEM_NO = C.MEM_NO
+		WHERE 1=1
+		AND A.COMCD = #{comcd}
+		AND A.EDC_PRGM_NO = #{edcPrgmid}
+    </select>
+
+    <select id="selectOrgNo" resultType="Integer">
+    	SELECT org_no FROM org_info WHERE ORG_LTYPE = '4001' LIMIT 1
+    </select>
+
+    <select id="selectEduTerm" parameterType="com.hisco.admin.twedu.vo.TweduVO" resultType="com.hisco.admin.twedu.vo.TweduVO">
+    	SELECT
+    		MEM_NO,
+    		EDC_SDATE,
+    		EDC_EDATE,
+    		(SELECT COUNT(*) FROM EDC_PLAN WHERE COMCD = X.COMCD AND EDC_PRGM_NO = X.EDC_PRGM_NO AND DATE_FORMAT(NOW(), '%Y%m%d')>=EDC_DATE) AS CUR_EDC_CL_CNT,
+    		(SELECT GROUP_CONCAT(CASE WHEN EDC_DAY_GBN = 7 THEN 0 ELSE EDC_DAY_GBN END) FROM edc_days WHERE COMCD = #{comcd} AND EDC_PRGM_NO = #{edcPrgmid}) AS `EDC_DAYS`
+    	FROM
+    		EDC_PROGRAM X
+    	 WHERE
+    	 	COMCD = #{comcd} AND EDC_PRGM_NO = #{edcPrgmid}
+    </select>
+
+    <select id="selectJoinList" parameterType="com.hisco.admin.twedu.vo.TweduJoinVO" resultType="com.hisco.admin.twedu.vo.TweduJoinVO">
+		SELECT
+			DATE_FORMAT(C.REGDATE, '%Y-%m-%d %h:%i') AS EDC_REQ_DATE,
+			CASE WHEN X.EDC_RETYN ='Y' AND  RET_DATE > EDC_START then '중퇴'
+                when X.EDC_RETYN ='Y' then '취소'
+                when X.EDC_COMPLSTAT ='2001' then '수료'
+                when X.EDC_START > DATE_FORMAT(SYSDATE(),'%Y%m%d') then '교육대기'
+                when DATE_FORMAT(SYSDATE(),'%Y%m%d') between X.EDC_START  and X.EDC_END then '교육중'
+                else '미수료'
+            end as EDC_STAT,
+			X.*
+		FROM (
+			SELECT
+				ROW_NUMBER() OVER(ORDER BY A.EDC_RSVN_REQID DESC, A.EDC_RSVN_COMPTID DESC) AS RNUM,
+				COUNT(*) OVER() TOT_CNT,
+				A.COMCD,
+				A.EDC_RSVN_REQID,
+				A.EDC_RSVN_COMPTID,
+				A.EDC_COMPLSTAT,
+				A.EDC_RETYN,
+				(SELECT SELNG_DATE FROM SELNG_INFO WHERE COMCD=A.COMCD AND SELNG_ID=A.RET_SELNG_ID) RET_DATE,
+				B.EDC_PRGM_NO,
+				B.EDC_PRGM_NM,
+				B.INSTRCTR_NAME,
+				A.EDC_SDATE  AS EDC_START ,
+				A.EDC_EDATE  AS EDC_END ,
+				DATE_FORMAT(A.EDC_SDATE, '%Y.%m.%d') AS EDC_SDATE,
+				DATE_FORMAT(A.EDC_EDATE, '%Y.%m.%d') AS EDC_EDATE,
+				DATE_FORMAT(A.EDC_CONFIRM_DATE, '%Y.%m.%d') AS EDC_CONFIRM_DATE,
+				B.EDC_CTFHVYN
+			FROM EDC_RSVN_COMPT_INFO A
+			INNER JOIN EDC_PROGRAM B ON ( A.COMCD = B.COMCD AND A.EDC_PRGM_NO = B.EDC_PRGM_NO )
+			WHERE 1=1
+			AND A.EDC_MEM_NO = #{edcMemNo}
+			AND B.EDC_PROGM_TYPE = '4001'
+			<if test="edcComplstat !=null and edcComplstat !=''">
+				<choose>
+					<when test='edcComplstat == "0000"'>
+						AND A.EDC_COMPLSTAT IS NULL AND  A.EDC_SDATE > DATE_FORMAT(SYSDATE(),'%Y%m%d')
+					</when>
+					<when test='edcComplstat == "3001"'>
+						AND A.EDC_COMPLSTAT IS NULL AND DATE_FORMAT(SYSDATE(),'%Y%m%d') between A.EDC_SDATE  and A.EDC_EDATE
+					</when>
+					<otherwise>
+						AND A.EDC_COMPLSTAT = #{edcComplstat}
+					</otherwise>
+				</choose>
+			</if>
+			AND (
+				A.EDC_RETYN='N' OR
+				(SELECT SELNG_DATE FROM SELNG_INFO WHERE COMCD=A.COMCD AND SELNG_ID=A.RET_SELNG_ID) >= A.EDC_SDATE
+			)
+		) X
+		INNER JOIN edc_rsvn_info C ON ( X.COMCD = C.COMCD AND X.EDC_RSVN_REQID = C.EDC_RSVN_REQID)
+		WHERE 1=1
+		<![CDATA[
+             AND  RNUM  > #{firstIndex}
+             AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+        ]]>
+       	ORDER BY X.EDC_RSVN_REQID DESC, X.EDC_RSVN_COMPTID DESC
+    </select>
+
+     <update id="insertReportLogPlan" parameterType="com.hisco.admin.twedu.vo.TweduVO" >
+		INSERT INTO LECT_CONTENTS
+		(COMCD , EDC_PRGM_NO , LECT_SEQ , LECT_DATE ,LECT_TITLE , REGDATE , REGUSER , MODDATE , MODUSER)
+		SELECT
+			COMCD ,
+			EDC_PRGM_NO,
+			EDC_CLASS_NO,
+			EDC_DATE,
+			EDC_TITLE,
+			SYSDATE(),
+			'batch',
+			SYSDATE(),
+			'batch'
+		FROM
+			EDC_PLAN
+		WHERE
+			COMCD = #{comcd} AND EDC_PRGM_NO=#{edcPrgmid} 
+
+    </update>
+
+</mapper>

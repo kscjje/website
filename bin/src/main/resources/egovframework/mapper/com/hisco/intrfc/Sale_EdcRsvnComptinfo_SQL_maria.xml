@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+통합매출정보
+작성자: 박우진
+ -->
+
+<mapper namespace="com.hisco.intrfc.sale.mapper.EdcRsvnComptinfoMapper">
+
+	<update id="insertEdcRsvnComptinfo">
+		/* com.hisco.intrfc.sale.mapper.EdcRsvnComptinfoMapper.insertEdcRsvnComptinfo */
+		INSERT INTO EDC_RSVN_COMPT_INFO (
+			COMCD /*운영사업자고유번호*/
+			, EDC_RSVN_REQID /*교육신청고유번호. 시퀀스 : SEQ_EDC_REQID*/
+			, EDC_RSVN_COMPTID /*교육신청등록고유번호:삭제예정*/
+			, EDC_RSVN_MEMTYPE /*교육신청회원구분. 1001 : 회원. 2001 : 비회원. . */
+			, EDC_MEM_NO /*교육대상회원번호*/
+			, EDC_REQ_MEM_NO /*교육신청회원번호*/
+			, EDC_PRGM_NO /*교육프로그램고유번호*/
+			, EDC_RSVN_CUSTNM /*비회원교육대상고객명*/
+			, EDC_RSVN_BIRTHDATE
+			, EDC_RSVN_GENDER
+			, EDC_RSVN_MOBLPHON /*비회원교육신청자휴대폰번호_암호화. . 비회원인경우 필수적으로 입력받는다.*/
+			, EDC_RSVN_EMAIL /*비회원교육신청자이메일정보_암호화*/
+			, EDC_NONMEMB_CERTNO /*비회원교육신청자휴대폰본인인증KEY*/
+			, SELNG_ID /*매출고유번호*/
+			, EDC_SDATE /*교육시작일자*/
+			, EDC_EDATE /*교육종료일자*/
+			, EDC_STIME /*교육시작시간*/
+			, EDC_ETIME /*교육종료시간*/
+			, EDC_COMPLSTAT /*교육수료여부 2001*/
+			, EDC_CONFIRM_DATE /*교육수료확정일시*/
+			, EDC_COMPL_USERID /*교육수료처리담당자*/
+			, EDC_RETYN /*환불여부*/
+			, RET_SELNG_ID /*매출정보의 고유번호를 기록한다. 시퀀스 : SEQ_SELNGID*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		SELECT COMCD /*운영사업자고유번호*/
+			, EDC_RSVN_REQID /*교육신청고유번호. 시퀀스 : SEQ_EDC_REQID*/
+			, (SELECT NVL(MAX(EDC_RSVN_COMPTID), 0) + 1
+					FROM EDC_RSVN_COMPT_INFO
+					WHERE COMCD = #{comcd}
+						AND EDC_RSVN_REQID = #{edcRsvnReqid}) AS EDC_RSVN_COMPTID /*교육신청등록고유번호:삭제예정*/
+			, EDC_RSVN_MEMTYPE /*교육신청회원구분. 1001 : 회원. 2001 : 비회원. . */
+			, EDC_MEM_NO /*교육대상회원번호*/
+			, EDC_RSVN_MEMNO /*교육신청회원번호*/
+			, EDC_PRGM_NO /*교육프로그램고유번호*/
+			, EDC_RSVN_CUSTNM /*비회원교육대상고객명*/
+			, EDC_RSVN_BIRTHDATE
+			, EDC_RSVN_GENDER
+			, EDC_RSVN_MOBLPHON /*비회원교육신청자휴대폰번호_암호화. . 비회원인경우 필수적으로 입력받는다.*/
+			, EDC_EMAIL /*비회원교육신청자이메일정보_암호화*/
+			, EDC_NONMEMB_CERTNO /*비회원교육신청자휴대폰본인인증KEY*/
+			, #{selngId} /*매출고유번호*/
+			, EDC_REQ_SDATE /*교육시작일자*/
+			, EDC_REQ_EDATE /*교육종료일자*/
+			, EDC_REQ_STIME /*교육시작시간*/
+			, EDC_REQ_ETIME /*교육종료시간*/
+			, #{edcComplstat} /*교육수료여부*/
+			, #{edcConfirmDate} /*교육수료확정일시*/
+			, #{edcComplUserid} /*교육수료처리담당자*/
+			, NVL(EDC_RETYN, 'N') /*환불여부*/
+			, RET_SELNG_ID /*매출정보의 고유번호를 기록한다. 시퀀스 : SEQ_SELNGID*/
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser}
+		FROM EDC_RSVN_INFO
+			WHERE COMCD = #{comcd}
+				AND EDC_RSVN_REQID = #{edcRsvnReqid}
+	</update>
+
+	<!-- 예약취소 -->
+ 	<update id="cancelEdcRsvnComptinfo">
+ 		UPDATE EDC_RSVN_COMPT_INFO
+ 			SET MODDATE = SYSDATE()
+ 				, MODUSER = #{moduser}
+ 				, EDC_RETYN = NVL(#{edcRetyn}, 'Y')
+ 				, RET_SELNG_ID = #{retSelngId}
+ 		WHERE 1 = 1
+ 			AND COMCD = #{comcd}
+ 			AND EDC_RSVN_REQID = #{edcRsvnReqid}
+ 	</update>
+
+	<select id="selectEdcRsvnComptinfo" resultType="com.hisco.intrfc.sale.vo.EdcRsvnComptinfoVO" >
+		/* com.hisco.intrfc.sale.mapper.PayListMapper.selectEdcRsvnComptinfo */
+		SELECT A.*
+			FROM EDC_RSVN_COMPT_INFO A
+			WHERE A.COMCD = #{comcd}
+	</select>
+
+ 	<select id="selectEdcRsvnComptinfoList" resultType="com.hisco.intrfc.sale.vo.EdcRsvnComptinfoVO" >
+		/* com.hisco.intrfc.sale.mapper.PayListMapper.selectEdcRsvnComptinfoList */
+		SELECT A.*
+			FROM EDC_RSVN_COMPT_INFO A
+			WHERE A.COMCD = #{comcd}
+	</select>
+
+</mapper>

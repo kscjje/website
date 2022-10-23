@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 관리자 계정 관리
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2020.07.15   	진수진          최초 작성
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="SysUserDAO">
+
+	<resultMap id="sysUser" type="com.hisco.admin.manager.service.SysUserVO">
+		<result property="comcd" column="COMCD"/>
+		<result property="userId" column="USER_ID"/>
+		<result property="password" column="PASSWORD"/>
+		<result property="korName" column="KOR_NAME"/>
+		<result property="depCd" column="DEP_CD"/>
+		<result property="useYn" column="USE_YN"/>
+		<result property="telNo" column="TEL_NO"/>
+		<result property="enterDate" column="ENTER_DATE"/>
+		<result property="outDate" column="OUT_DATE"/>
+		<result property="stats" column="STATS"/>
+		<result property="offiTel" column="OFFI_TEL"/>
+		<result property="email" column="EMAIL"/>
+		<result property="remark" column="REMARK"/>
+		<result property="creator" column="REGUSER"/>
+		<result property="createdate" column="REGDATE"/>
+		<result property="updator" column="MODUSER"/>
+		<result property="updatedate" column="MODDATE"/>
+		<result property="roleCd" column="ROLE_CD"/>
+		<result property="roleNm" column="ROLE_NM"/>
+		<result property="lastLogin" column="LAST_LOGIN"/>
+	</resultMap>
+
+
+ 	<select id="selectList" parameterType="com.hisco.admin.manager.service.SysUserVO" resultMap="sysUser">
+            		SELECT
+	                   USER_ID,
+	                   KOR_NAME,
+	                   DEP_CD,
+	                   USE_YN,
+	                   TEL_NO,
+	                   ENTER_DATE,
+	                   OUT_DATE,
+	                   STATS,
+	                   OFFI_TEL,
+	                   EMAIL,
+	                   REMARK,
+	                   REGUSER,
+	                   REGDATE,
+	                   MODDATE,
+	                   MODUSER,
+	                   (SELECT MAX(REGDATE) FROM SYSTEM_CNNTLOG WHERE COMCD=#{comcd} AND CONNCT_APPGBN='2002' AND CONECT_ID=M.USER_ID) LAST_LOGIN,
+	                   T.AUTHOR_CODE AS ROLE_CD,
+	                   (SELECT R.AUTHOR_NM FROM  COMTNAUTHORINFO R
+	                   		WHERE T.AUTHOR_CODE = R.AUTHOR_CODE ) ROLE_NM
+	              FROM  MNGR_ACNTMNG M
+	              	LEFT OUTER JOIN COMTNEMPLYRSCRTYESTBS T ON T.COMCD = M.COMCD AND T.SCRTY_DTRMN_TRGET_ID = M.USER_ID
+             		<where>
+             			M.COMCD = #{comcd} AND M.WEB_MNGYN='Y'
+			            <if test="searchCondition == 0">AND
+			                M.USER_ID LIKE '%'||#{searchKeyword}||'%'
+			            </if>
+			            <if test="searchCondition == 1">AND
+			                M.KOR_NAME LIKE '%'||#{searchKeyword}||'%'
+			            </if>
+		            </where>
+            		ORDER BY M.REGDATE DESC , M.KOR_NAME
+ 	</select>
+
+ 	<select id="selectListCount" parameterType="com.hisco.admin.manager.service.SysUserVO" resultType="java.lang.Integer">
+		SELECT COUNT(*)
+		FROM
+			MNGR_ACNTMNG
+		<where>
+            <if test="searchCondition == 0">AND
+                USER_ID LIKE '%'||#{searchKeyword}||'%'
+            </if>
+            <if test="searchCondition == 1">AND
+                KOR_NAME LIKE '%'||#{searchKeyword}||'%'
+            </if>
+       </where>
+ 	</select>
+
+
+ 	<select id="selectMstRecord" parameterType="com.hisco.admin.manager.service.SysUserVO" resultMap="sysUser">
+		SELECT *
+		FROM
+			MNGR_ACNTMNG
+		<where>
+            COMCD = #{comcd} AND USER_ID = #{userId}
+       </where>
+ 	</select>
+
+
+ 	<insert id="insertMst" parameterType="com.hisco.admin.manager.service.SysUserVO">
+		INSERT INTO MNGR_ACNTMNG
+		(COMCD, USER_ID , PASSWORD , KOR_NAME, DEP_CD, USE_YN , TEL_NO , ENTER_DATE,  OUT_DATE , EMAIL , CREATOR , CREATEDATE)
+		VALUES
+		(#{comcd} , #{userId} , #{password} , #{korName} , #{depCd} , #{useYn} , #{telNo} , #{enterDate} , #{outDate} , #{email} , #{creator} , SYSDATE)
+ 	</insert>
+
+
+ 	<update id="updateMst" parameterType="com.hisco.admin.manager.service.SysUserVO">
+		UPDATE MNGR_ACNTMNG
+		SET
+			KOR_NAME = #{korName}, DEP_CD = #{depCd}, USE_YN= #{useYn} , TEL_NO = #{telNo} , ENTER_DATE = #{enterDate},  OUT_DATE=#{outDate} , EMAIL=#{email}
+			, UPDATOR=#{creator} , UPDATEDATE = SYSDATE
+		WHERE
+			COMCD = #{comcd} AND USER_ID = #{userId}
+ 	</update>
+
+ 	<update id="updatePassword" parameterType="com.hisco.admin.manager.service.SysUserVO">
+		UPDATE MNGR_ACNTMNG
+		SET
+			PASSWORD = #{password}
+			, UPDATOR=#{creator} , UPDATEDATE = SYSDATE , PWD_CHANGE_DATE = SYSDATE , PWD_CHANGEYN='Y'
+		WHERE
+			COMCD = #{comcd} AND USER_NO = #{userNo}
+ 	</update>
+
+
+ 	<insert id="insertRole" parameterType="com.hisco.admin.manager.service.SysUserVO">
+		INSERT INTO COMTNEMPLYRSCRTYESTBS
+		(SCRTY_DTRMN_TRGET_ID , COMCD , AUTHOR_CODE)
+		VALUES
+		( #{userId} , #{comcd} , #{roleCd})
+ 	</insert>
+
+ 	<update id="updateRole" parameterType="com.hisco.admin.manager.service.SysUserVO">
+		UPDATE COMTNEMPLYRSCRTYESTBS
+		SET
+			 AUTHOR_CODE = #{roleCd}
+		<where>
+           COMCD=#{comcd}  AND SCRTY_DTRMN_TRGET_ID = #{userId}
+       </where>
+ 	</update>
+
+ 	<delete id="deleteRole" parameterType="com.hisco.admin.manager.service.SysUserVO">
+		DELETE FROM COMTNEMPLYRSCRTYESTBS
+		<where>
+           COMCD=#{comcd}  AND SCRTY_DTRMN_TRGET_ID = #{userId}
+       </where>
+ 	</delete>
+
+ 	<select id="selectRole" parameterType="com.hisco.admin.manager.service.SysUserVO" resultType="java.lang.String">
+		SELECT
+			AUTHOR_CODE
+		FROM
+			COMTNEMPLYRSCRTYESTBS
+		<where>
+            SCRTY_DTRMN_TRGET_ID = #{userId} AND COMCD=#{comcd}
+       </where>
+ 	</select>
+
+ 	<select id="selectRoleCount" parameterType="com.hisco.admin.manager.service.SysUserVO" resultType="integer">
+		SELECT
+			COUNT(*)
+		FROM
+			COMTNEMPLYRSCRTYESTBS
+		<where>
+            SCRTY_DTRMN_TRGET_ID =  #{userId} AND COMCD=#{comcd}
+       </where>
+ 	</select>
+
+
+	<insert id="insertRoleLog" parameterType="com.hisco.admin.manager.service.SysUserVO">
+		INSERT INTO SYSTEM_PRMISN_LOG
+		(LOG_SEQ , COMCD , SYSTEM_GBN , USER_IP , LOG_REG_USERID , LOG_REGDATE, LOGNM , USERID ,MENUID , PG_OBJ)
+		VALUES
+		((SELECT NVL(MAX(LOG_SEQ),0)+1 FROM SYSTEM_PRMISN_LOG) , #{comcd} , '2002', #{ip} , #{creator} , SYSDATE , #{lognm} ,#{userId} ,0, #{roleCd} )
+ 	</insert>
+
+
+ 	<select id="selectAcntIppolicyCheck" parameterType="egovframework.com.cmm.LoginVO" resultType="cMap">
+		SELECT
+			COUNT(*) REGIST_CNT , NVL(SUM(CASE WHEN IP_INFO=#{ip} THEN 1 ELSE 0 END),0) IP_CNT
+		FROM
+			ACNT_IPPOLICY
+		<where>
+            COMCD=#{comcd} AND USER_ID=#{id}
+       </where>
+ 	</select>
+
+
+</mapper>

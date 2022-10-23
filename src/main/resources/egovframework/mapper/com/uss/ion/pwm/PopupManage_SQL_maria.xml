@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일          수정자                          수정내용
+  ===========      ========    =================================================
+  2011.10.06		이기하     	 	보안 취약점 점검사항 반영 $->#변경
+--><!--Converted at: Wed May 11 15:51:16 KST 2016-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="PopupManage">
+
+	<!-- ::ResultMap 선언 -->
+	<resultMap id="PopupManageVOs" type="egovframework.com.uss.ion.pwm.service.PopupManageVO">
+		<result property="popupId" column="POPUP_ID"/>
+		<result property="popupTitleNm" column="POPUP_TITLE"/>
+		<result property="fileUrl" column="POPUP_URL"/>
+		<result property="popupHlc" column="POPUP_VRTICL_LC"/>
+		<result property="popupWlc" column="POPUP_WIDTH_LC"/>
+		<result property="popupHSize" column="POPUP_VRTICL_SIZE"/>
+		<result property="popupWSize" column="POPUP_WIDTH_SIZE"/>
+		<result property="ntceBgnde" column="NTCE_BGNDE"/>
+		<result property="ntceEndde" column="NTCE_ENDDE"/>
+		<result property="stopVewAt" column="STOPVEW_SETUP_AT"/>
+		<result property="ntceAt" column="OPEN_YN"/>
+		<result property="linkTarget" column="LINK_TARGET"/>
+		<result property="imageFileId" column="IMAGE_FILE_ID"/>
+		<result property="imageFileNm" column="IMAGE_FILE_NM"/>
+		<result property="frstRegistPnttm" column="REGDATE"/>
+		<result property="frstRegisterId" column="REGUSER"/>
+		<result property="lastUpdtPnttm" column="MODDATE"/>
+		<result property="lastUpdusrId" column="MODUSER"/>
+		<result property="ntceBgndeYMD" column="BGNDE_YMD"/>
+		<result property="ntceEnddeYMD" column="ENDDE_YMD"/>
+		<result property="ntceBgndeHH" column="BGNDE_HH"/>
+		<result property="ntceEnddeHH" column="ENDDE_HH"/>
+		<result property="ntceBgndeMM" column="BGNDE_MM"/>
+		<result property="ntceEnddeMM" column="ENDDE_MM"/>
+	</resultMap>
+
+	    <resultMap id="imageFile" type="com.hisco.cmm.vo.FileVO">
+        <result property="fileName" column="FILE_NM"/>
+		<result property="filePath" column="FILE_PATH"/>
+    </resultMap>
+
+	<!-- 팝업창관리:: 메인 게시물정보 -->
+	<select id="selectPopupManageMain" resultType="egovMap">
+	 <![CDATA[
+		SELECT
+			A.POPUP_ID,
+			A.POPUP_TITLE		    POPUP_TITLE_NM,
+			A.POPUP_URL,
+			A.POPUP_VRTICL_LC,
+			A.POPUP_WIDTH_LC,
+			A.POPUP_VRTICL_SIZE,
+			A.POPUP_WIDTH_SIZE,
+			A.NTCE_BGNDE,
+			A.NTCE_ENDDE,
+			A.STOPVEW_SETUP_AT,
+			A.OPEN_YN,
+			A.IMAGE_FILE_ID,
+			A.IMAGE_FILE_NM,
+			A.LINK_TARGET,
+			A.REGDATE,
+			F.FILE_NM ,
+		    F.ORG_FILE_NM,
+		    F.FILE_PATH
+		FROM
+			COMTNPOPUPMANAGE A
+			LEFT OUTER JOIN ATCH_FILE_LIST F ON A.IMAGE_FILE_ID = F.FILE_GRP_NO
+		WHERE 1=1
+			AND A.OPEN_YN = 'Y'
+			AND date(SYSDATE()) >= NTCE_BGNDE
+			AND date(SYSDATE()) <=  NTCE_ENDDE
+		ORDER BY A.SORT_ORDER
+	 ]]>
+	</select>
+
+	<!-- 팝업창관리: 화이트 리스트 정보 -->
+	<select id="selectPopupWhiteList" resultType="egovMap">
+
+		SELECT
+			POPUP_URL
+		FROM COMTNPOPUPMANAGE
+
+	</select>
+
+	<!-- 팝업창관리::목록조회 게시물정보 -->
+	<select id="selectPopupManage" resultType="egovMap">
+		        /* PopupManage.selectPopupManage */
+				SELECT
+				A.POPUP_ID,
+				A.POPUP_TITLE		    POPUP_TITLE_NM,
+				A.POPUP_URL,
+				A.POPUP_VRTICL_LC,
+				A.POPUP_WIDTH_LC,
+				A.POPUP_VRTICL_SIZE,
+				A.POPUP_WIDTH_SIZE,
+				DATE_FORMAT(A.NTCE_BGNDE,'%Y-%m-%d') AS NTCE_BGNDE,
+				DATE_FORMAT(A.NTCE_ENDDE,'%Y-%m-%d') AS NTCE_ENDDE,
+				A.STOPVEW_SETUP_AT,
+				A.OPEN_YN,
+				A.SORT_ORDER,
+				A.REGDATE
+			FROM COMTNPOPUPMANAGE A
+			WHERE 1=1
+		 <if test="searchKeyword != null and searchKeyword != ''">
+		 		AND POPUP_TITLE LIKE CONCAT('%', #{searchKeyword}, '%')
+		 </if>
+
+		 <if test="ntceAt != null and ntceAt != ''">
+		 		AND OPEN_YN = #{ntceAt}
+		 </if>
+
+		 <if test="ntceBgndeYMD != null and ntceBgndeYMD != ''">
+				<if test='searchCondition eq "1"'>
+					AND date(NTCE_BGNDE) &gt;= #{ntceBgndeYMD}
+				</if>
+				<if test='searchCondition eq "2"'>
+					AND date(REGDATE) &gt;= #{ntceBgndeYMD}
+				</if>
+		 </if>
+
+
+		 <if test="ntceEnddeYMD != null and ntceEnddeYMD != ''">
+				<if test='searchCondition eq "1"'>
+					AND date(NTCE_ENDDE) &lt;= #{ntceEnddeYMD}
+				</if>
+				<if test='searchCondition eq "2"'>
+					AND date(REGDATE) &lt;= #{ntceEnddeYMD}
+				</if>
+		 </if>
+			ORDER BY A.REGDATE DESC
+			LIMIT #{recordCountPerPage} OFFSET #{firstIndex}
+	</select>
+
+	<!-- 팝업창관리::목록조회_게시물 총갯수  -->
+	<select id="selectPopupManageCnt" resultType="int">
+
+			SELECT
+			COUNT(*) totcnt
+			FROM COMTNPOPUPMANAGE
+			WHERE 1=1
+		 <if test="searchKeyword != null and searchKeyword != ''">
+
+				<if test='searchCondition eq "1"'>
+					AND POPUP_TITLE LIKE CONCAT('%', #{searchKeyword}, '%')
+				</if>
+				<if test='searchCondition eq "2"'>
+					AND POPUP_URL LIKE CONCAT('%', #{searchKeyword}, '%')
+				</if>
+		 </if>
+	</select>
+
+    <!-- 팝업창관리::삭제  -->
+	<delete id="deletePopupManage">
+
+			DELETE FROM COMTNPOPUPMANAGE
+			WHERE POPUP_ID=#{popupId}
+
+	</delete>
+
+	<!-- 팝업창관리::수정  -->
+	<update id="updatePopupManage">
+
+		UPDATE COMTNPOPUPMANAGE
+		SET
+			POPUP_TITLE=#{popupTitleNm},
+			POPUP_URL=#{fileUrl},
+			POPUP_VRTICL_LC=#{popupHlc},
+			POPUP_WIDTH_LC=#{popupWlc},
+			POPUP_VRTICL_SIZE=#{popupHSize},
+			POPUP_WIDTH_SIZE=#{popupWSize},
+			<choose>
+				<when test='ntceBgnde != ""'>NTCE_BGNDE=STR_TO_DATE(#{ntceBgnde},'%Y%m%d%H%i'),</when>
+				<otherwise>NTCE_BGNDE=null,</otherwise>
+			</choose>
+			<choose>
+				<when test='ntceEndde != ""'>NTCE_ENDDE=STR_TO_DATE(#{ntceEndde},'%Y%m%d%H%i'),</when>
+				<otherwise>NTCE_ENDDE=null,</otherwise>
+			</choose>
+			STOPVEW_SETUP_AT=#{stopVewAt},
+			OPEN_YN=#{ntceAt},
+			LINK_TARGET=#{linkTarget},
+			<if test="isAtchFile == true">
+			IMAGE_FILE_ID=#{imageFileId},
+			IMAGE_FILE_NM=#{imageFileNm},
+			</if>
+			MODDATE=SYSDATE(),
+			MODUSER=#{lastUpdusrId},
+			SORT_ORDER = NVL(#{sortOrder}, 0)
+		WHERE POPUP_ID=#{popupId}
+
+	</update>
+
+
+	<!-- 팝업창관리::수정  -->
+	<update id="updateStatPopupManage">
+
+		UPDATE COMTNPOPUPMANAGE
+		SET
+			OPEN_YN=#{ntceAt},
+			MODDATE=SYSDATE(),
+			MODUSER=#{lastUpdusrId},
+			SORT_ORDER = NVL(#{sortOrder}, 0)
+		WHERE POPUP_ID=#{popupId}
+
+	</update>
+
+	<!-- 팝업창관리::상세보기 -->
+	<select id="selectPopupManageDetail" resultMap="PopupManageVOs">
+	SELECT /* selectPopupManageDetail */
+			A.POPUP_ID,
+			A.POPUP_TITLE,
+			A.POPUP_URL,
+			A.POPUP_VRTICL_LC,
+			A.POPUP_WIDTH_LC,
+			A.POPUP_VRTICL_SIZE,
+			A.POPUP_WIDTH_SIZE,
+			DATE_FORMAT(A.NTCE_BGNDE,'%Y-%m-%d') AS NTCE_BGNDE,
+			DATE_FORMAT(A.NTCE_ENDDE,'%Y-%m-%d') AS NTCE_ENDDE,
+			CASE WHEN NTCE_BGNDE IS NOT NULL THEN DATE_FORMAT(NTCE_BGNDE,'%Y-%m-%d') END BGNDE_YMD,
+			CASE WHEN NTCE_ENDDE IS NOT NULL THEN DATE_FORMAT(NTCE_ENDDE,'%Y-%m-%d') END ENDDE_YMD,
+			CASE WHEN NTCE_BGNDE IS NOT NULL THEN DATE_FORMAT(NTCE_BGNDE,'%H') END BGNDE_HH,
+			CASE WHEN NTCE_ENDDE IS NOT NULL THEN DATE_FORMAT(NTCE_ENDDE,'%H') END ENDDE_HH,
+			CASE WHEN NTCE_BGNDE IS NOT NULL THEN DATE_FORMAT(NTCE_BGNDE,'%i') END BGNDE_MM,
+			CASE WHEN NTCE_ENDDE IS NOT NULL THEN DATE_FORMAT(NTCE_ENDDE,'%i') END ENDDE_MM,
+			A.STOPVEW_SETUP_AT,
+			A.OPEN_YN,
+			A.REGDATE,
+			A.REGUSER,
+			A.MODDATE,
+			A.MODUSER,
+			A.LINK_TARGET,
+			A.IMAGE_FILE_ID,
+			A.IMAGE_FILE_NM,
+			A.SORT_ORDER AS sortOrder
+		FROM COMTNPOPUPMANAGE A
+		WHERE
+			 A.POPUP_ID=#{popupId}
+	</select>
+
+	<!-- 팝업창관리::입력  -->
+	<insert id="insertPopupManage">
+
+
+		INSERT INTO COMTNPOPUPMANAGE (
+			POPUP_ID,
+			POPUP_TITLE,
+			POPUP_URL,
+			POPUP_VRTICL_LC,
+			POPUP_WIDTH_LC,
+			POPUP_VRTICL_SIZE,
+			POPUP_WIDTH_SIZE,
+			NTCE_BGNDE,
+			NTCE_ENDDE,
+			STOPVEW_SETUP_AT,
+			OPEN_YN,
+			REGDATE,
+			REGUSER,
+			LINK_TARGET,
+			IMAGE_FILE_ID,
+			IMAGE_FILE_NM,
+			SORT_ORDER
+		)VALUES(
+			#{popupId},
+			#{popupTitleNm},
+			#{fileUrl},
+			#{popupHlc},
+			#{popupWlc},
+			#{popupHSize},
+			#{popupWSize},
+			CASE WHEN #{ntceBgnde}=null THEN null ELSE STR_TO_DATE(#{ntceBgnde},'%Y%m%d%H%i') END,
+			CASE WHEN #{ntceEndde}=null THEN null ELSE STR_TO_DATE(#{ntceEndde},'%Y%m%d%H%i') END,
+			#{stopVewAt},
+			#{ntceAt},
+			SYSDATE(),
+			#{frstRegisterId},
+			#{linkTarget},
+			#{imageFileId},
+			#{imageFileNm},
+			NVL(#{sortOrder}, 0)
+		)
+
+	</insert>
+
+	<select id="selectFile" resultMap="imageFile">
+
+            SELECT B.FILE_PATH ,
+                   B.FILE_NM
+              FROM COMTNPOPUPMANAGE A,
+                   ATCH_FILE_LIST B
+             WHERE 1 = 1
+               AND A.POPUP_ID = #{popupId}
+               AND A.IMAGE_FILE_ID = B.FILE_GRP_NO
+
+    </select>
+</mapper>

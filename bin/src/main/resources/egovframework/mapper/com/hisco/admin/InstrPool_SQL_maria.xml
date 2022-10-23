@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 강사 관리
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2021.11.05   	이기태          최초 작성
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.admin.instrctr.mapper.InstrPoolMapper">
+
+	<select id="selectList" parameterType="com.hisco.admin.instrctr.vo.InstrPoolVO" resultType="com.hisco.admin.instrctr.vo.InstrPoolVO">
+		SELECT
+			ALL_LIST.*
+			,(SELECT CD_NM FROM COT_GRPCD AA WHERE ALL_LIST.STATE = AA.CD AND AA.GRP_CD = 'SM_INSTRCTR_STATE') AS STATE_NM
+		FROM  (
+			SELECT
+				  ROW_NUMBER() OVER (order by P.REGDATE DESC) RNUM
+				 , P.MEM_NO
+				 , P.TARGET_AREA
+				 , P.LECTR_FIELD
+				 , P.LECTR_TARGET
+				 , P.LECTR_TYPE
+				 , P.STATE
+				 , P.REGDATE
+				 , P.MODDATE
+				 , P.PROFL_IMAGEID
+				 , P.EDUINFO_OPENYN
+				 , p.SELFINTRCN
+				 , M.USER_ID
+			     , M.MEM_NM
+			     , M.GENDER
+			     , M.BIRTH_DATE
+			     , fn_aes_decrypt(M.HP ,#{dbEncKey}) AS HP
+			     , fn_aes_decrypt(M.EMAIL , #{dbEncKey}) AS EMAIL
+				, COUNT(*) OVER() AS TOT_CNT
+			FROM INSTRCTR_POOL P
+				INNER JOIN MEMBER M ON  P.MEM_NO = M.MEM_NO
+			WHERE
+				P.COMCD = #{comcd}
+				<if test="searchKeyword !=null and searchKeyword !=''">
+					<choose>
+						<when test="searchCondition == 'field'">AND P.LECTR_FIELD LIKE CONCAT('%' , #{searchKeyword} , '%')</when>
+						<otherwise>AND M.MEM_NM LIKE CONCAT('%' , #{searchKeyword} , '%')</otherwise>
+					</choose>
+				</if>
+				<if test="searchStartDts !=null and searchStartDts !=''">
+					AND P.REGDATE >= STR_TO_DATE(#{searchStartDts} , '%Y-%m-%d')
+				</if>
+				<if test="searchEndDts !=null and searchEndDts !=''">
+					AND STR_TO_DATE(CONCAT(#{searchEndDts} , ' ', '23:59:59') , '%Y-%m-%d %H:%i:%s') >= P.REGDATE
+				</if>
+				<if test="memNo !=null and memNo !=''">
+				AND P.MEM_NO=#{memNo}
+				</if>
+				<if test="searchStat !=null and searchStat !=''">
+				AND P.STATE=#{searchStat}
+				</if>
+		) ALL_LIST
+		WHERE
+		<![CDATA[
+              RNUM  > #{firstIndex}
+             AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+             ORDER BY RNUM
+        ]]>
+	</select>
+
+	<select id="select" parameterType="com.hisco.admin.instrctr.vo.InstrPoolVO" resultType="com.hisco.admin.instrctr.vo.InstrPoolVO">
+		SELECT
+			 A.*
+			 , M.USER_ID
+		     , M.MEM_NM
+		     , M.GENDER
+		     , M.BIRTH_DATE
+		     , fn_aes_decrypt(M.HP ,#{dbEncKey}) AS HP
+		     , fn_aes_decrypt(M.EMAIL , #{dbEncKey}) AS EMAIL
+		     , CASE WHEN M.GENDER='0' THEN '미기재' WHEN M.GENDER='1' THEN '남성' WHEN M.GENDER='2' THEN '여성'  WHEN M.GENDER='3' THEN '성별미상' WHEN M.GENDER='9' THEN '기타' END AS GENDER_GBN
+		     , M.BIRTH_DATE
+		FROM instrctr_pool A
+			INNER JOIN MEMBER M ON  A.MEM_NO = M.MEM_NO
+		WHERE
+		 	A.COMCD = #{comcd}
+			AND A.MEM_NO = #{memNo}
+
+	</select>
+
+	<insert id="insert" parameterType="com.hisco.admin.instrctr.vo.InstrPoolVO">
+		INSERT INTO instrctr_pool (
+			 COMCD
+			,MEM_NO
+			,TARGET_AREA
+			,LECTR_FIELD
+			,LECTR_TARGET
+			,LECTR_TYPE
+			,SELFINTRCN
+			,EDUINFO_OPENYN
+			,CAREER_OPENYN
+			,LICENSE_ETC
+			,PROFL_IMAGEID
+			,PROFL_ETC
+			,STATE
+			,REGDATE
+			,REGUSER
+			,MODDATE
+			,MODUSER
+		) VALUES (
+			 #{comcd}
+			,#{memNo}
+			,#{targetArea}
+			,#{lectrField}
+			,#{lectrTarget}
+			,#{lectrType}
+			,#{selfintrcn}
+			,#{eduinfoOpenyn}
+			,#{careerOpenyn}
+			,#{licenseEtc}
+			,#{proflImageid}
+			,#{proflEtc}
+			,#{state}
+			,NOW()
+			,#{reguser}
+			,NOW()
+			,#{moduser}
+		)
+	</insert>
+
+	<update id="update" parameterType="com.hisco.admin.instrctr.vo.InstrPoolVO">
+		UPDATE instrctr_pool
+		SET
+			 TARGET_AREA = #{targetArea}
+			,LECTR_FIELD = #{lectrField}
+			,LECTR_TARGET = #{lectrTarget}
+			,LECTR_TYPE = #{lectrType}
+			,SELFINTRCN = #{selfintrcn}
+			,EDUINFO_OPENYN = #{eduinfoOpenyn}
+			,CAREER_OPENYN = #{careerOpenyn}
+			,LICENSE_ETC = #{licenseEtc}
+			,PROFL_IMAGEID = #{proflImageid}
+			,PROFL_ETC = #{proflEtc}
+		WHERE
+		 	COMCD = #{comcd}
+			AND MEM_NO = #{memNo}
+	</update>
+
+	<delete id="delete" parameterType="com.hisco.admin.instrctr.vo.InstrPoolVO">
+		DELETE FROM instrctr_pool
+		WHERE 1=1
+		AND COMCD = #{comcd}
+		AND MEM_NO = #{memNo}
+	</delete>
+
+	<update id="updateState" parameterType="com.hisco.admin.instrctr.vo.InstrPoolVO">
+		UPDATE instrctr_pool
+		SET
+			 STATE = #{state}
+			,MODDATE = SYSDATE()
+			,MODUSER = #{moduser}
+		WHERE
+		 	COMCD = #{comcd}
+			AND MEM_NO = #{memNo}
+	</update>
+
+	<update id="updateStateCheck" parameterType="com.hisco.admin.instrctr.vo.InstrPoolVO">
+		UPDATE instrctr_pool
+		SET
+			 STATE = #{state}
+			,MODDATE = SYSDATE()
+			,MODUSER = #{moduser}
+		WHERE
+		 	COMCD = #{comcd}
+			AND STATE != '3001'
+			AND MEM_NO = #{memNo}
+	</update>
+</mapper>

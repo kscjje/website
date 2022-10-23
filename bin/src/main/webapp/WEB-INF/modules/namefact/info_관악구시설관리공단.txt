@@ -1,0 +1,111 @@
+{
+	"align" : 11,
+	"required" : false,
+	"manager" : false,
+	"module_config" : false,
+	"database" : false,
+	"name" : "본인인증 모듈",
+	"description" : "본인인증 모듈입니다.",
+	"serviceName" : "",
+	"version" : 1.0,
+	"dependent_module" : [],
+	
+	// 본인인증 설정 정보
+	"properties" : {
+	
+	/** G-PIN : 공공아이핀  **/
+		// 사용여부
+		"gpin_use" : "N",
+		// 전달 페이지
+		"gpin_request" : "/G-PIN/AuthRequest.jsp",
+		// 수신 페이지
+		"gpin_response" : "/Namefact/GPIN/Response",
+		// 문의
+		"gpin_inquiry" : "공공I-PIN고객센터(02-3279-0724)",
+		
+		
+	/** siren I-PIN : 서울신용평가정보원 : 아이핀 본인인증  **/
+		// 사용여부
+		"siren_ipin_use" : "N",
+		// 회원사 아이디
+		"siren_ipin_id" : "",
+		// 서비스 번호
+		"siren_ipin_no" : "",
+		// 전달 페이지
+		"siren_ipin_request" : "https://ipin.siren24.com/i-PIN/jsp/ipin_j10.jsp",
+		// 수신 페이지
+		"siren_ipin_response" : "/Namefact/SIREN24_IPIN/Response",
+		// 문의
+		"siren_ipin_inquiry" : "",
+		
+		
+	/** siren mobile : 서울신용평가정보원 : 휴대전화 본인인증  **/
+		// 사용여부
+		"siren_mobile_use" : "N",
+		// 회원사 아이디
+		"siren_mobile_id" : "",
+		// 서비스 번호
+		"siren_mobile_no" : "",
+		// 전달 페이지
+		"siren_mobile_request" : "https://pcc.siren24.com/pcc_V3/jsp/pcc_V3_j10.jsp",
+		// 수신 페이지
+		"siren_mobile_response" : "/Namefact/SIREN24_MOBILE/Response",
+		// 문의
+		"siren_mobile_inquiry" : "",
+	
+	
+	/** checkplus IPIN : NICE평가정보 : IPIN 본인인증 **/
+		// 사용여부
+		"checkplus_ipin_use" : "Y",
+		// 사이트 코드
+		"checkplus_ipin_sitecode" : "EC00",
+		// 사이트 비밀번호
+		"checkplus_ipin_password" : "rhksdkrrhdeks2608!",
+		// 전달 페이지
+		"checkplus_ipin_request" : "https://cert.vno.co.kr/ipin.cb",
+		// 수신 성공 페이지
+		"checkplus_ipin_response_success" : "/Namefact/CHECKPLUS_IPIN/Succcess",
+		// 수신 실패 페이지
+		"checkplus_ipin_response_fail" : "/Namefact/CHECKPLUS_IPIN/Fail",
+		// 문의
+		"checkplus_ipin_inquiry" : "NICE 평가정보 고객센터(1600-1522)",
+	
+	
+	/** checkplus mobile : NICE평가정보 : 휴대전화 본인인증 **/
+		// 사용여부
+		"checkplus_mobile_use" : "Y",
+		// 사이트 코드
+		"checkplus_mobile_sitecode" : "G6598",
+		// 사이트 비밀번호
+		"checkplus_mobile_password" : "C4IB5FMAA1RA",
+		// 전달 페이지
+		"checkplus_mobile_request" : "https://nice.checkplus.co.kr/CheckPlusSafeModel/checkplus.cb",
+		// 수신 성공 페이지
+		"checkplus_mobile_response_success" : "/Namefact/CHECKPLUS_MOBILE/Succcess",
+		// 수신 실패 페이지
+		"checkplus_mobile_response_fail" : "/Namefact/CHECKPLUS_MOBILE/Fail",
+		// 문의
+		"checkplus_mobile_inquiry" : "NICE 평가정보 고객센터(1600-1522)",
+		
+
+	/** kmcis mobile : 한국모바일인증 : 휴대전화 본인인증 **/	
+		// 사용여부
+		"kmcis_mobile_use" : "N",
+		// 아이디
+		"kmcis_mobile_id" : "",
+		// URL 코드
+		"kmcis_mobile_urlcode" : "",
+		// 전달 페이지
+		"kmcis_mobile_request" : "",
+		// 수신 페이지
+		"kmcis_mobile_response" : "",
+		// 문의
+		"kmcis_mobile_inquiry" : "",
+	
+			
+		
+		
+		
+		"_t" : ""
+	}
+}

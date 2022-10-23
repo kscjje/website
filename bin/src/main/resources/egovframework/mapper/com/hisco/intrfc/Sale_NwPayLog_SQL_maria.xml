@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 
+통합매출정보
+작성자: 박우진
+ -->
+ 
+<mapper namespace="com.hisco.intrfc.sale.mapper.NwPayLogMapper">
+
+	<!-- 취소시입력 -->
+	<update id="insertNwPayLog">
+		/* com.hisco.intrfc.sale.mapper.NwPayLogMapper.insertNwPayLog */
+		INSERT INTO NW_PAY_LOG (
+			COMCD
+			, LOG_SEQ
+			, LOG_GBN
+			, REQUEST_INFO
+			, RESULT_INFO
+			, ERRORYN
+			, ERRORCODE
+			, ERRORMSG
+			, REGDATE
+		)
+		SELECT
+			#{comcd}
+			, NEXTVAL(SEQ_NWPAY_LOG)
+			, #{logGbn}
+			, #{requestInfo} 
+			, #{resultInfo}
+			, #{erroryn}
+			, #{errorcode}
+			, #{errormsg}
+			, SYSDATE()
+	</update>
+
+	<select id="selectNwPayLogList" resultType="com.hisco.intrfc.sale.vo.NwPayLogVO" >
+		/* com.hisco.intrfc.sale.mapper.NwPayLogMapper.selectNwPayLogList */
+		SELECT A.*
+			FROM NW_PAY_LOG A
+			ORDER BY A.LOG_SEQ DESC
+	</select>
+
+</mapper>

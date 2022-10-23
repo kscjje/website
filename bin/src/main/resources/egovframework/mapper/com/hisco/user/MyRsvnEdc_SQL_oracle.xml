@@ -1,0 +1,424 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2020.9.14   	진수진     	 	마이페이지 - 교육 예약 정보
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="MyRsvnEdcDAO">
+
+	<select id="selectReserveCountData" resultType="cMap">
+			SELECT /* MyRsvnEdcDAO.selectReserveCountData */
+				NVL(SUM(CASE WHEN EDC_STAT='11' THEN 1 ELSE 0 END),0) WAITING_CNT,
+				NVL(SUM(CASE WHEN EDC_STAT='20' THEN 1 ELSE 0 END),0) COMP_CNT,
+				NVL(SUM(CASE WHEN EDC_STAT='12' OR EDC_STAT='31' OR EDC_STAT='32'  THEN 1 ELSE 0 END),0) CANCEL_CNT
+			FROM EDC_RSVN_INFO
+			WHERE COMCD=#{comcd}
+			  <choose>
+					<when test="hpcertno !=null and hpcertno !=''">AND EDC_NONMEMB_CERTNO=#{hpcertno}</when>
+					<when test="uniqId !=null and uniqId !=''">AND EDC_RSVN_MEMNO=#{uniqId}</when>
+					<otherwise>AND EDC_RSVN_MEMNO='-'</otherwise>
+				</choose>
+	</select>
+
+	<select id="selectMyEdcRsvnList" resultType="com.hisco.user.edcatnlc.service.EdcRsvnMstVO">
+
+			SELECT /* MyRsvnEdcDAO.selectMyEdcRsvnList */
+				    T.COMCD
+				  , T.EDC_ONOFFPYNTYPE AS ONOFF_PAYTYPE
+			      , T.EDC_RSVN_REQID
+			      , T.EDC_RSVN_NO
+			      , T.EDC_REQ_DATE
+			      , T.EDC_REQ_TIME
+			      , T.EDC_PRGMID
+			      , T.EDC_RSVN_MEMTYPE
+			      , T.EDC_MONTHCNT
+				  , T.EDC_TOTAMT
+				  , T.EDC_DCAMT
+				  , T.EDC_INDVDLINFO_AGRID
+				  , T.EDC_INDVDLINFO_AGRYN
+				  , T.EDC_AGREEID
+				  , T.EDC_AGREEYN
+				  , T.EDC_REFND_AGRID
+				  , T.EDC_REFND_AGRYN
+				  , T.EDC_ONOFFINTYPE
+				  , T.EDC_TRMNL_TYPE
+				  , T.EDC_RETYN
+				  , T.RET_SELNG_ID
+				  , T.EDC_IN_BUSLOCT
+				  , T.EDC_PAYWAIT_ENDDATETIME
+				  , T.EDC_HOME_ZIPNO
+				  , T.EDC_VISTNMPR
+				  , (SELECT COUNT(*) FROM EDC_RSVN_FAMLYINFO WHERE COMCD=T.COMCD AND EDC_RSVN_REQID=T.EDC_RSVN_REQID) AS FAMILY_CNT
+				 <if test="dbEncKey !=null and dbEncKey !=''">
+				  , CRYPTO.Decrypt_ARIA(T.EDC_HOME_ADDR1, #{dbEncKey}) AS EDC_HOME_ADDR1
+				  , CRYPTO.Decrypt_ARIA(T.EDC_HOME_ADDR2, #{dbEncKey}) AS EDC_HOME_ADDR2
+				  , CRYPTO.Decrypt_ARIA(M.EMAIL, #{dbEncKey}) AS EDC_MEM_NO_EMAIL
+				  , CRYPTO.Decrypt_ARIA(T.EDC_RSVN_MOBLPHON, #{dbEncKey}) AS EDC_RSVN_MOBLPHON
+				  , CRYPTO.Decrypt_ARIA(NVL(T.EDC_REQ_MOBLPHON,M.HP), #{dbEncKey}) AS EDC_REQ_MOBLPHON
+				  </if>
+				  , T.EDC_RSVN_ORGNAME
+				  , T.EDC_RSVN_CUSTNM AS EDC_RSVN_CUSTNM
+				  , NVL(T.EDC_REQ_CUSTNM,M.MEM_NM) AS EDC_REQ_CUSTNM
+				  , M.MEM_NM AS EDC_MEM_NO_NM
+				  , M.ID AS EDC_MEM_NO_ID
+				  , T.EDC_MEM_NO
+				  , B.EDC_PRGMNM
+				  , B.EDC_PROGM_TYPE
+				  , B.EDC_PART_CD
+				  , (
+				        SELECT C.PART_NM FROM PART_CD C WHERE C.COMCD = T.COMCD AND C.PART_CD =  B.EDC_PART_CD
+				    ) AS EDC_PART_CD_NM
+				  , (SELECT LISTAGG(fn_WeekName_Convert(1, C.EDC_DAYGBN), ', ') WITHIN GROUP (ORDER BY DECODE(C.EDC_DAYGBN,'1','9',C.EDC_DAYGBN)) FROM EDC_DAYS C WHERE C.COMCD = B.COMCD AND C.EDC_PRGMID = B.EDC_PRGMID) AS EDC_DAYGBN_NM
+				  , T.EDC_REQ_SDATE
+				  , T.EDC_REQ_STIME
+				  , T.EDC_REQ_EDATE
+				  , T.EDC_REQ_ETIME
+				  , T.EDC_PROGM_COST
+				  , T.EDC_STAT
+				  , (SELECT GRP.CD_NM FROM COT_GRPCD GRP WHERE GRP.GRP_CD = 'SM_RSVN_STAT' AND CD = T.EDC_STAT) AS EDC_APPTYPE_NM
+				  , T.EDC_REQ_ITEM_CD
+			      , T.REGDATE
+			      , T.REGUSER
+			      , T.MODDATE
+			      , T.MODUSER
+			      , (SELECT NVL(SUM(RETURN_AMT),0)
+						      FROM CANCEL D
+						     WHERE D.COMCD=T.COMCD AND D.SALE_SEQ = C.SELNG_ID
+		                     ) AS CANCEL_AMT
+		          , (SELECT NVL(SUM(BREAK_AMT),0)
+						      FROM CANCEL D
+						     WHERE D.COMCD=T.COMCD AND D.SALE_SEQ = C.SELNG_ID
+		                     ) AS BREAK_AMT
+		          ,  C.SELNG_ID
+		          , G.VAT_YN
+		          , B.EDC_GUIDE_TELNO AS GUIDE_TELNO
+		          , B.EDC_PLACENM
+		          , B.EXCL_DCYN
+		          , B.EDC_ADDR_OPENYN
+		          , CI.CPN_NAME
+		          , CI.CPN_DCRATE
+				  , G1.CD_NM AS DC_TYPE_NM
+				  , G1.ITEM2 AS DC_KIND_CD
+				  , E.EVENT_DCNAME AS DC_NAME
+				  , E.EVENT_DC_RATE AS DC_RATE
+				  , P.WEBPAYMENTID AS WEB_PAYMENT_ID
+				  , CASE WHEN T.EDC_REQ_SDATE > TO_CHAR(SYSDATE,'YYYYMMDD') THEN 'Y' ELSE 'N' END EDIT_YN
+			   FROM EDC_RSVN_INFO T
+			    LEFT OUTER JOIN MEMBER M ON M.MEM_NO = T.EDC_MEM_NO
+			    LEFT OUTER JOIN EDC_PROGRAM B ON T.COMCD=B.COMCD AND B.EDC_PRGMID = T.EDC_PRGMID
+			    LEFT OUTER JOIN Partcd_SystemPref P ON P.COMCD = B.COMCD AND B.EDC_PART_CD = P.PART_CD
+			   	LEFT OUTER JOIN EDC_RSVN_COMPTINFO C ON C.EDC_RSVN_REQID = T.EDC_RSVN_REQID
+			   	LEFT OUTER JOIN PROGRAM_ITEM G ON T.COMCD =G.COMCD AND T.EDC_REQ_ITEM_CD = G.ITEM_CD
+			   	LEFT OUTER JOIN CPN_PYMNT_INFO CC ON CC.CPN_UID = T.EDC_DCCPNNO
+				LEFT OUTER JOIN CPN_ISUMANGE CI ON CC.COMCD = CI.COMCD AND CC.CPN_ID=CI.CPN_ID
+				LEFT OUTER JOIN COT_GRPCD G1 ON G1.COMCD=#{comcd} AND G1.GRP_CD='CM_REASON_DC' AND G1.CD=T.EDC_REASONDC
+				LEFT OUTER JOIN EVENT_DC_STDMNG E ON E.EVENT_DCID = T.EDC_EVENT_DCID
+				WHERE T.COMCD = #{comcd}
+				<choose>
+					<when test='mode == "waiting"'>
+						AND T.EDC_STAT='11'
+						 <choose>
+							<when test="hpcertno !=null and hpcertno !=''">AND T.EDC_NONMEMB_CERTNO=#{hpcertno}</when>
+							<when test="uniqId !=null and uniqId !=''">AND T.EDC_RSVN_MEMNO=#{uniqId}</when>
+							<otherwise>AND T.EDC_RSVN_MEMNO='-'</otherwise>
+						</choose>
+					</when>
+					<when test='mode == "pay"'>
+						AND T.EDC_STAT='11'
+						<choose>
+							<when test="hpcertno !=null and hpcertno !=''">AND T.EDC_NONMEMB_CERTNO=#{hpcertno}</when>
+							<when test="uniqId !=null and uniqId !=''">AND T.EDC_RSVN_MEMNO=#{uniqId}</when>
+							<otherwise>AND T.EDC_RSVN_MEMNO='-'</otherwise>
+						</choose>
+						AND T.EDC_RSVN_REQID IN
+						<foreach collection="rsvnIdx" item="item"  open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</when>
+					<when test='mode == "save"'>
+						AND T.EDC_RSVN_NO IN (SELECT OID_RSVN_NO FROM PG_ORD_DET WHERE COMCD=T.COMCD AND OID=#{LGD_OID})
+					</when>
+					<when test='mode == "complete"'>
+						<choose>
+							<when test="hpcertno !=null and hpcertno !=''">AND EDC_NONMEMB_CERTNO=#{hpcertno}</when>
+							<when test="uniqId !=null and uniqId !=''">AND EDC_RSVN_MEMNO=#{uniqId}</when>
+							<otherwise>AND EDC_RSVN_MEMNO='-'</otherwise>
+						</choose>
+						AND T.EDC_RSVN_NO IN (SELECT OID_RSVN_NO FROM PG_ORD_DET WHERE COMCD=T.COMCD AND OID=#{orderId})
+						<if test="rsvnIdx != null">
+							AND T.EDC_RSVN_REQID IN
+							<foreach collection="rsvnIdx" item="item"  open="(" close=")" separator=",">
+								#{item}
+							</foreach>
+						</if>
+					</when>
+					<when test="rsvnIdxOne != null and rsvnIdxOne != ''">
+						AND T.EDC_RSVN_REQID=#{rsvnIdxOne}
+					</when>
+					<otherwise>
+						<choose>
+							<when test="hpcertno !=null and hpcertno !=''">AND T.EDC_NONMEMB_CERTNO=#{hpcertno}</when>
+							<when test="uniqId !=null and uniqId !=''">AND T.EDC_RSVN_MEMNO=#{uniqId}</when>
+							<otherwise>AND T.EDC_RSVN_MEMNO='-'</otherwise>
+						</choose>
+					</otherwise>
+				</choose>
+				ORDER BY T.EDC_RSVN_REQID DESC
+		</select>
+
+	<select id="selectMyEdcRsvnDtl" resultType="cMap">
+
+		SELECT /* MyRsvnEdcDAO.selectMyEdcRsvnDtl */
+			    T.COMCD
+		      , T.EDC_RSVN_REQID
+		      , T.EDC_RSVN_NO
+		      , T.EDC_REQ_DATE
+		      , T.EDC_REQ_TIME
+		      , T.EDC_PRGMID
+		      , T.EDC_RSVN_MEMTYPE
+		      , T.EDC_MONTHCNT
+			  , T.EDC_TOTAMT
+			  , T.EDC_DCAMT
+			  , T.EDC_INDVDLINFO_AGRID
+			  , T.EDC_INDVDLINFO_AGRYN
+			  , T.EDC_AGREEID
+			  , T.EDC_AGREEYN
+			  , T.EDC_REFND_AGRID
+			  , T.EDC_REFND_AGRYN
+			  , T.EDC_ONOFFINTYPE
+			  , T.EDC_TRMNL_TYPE
+			  , T.EDC_RETYN
+			  , T.RET_SELNG_ID
+			  , T.EDC_IN_BUSLOCT
+			  , T.EDC_OUT_BUSLOCT
+			  , T.EDC_PAYWAIT_ENDDATETIME
+			  , T.EDC_VISTNMPR
+			  , T.EDC_HOME_ZIPNO
+			  , NVL(T.EDC_REQ_CUSTNM, M.MEM_NM) AS EDC_REQ_CUSTNM
+			  <if test='dbEncKey !=null and dbEncKey !=""'>
+			  , CRYPTO.Decrypt_ARIA(T.EDC_HOME_ADDR1, #{dbEncKey}) AS EDC_HOME_ADDR1
+			  , CRYPTO.Decrypt_ARIA(T.EDC_HOME_ADDR2, #{dbEncKey}) AS EDC_HOME_ADDR2
+			  , CRYPTO.Decrypt_ARIA(T.EDC_EMAIL, #{dbEncKey}) AS EDC_EMAIL
+			  , CRYPTO.Decrypt_ARIA(T.EDC_REQ_MOBLPHON, #{dbEncKey}) AS EDC_REQ_MOBLPHON
+			   , CRYPTO.Decrypt_ARIA(T.EDC_RSVN_MOBLPHON, #{dbEncKey}) AS EDC_RSVN_MOBLPHON
+			  </if>
+			  , T.EDC_RSVN_MEMNO
+			  , T.EDC_RSVN_ORGNAME
+			  , T.EDC_VISTOR_GRADENM
+			  , T.EDC_RSVN_CUSTNM
+			  , T.EDC_MEM_NO
+			  , A.EDC_PRGMNM
+			  , A.EDC_PART_CD
+			  , (
+			        SELECT C.PART_NM FROM PART_CD C WHERE C.COMCD = A.COMCD AND C.PART_CD = A.EDC_PART_CD
+			    ) AS EDC_PART_CD_NM
+			  , T.EDC_REQ_SDATE
+			  , T.EDC_REQ_STIME
+			  , T.EDC_REQ_EDATE
+			  , T.EDC_REQ_ETIME
+			  , T.EDC_STAT
+			  , (SELECT GRP.CD_NM FROM COT_GRPCD GRP WHERE GRP.GRP_CD = 'SM_RSVN_STAT' AND CD = T.EDC_STAT) AS EDC_APPTYPE_NM
+			  , T.EDC_PROGM_COST
+		      , T.REGDATE
+		      , T.REGUSER
+		      , T.MODDATE
+		      , T.MODUSER
+		      , A.EDC_ADDR_OPENYN
+		      , A.EDC_TCHMTR_GUIDEYN
+		      , A.EDC_TCHMTR_GUIDE
+		      , A.EDC_ONLINEYN
+		      , A.EDC_PLACENM
+		      , A.EDC_PROGM_TYPE
+		      , A.EDC_ODR
+		      , A.EDC_SHTLBUS_YN
+		      , A.EDC_VISITFAMILY_YN
+		      , A.EDC_VISITFAMILY_CNT
+		      , A.EDC_GRP_MINCNT
+		      , A.EDC_GRP_MAXCNT
+		      , A.EDC_SHTLBUS_GUIDE
+		      , CASE WHEN T.EDC_REQ_SDATE > TO_CHAR(SYSDATE,'YYYYMMDD') THEN 'Y' ELSE 'N' END EDIT_YN
+		      , (SELECT LISTAGG(fn_WeekName_Convert(1, C.EDC_DAYGBN), ', ') WITHIN GROUP (ORDER BY DECODE(C.EDC_DAYGBN,'1','9',C.EDC_DAYGBN)) FROM EDC_DAYS C WHERE C.COMCD = A.COMCD AND C.EDC_PRGMID = A.EDC_PRGMID) AS EDC_DAYGBN_NM
+		  	  , T3.EDC_COMPLYN
+		  	  , T3.EDC_CONFIRM_DATE
+		  	  , M.BIRTH_DATE
+		   FROM EDC_RSVN_INFO T
+		   	LEFT OUTER JOIN EDC_PROGRAM A ON A.COMCD = T.COMCD AND A.EDC_PRGMID = T.EDC_PRGMID
+		   	LEFT OUTER JOIN MEMBER M ON M.MEM_NO = T.EDC_MEM_NO
+		   	LEFT OUTER JOIN EDC_RSVN_COMPTINFO T3 ON T.COMCD=T3.COMCD AND T.EDC_RSVN_REQID=T3.EDC_RSVN_REQID
+			WHERE T.COMCD = #{comcd}
+			<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(id)">
+				AND T.EDC_RSVN_MEMNO = #{id}
+			</if>
+			<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(edcRsvnReqid)">
+				AND T.EDC_RSVN_REQID = #{edcRsvnReqid}
+			</if>
+			ORDER BY T.EDC_RSVN_REQID DESC
+	</select>
+
+	<update id="updateEdcMasterCancel" >
+		UPDATE EDC_RSVN_INFO
+			SET EDC_STAT  = '12' , MODDATE=SYSDATE, MODUSER=#{reguser}
+		WHERE COMCD=#{comcd}
+		  AND EDC_RSVN_REQID = #{rsvnIdxOne}
+	</update>
+
+
+	<!-- [교육 예약 Master 정보를 조회한다][2020-09-17][전영석] -->
+ 	<select id="selectMyEdcPagingList" resultType="com.hisco.user.edcatnlc.service.EdcRsvnMstVO">
+		<![CDATA[
+		SELECT /* MyRsvnEdcDAO.selectMyEdcPagingList */
+			T2.* ,
+			T3.EDC_COMPLYN,
+			(SELECT
+				COUNT(*)
+				FROM REFUN_STDMNG
+				WHERE COMCD=T2.COMCD AND PART_CD=T2.EDC_PART_CD AND RFND_NOFDAY <=  DIFF  AND
+					( DIFF > RFND_NOFDAY
+						 OR (DIFF=0 AND T2.EDC_REQ_STIME> TO_CHAR(SYSDATE,'HH24MI') )
+						 OR (DIFF=RFND_NOFDAY AND RFND_ETIME >= TO_CHAR(SYSDATE,'HH24MI'))
+					)
+			) AS rfndSeq,
+			 CASE WHEN T2.EDC_REQ_SDATE > TO_CHAR(SYSDATE,'YYYYMMDD') THEN 'Y' ELSE 'N' END editYn,
+			 
+			  CASE WHEN T2.EDC_RSVN_EDATE || T2.EDC_RSVN_ETIME  < TO_CHAR(SYSDATE,'YYYYMMDDHH24MI') THEN 'Y' ELSE 'N' END passYn,
+			 
+			(CASE WHEN
+				(SELECT COUNT(*) FROM REFUN_STDMNG WHERE  COMCD=T2.COMCD AND PART_CD=T2.EDC_PART_CD)=0 AND
+				(DIFF >0 OR (DIFF=0 AND T2.EDC_REQ_STIME> TO_CHAR(SYSDATE,'HH24MI'))) THEN 'Y' ELSE 'N' END) AS cancelAbleYn
+			]]>
+		FROM (
+		     SELECT
+		     	ROW_NUMBER()OVER(ORDER BY NVL(PAY_REGDATE,REGDATE) DESC) RNUM,
+				COUNT(*) OVER() TOT_COUNT,
+		     	MAIN.*,
+		     	TO_DATE(EDC_REQ_SDATE , 'YYYYMMDD') - TO_DATE( TO_CHAR(SYSDATE,'YYYYMMDD') , 'YYYYMMDD')  DIFF
+			  FROM (SELECT
+			  			 T.COMCD
+					      , T.EDC_RSVN_REQID
+					      , T.EDC_RSVN_NO
+					      , T.EDC_REQ_DATE
+					      , T.EDC_REQ_TIME
+					      , T.EDC_PRGMID
+					      , T.EDC_RSVN_MEMTYPE
+					      , T.EDC_MONTHCNT
+						  , T.EDC_TOTAMT
+						  , T.EDC_DCAMT
+						  , T.EDC_INDVDLINFO_AGRID
+						  , T.EDC_INDVDLINFO_AGRYN
+						  , T.EDC_AGREEID
+						  , T.EDC_AGREEYN
+						  , T.EDC_REFND_AGRID
+						  , T.EDC_REFND_AGRYN
+						  , T.EDC_ONOFFINTYPE
+						  , T.EDC_TRMNL_TYPE
+						  , T.EDC_RETYN
+						  , T.RET_SELNG_ID
+						  , T.EDC_IN_BUSLOCT
+						  , T.EDC_HOME_ZIPNO
+						  , T.EDC_RSVN_ORGNAME
+						  , T.EDC_RSVN_CUSTNM
+						  , T.EDC_MEM_NO
+						  , T.EDC_REQ_SDATE
+						  , T.EDC_REQ_EDATE
+						  , T.EDC_REQ_STIME
+						  , T.EDC_REQ_ETIME
+						  , (SELECT D.OID
+						      FROM SELNG_INFO D
+						     WHERE D.SELNG_ID =
+		                       (SELECT C.SELNG_ID
+		                          FROM EDC_RSVN_COMPTINFO C
+		                         WHERE C.EDC_RSVN_REQID = T.EDC_RSVN_REQID
+		                       )
+		                     ) AS OID
+						  , (SELECT D.REGDATE
+						      FROM SELNG_INFO D
+						     WHERE D.SELNG_ID =
+		                       (SELECT C.SELNG_ID
+		                          FROM EDC_RSVN_COMPTINFO C
+		                         WHERE C.EDC_RSVN_REQID = T.EDC_RSVN_REQID
+		                       )
+		                     ) AS PAY_REGDATE
+					      , B.EDC_PRGMNM
+					      , B.EDC_PART_CD
+					      
+					      , B.EDC_RSVN_EDATE
+					      , B.EDC_RSVN_ETIME
+					      
+						  , (
+						        SELECT C.PART_NM FROM PART_CD C WHERE C.COMCD = T.COMCD AND C.PART_CD =  B.EDC_PART_CD
+						    ) AS EDC_PART_CD_NM
+		                  , T.EDC_STAT
+		                  , (SELECT GRP.CD_NM FROM COT_GRPCD GRP WHERE GRP.GRP_CD = 'SM_RSVN_STAT' AND CD = T.EDC_STAT) AS EDC_APPTYPE_NM
+					      , T.REGDATE
+					      , T.REGUSER
+					      , NVL(T.MODDATE ,T.REGDATE ) MODDATE
+					      , T.MODUSER
+					      , B.EDC_PROGM_TYPE
+					      , B.EDC_ADDR_OPENYN
+					      , (SELECT LISTAGG(fn_WeekName_Convert(1, C.EDC_DAYGBN), ', ') WITHIN GROUP (ORDER BY DECODE(C.EDC_DAYGBN,'1','9',C.EDC_DAYGBN)) FROM EDC_DAYS C WHERE C.COMCD = B.COMCD AND C.EDC_PRGMID = B.EDC_PRGMID) AS EDC_DAYGBN_NM
+					   FROM EDC_RSVN_INFO T
+					    INNER JOIN EDC_PROGRAM B ON B.EDC_PRGMID = T.EDC_PRGMID
+						WHERE T.COMCD = #{comcd}
+						<choose>
+							<when test='appStatus !=null and appStatus == "20"'>AND T.EDC_STAT = '20'</when>
+							<otherwise>AND T.EDC_STAT IN ('12', '31', '32') </otherwise>
+						</choose>
+						<choose>
+							<when test="hpcertno !=null and hpcertno !=''">AND T.EDC_NONMEMB_CERTNO=#{hpcertno}</when>
+							<when test="uniqId !=null and uniqId !=''">AND T.EDC_RSVN_MEMNO=#{uniqId}</when>
+							<otherwise>AND T.EDC_RSVN_MEMNO='-'</otherwise>
+						</choose>
+						   ) MAIN
+				) T2
+				LEFT OUTER JOIN EDC_RSVN_COMPTINFO T3 ON T2.COMCD=T3.COMCD AND T2.EDC_RSVN_REQID=T3.EDC_RSVN_REQID
+				WHERE T2.RNUM BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+			ORDER BY RNUM
+	</select>
+
+	<select id="selectEdcCancelInfo" resultType="cMap">
+		SELECT
+			SUM(CASE WHEN EDC_RSVN_REQID IN <foreach collection="rsvnIdx" item="item"  open="(" close=")" separator=",">#{item}</foreach> THEN A.EDC_TOTAMT ELSE 0 END) AS CANCEL_AMT,
+			SUM(A.EDC_TOTAMT) AS PAY_AMT
+		FROM
+			EDC_RSVN_INFO A
+		WHERE
+			A.COMCD=#{comcd}
+			<!-- AND A.EVT_ONOFF_INTYPE='10' -->
+			<choose>
+				<when test="hpcertno !=null and hpcertno !=''">AND EDC_REQ_MOBLPHON=#{hpcertno}</when>
+				<when test="uniqId !=null and uniqId !=''">AND EDC_RSVN_MEMNO=#{uniqId}</when>
+				<otherwise>AND EDC_RSVN_MEMNO='-'</otherwise>
+			</choose>
+			AND A.EDC_RSVN_NO IN (SELECT OID_RSVN_NO FROM PG_ORD_DET WHERE COMCD=A.COMCD AND OID=#{orderId})
+			AND A.EDC_STAT ='20'
+	</select>
+
+	<select id="selectEdcDetailData" resultType="com.hisco.user.edcatnlc.service.EdcRsvnMstVO">
+			SELECT
+				M.EDC_STAT,
+				M.EDC_TOTAMT,
+				M.EDC_RSVN_REQID,
+				M.EDC_RSVN_NO,
+				B.EDC_PART_CD,
+				M.REGDATE,
+				(SELECT MAX(OID) FROM PG_ORD_DET WHERE OID_RSVN_NO=M.EDC_RSVN_NO) AS OID
+			FROM
+				EDC_RSVN_INFO M ,  EDC_PROGRAM B
+			WHERE
+				M.COMCD=#{comcd}
+				AND M.EDC_RSVN_REQID = #{rsvnIdxOne}
+				AND M.COMCD=B.COMCD
+				AND B.EDC_PRGMID = M.EDC_PRGMID
+	</select>
+
+	<update id="updateCouponCancel">
+ 		UPDATE CPN_PYMNT_INFO SET CPN_USEYN='N'
+ 		WHERE
+			CPN_UID =  (SELECT EDC_DCCPNNO FROM EDC_RSVN_INFO
+				WHERE COMCD=#{comcd}
+ 					AND EDC_RSVN_REQID =#{rsvnIdxOne}
+ 			)
+ 	</update>
+
+</mapper>

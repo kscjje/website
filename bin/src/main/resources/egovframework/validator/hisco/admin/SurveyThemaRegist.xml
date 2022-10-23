@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE form-validation PUBLIC
+    "-//Apache Software Foundation//DTD Commons Validator Rules Configuration 1.1//EN"
+    "http://jakarta.apache.org/commons/dtds/validator_1_1.dtd">
+<form-validation>
+    <formset>
+		<form name="surveyMstVO">
+			<field property="qestnarName" depends="required, maxlength">
+        		<arg0 key="설문 주제명" />
+        		<arg1 key="200" resource="true"/>
+				<var>
+					<var-name>maxlength</var-name>
+					<var-value>200</var-value>
+				</var>
+			</field>
+			<field property="orgNo" depends="required">
+        		<arg0 key="이용기관(유형)" />
+			</field>
+			<field property="qestnarDate" depends="required">
+        		<arg0 key="설문주제등록일자" />        		
+			</field>
+			<field property="qestnarGbn" depends="required">
+        		<arg0 key="설문주제구분코드" />
+			</field>
+			<field property="qestnarGuide" depends="required, maxlength">
+        		<arg0 key="설문안내설명" />
+        		<arg1 key="2000" resource="true"/>
+				<var>
+					<var-name>maxlength</var-name>
+					<var-value>2000</var-value>
+				</var>
+			</field>
+			<!-- <field property="qestnarImgfilnb" depends="required">
+        		<arg0 key="설문주제이미지파일" />        		
+			</field> -->
+			<field property="useYn" depends="required">
+        		<arg0 key="사용 여부" />
+			</field>
+		</form>
+    </formset>
+
+</form-validation>

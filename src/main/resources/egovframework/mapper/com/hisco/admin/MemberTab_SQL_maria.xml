@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  Description : 회원현황 - 수강이력,결제이력,회원카드,감면정보
+
+   수정일                  수정자           수정내용
+  =========     =======    =================================================
+  2021.11.18   	진수진            최초 작성
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hisco.admin.member.mapper.MemberTabMapper">
+
+ 	<!-- [회원카드 목록을 조회한다] -->
+	<select id="selectCardList" resultType="com.hisco.admin.member.vo.MemberCardVO">
+			SELECT  /* MemberTabMapper.selectCardList */
+			        *
+              FROM  (
+				SELECT ROW_NUMBER() OVER (order by REGDATE DESC) RNUM, ALL_LIST.*
+                FROM  (
+					SELECT
+						 COMCD
+						 , CARD_NO
+						 , MEM_NO
+						 , ISSUE_DATE
+						 , CARD_GBN
+						 , (SELECT CD_NM FROM COT_GRPCD AA WHERE M.CARD_GBN = AA.CD AND AA.GRP_CD = 'CM_MEMCARD_GBN') CARD_GBN_NM
+						 , USE_YN
+						 , REMARK
+						 , REGDATE
+						 , REGUSER
+						 , MODDATE
+						 , MODUSER
+					     , COUNT(*) OVER() AS TOTAL_CNT
+					  FROM MEM_CARD M
+					  WHERE
+					  	COMCD=#{comcd}
+					  	AND MEM_NO=#{memNo}
+			       ) ALL_LIST
+				) MAIN
+				<![CDATA[
+		             WHERE  RNUM  > #{firstIndex}
+		               AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+	            ]]>
+	</select>
+
+
+	<!-- [회원 감면 목록을 조회한다] -->
+	<select id="selectDiscountList" resultType="com.hisco.admin.member.vo.MemberDiscVO">
+			SELECT  /* MemberTabMapper.selectDiscountList */
+				 (SELECT ORG_NM FROM  ORG_INFO AS SUb_ORG WHERE COMCD=M.COMCD AND ORG_NO=M.ORG_NO) ORG_NM
+				 , C.CD_NM AS DC_NM
+				 , S.DC_RATE
+				 , M.DCCONFIRM_YN
+				 , M.DCCONF_SDATE
+				 , M.DCCONF_EDATE
+				 , M.CERT_DATE
+				 , M.ORG_NO
+				 , M.DISCOUNT_SEQ
+			  FROM
+			  	MEMBER_DISCOUNT_INFO M
+			  	INNER JOIN ORG_DC_STDMNG S ON M.COMCD=S.COMCD AND M.DISCOUNT_CD=S.DC_REASON_CD AND S.ORG_NO=M.ORG_NO
+			  	INNER JOIN COT_GRPCD C ON  C.COMCD=S.COMCD AND C.GRP_CD = 'CM_REASON_DC' AND C.CD=S.DC_REASON_CD
+			  WHERE
+			  	M.COMCD=#{comcd}
+			  	AND M.MEM_NO=#{memNo}
+			  	AND M.ORG_NO=#{orgNo}
+			  ORDER BY
+			  	M.DISCOUNT_SEQ DESC
+	</select>
+
+	<!-- [회원 감면 내역을 저장한다] -->
+	<insert id="insertDiscount" parameterType="com.hisco.admin.member.vo.MemberDiscVO">
+			INSERT INTO MEMBER_DISCOUNT_INFO
+			(
+				MEM_NO
+				,COMCD
+				,ORG_NO
+				,DISCOUNT_SEQ
+				,DISCOUNT_CD
+				,DCCONFIRM_YN
+				,DCCONF_SDATE
+				,DCCONF_EDATE
+				,CERT_DATE
+			)VALUES(
+				#{memNo}
+				,#{comcd}
+				,#{orgNo}
+				,(SELECT NVL(MAX(DISCOUNT_SEQ),0)+1 FROM MEMBER_DISCOUNT_INFO AS DISCOUNT_SUB WHERE MEM_NO=#{memNo} AND COMCD=#{comcd} AND ORG_NO=#{orgNo})
+				,#{discountCd}
+				,#{dcconfirmYn}
+				,REPLACE(#{dcconfSdate},'-','')
+				,REPLACE(#{dcconfEdate},'-','')
+				,SYSDATE()
+			)
+	</insert>
+
+	<!-- [회원 감면 등록을 체크한다] -->
+	<select id="selectDiscountCheck" resultType="Integer">
+			SELECT  /* MemberTabMapper.selectDiscountCheck */
+				COUNT(*)
+			  FROM
+			  	MEMBER_DISCOUNT_INFO M
+			  WHERE
+			  	M.COMCD=#{comcd}
+			  	AND M.MEM_NO=#{memNo}
+			  	AND M.ORG_NO=#{orgNo}
+				AND M.DISCOUNT_CD=#{discountCd}
+				AND M.DISCOUNT_SEQ != #{discountSeq}
+	</select>
+
+
+	<!-- [회원 감면 상세를 조회한다] -->
+	<select id="selectDiscountRecord" resultType="com.hisco.admin.member.vo.MemberDiscVO">
+			SELECT  /* MemberTabMapper.selectDiscountList */
+				 (SELECT ORG_NM FROM  ORG_INFO AS SUb_ORG WHERE COMCD=M.COMCD AND ORG_NO=M.ORG_NO) ORG_NM
+				 , C.CD_NM AS DC_NM
+				 , S.DC_RATE
+				 , M.DCCONFIRM_YN
+				 , M.DCCONF_SDATE
+				 , M.DCCONF_EDATE
+				 , M.CERT_DATE
+				 , M.ORG_NO
+				 , M.DISCOUNT_CD
+			  FROM
+			  	MEMBER_DISCOUNT_INFO M
+			  	INNER JOIN ORG_DC_STDMNG S ON M.COMCD=S.COMCD AND M.DISCOUNT_CD=S.DC_REASON_CD AND S.ORG_NO=M.ORG_NO
+			  	INNER JOIN COT_GRPCD C ON  C.COMCD=S.COMCD AND C.GRP_CD = 'CM_REASON_DC' AND C.CD=S.DC_REASON_CD
+			  WHERE
+			  	M.COMCD=#{comcd}
+			  	AND M.MEM_NO=#{memNo}
+			  	AND M.ORG_NO=#{orgNo}
+			  	AND M.DISCOUNT_SEQ=#{discountSeq}
+	</select>
+
+	<!-- [회원 감면 내역을 수정한다] -->
+	<update id="updateDiscount" parameterType="com.hisco.admin.member.vo.MemberDiscVO">
+			UPDATE MEMBER_DISCOUNT_INFO
+			SET
+				DISCOUNT_CD=#{discountCd}
+				,DCCONFIRM_YN=#{dcconfirmYn}
+				,DCCONF_SDATE=REPLACE(#{dcconfSdate},'-','')
+				,DCCONF_EDATE=REPLACE(#{dcconfEdate},'-','')
+			WHERE
+				MEM_NO=#{memNo}
+				AND COMCD=#{comcd}
+				AND ORG_NO=#{orgNo}
+				AND DISCOUNT_SEQ=#{discountSeq}
+	</update>
+
+		<!-- [회원 감면 내역을 삭제한다] -->
+	<delete id="deleteDiscount" parameterType="com.hisco.admin.member.vo.MemberDiscVO">
+			DELETE FROM MEMBER_DISCOUNT_INFO
+			WHERE
+				MEM_NO=#{memNo}
+				AND COMCD=#{comcd}
+				AND ORG_NO=#{orgNo}
+				AND DISCOUNT_SEQ=#{discountSeq}
+	</delete>
+
+
+</mapper>

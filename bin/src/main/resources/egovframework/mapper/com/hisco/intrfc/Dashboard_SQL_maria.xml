@@ -1,0 +1,605 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  수정일           수정자     수정내용
+  ==========       ======     =========
+  2020.10.18   	   전영석     Dashboard
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hisco.intrfc.dashboard.mapper.DashboardMapper">
+
+	<select id="selectToday" resultType="cMap">
+        SELECT /* DashboardDAO.selectToday */
+               DATE_FORMAT(SYSDATE(), '%H:%i')      AS HHMI 
+             , DATE_FORMAT(SYSDATE(), '%m')         AS MM
+             , DATE_FORMAT(SYSDATE(), '%d')         AS DD     
+			 
+             /* , DATE_FORMAT(SYSDATE(), 'DAY')        AS WEEK_NAME  */
+			 , (case dayofweek(sysdate()) when '1' then '일요일' when '2' then '월요일' when '3' then '화요일' when '4' then '수요일' when '5' then '목요일' when '6' then '금요일'  when '7' then '토요일' else '' end) AS WEEK_NAME
+			 
+             , DATE_FORMAT(SYSDATE(), '%p')         AS DAYNIGHT      
+             , DATE_FORMAT(SYSDATE(), '%Y.%m.%d') AS YYYYMMDD 
+             , DATE_FORMAT(SYSDATE(), '%Y%m%d')   AS YYYYMMDD2
+             , DATE_FORMAT(SYSDATE(), '%Y-%m-%d') AS YYYYMMDD3                           
+             , DATE_FORMAT(SYSDATE(), '%Y.%m.%d') AS YYYYMMDD4 
+
+             , CONCAT(DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -6 MONTH), '%Y%m'), '01')    AS YYYYMM_M6_SDATE
+             
+             , CONCAT(DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -6 MONTH), '%Y-%m'), '-01')  AS YYYYMM_M6_SDATE2
+             , CONCAT(DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -6 MONTH), '%Y.%m'), '.01')  AS YYYYMM_M6_SDATE3 
+             , DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -1 MONTH), '%Y%m%d')                AS YYYYMM_M1_SDATE1             
+             , CONCAT(DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -1 MONTH), '%Y%m'), '01')    AS YYYYMM_M1_SDATE2
+             , DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -1 MONTH), '%Y.%m.%d')              AS YYYYMM_M1_SDATE3     
+             
+             , CONCAT(DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -11 MONTH), '%Y%m'), '01')   AS YYYYMM_M12_SDATE
+             , CONCAT(DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -11 MONTH), '%Y-%m'), '-01') AS YYYYMM_M12_SDATE2
+             , CONCAT(DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -11 MONTH), '%Y.%m'), '.01') AS YYYYMM_M12_SDATE3
+             
+             , DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -11 MONTH), '%Y%m')  AS YYYYMM_M01
+             , DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -10 MONTH), '%Y%m')  AS YYYYMM_M02
+             , DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -9 MONTH), '%Y%m')   AS YYYYMM_M03
+             , DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -8 MONTH), '%Y%m')   AS YYYYMM_M04
+             , DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -7 MONTH), '%Y%m')   AS YYYYMM_M05
+             , DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -6 MONTH), '%Y%m')   AS YYYYMM_M06
+             , DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -5 MONTH), '%Y%m')   AS YYYYMM_M07
+             , DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -4 MONTH), '%Y%m')   AS YYYYMM_M08
+             , DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -3 MONTH), '%Y%m')   AS YYYYMM_M09
+             , DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -2 MONTH), '%Y%m')   AS YYYYMM_M10
+             , DATE_FORMAT(DATE_ADD(SYSDATE(),  INTERVAL -1 MONTH), '%Y%m')   AS YYYYMM_M11
+             , DATE_FORMAT(SYSDATE(), '%Y%m')    AS YYYYMM_M12                  
+                                   
+        FROM DUAL 
+	</select>
+
+	<select id="selectYesterday" resultType="cMap">
+        SELECT /* DashboardDAO.selectYesterday */
+               DATE_FORMAT(DATE_ADD(SYSDATE(), INTERVAL -1 DAY), '%H:%i')      AS HHMI 
+             , DATE_FORMAT(DATE_ADD(SYSDATE(), INTERVAL -1 DAY), '%m')         AS MM
+             , DATE_FORMAT(DATE_ADD(SYSDATE(), INTERVAL -1 DAY), '%d')         AS DD     
+			 
+             /* , DATE_FORMAT(DATE_ADD(SYSDATE(), INTERVAL -1 DAY), 'DAY')        AS WEEK_NAME  */
+			 , (case dayofweek(DATE_ADD(SYSDATE(), INTERVAL -1 DAY)) when '1' then '일요일' when '2' then '월요일' when '3' then '화요일' when '4' then '수요일' when '5' then '목요일' when '6' then '금요일'  when '7' then '토요일' else '' end) AS WEEK_NAME
+			 
+             , DATE_FORMAT(DATE_ADD(SYSDATE(), INTERVAL -1 DAY), '%p')         AS DAYNIGHT      
+             , DATE_FORMAT(DATE_ADD(SYSDATE(), INTERVAL -1 DAY), '%Y.%m.%d')   AS YYYYMMDD 
+             , DATE_FORMAT(DATE_ADD(SYSDATE(), INTERVAL -1 DAY), '%Y%m%d')     AS YYYYMMDD2
+             , DATE_FORMAT(DATE_ADD(SYSDATE(), INTERVAL -1 DAY), '%Y-%m-%d')   AS YYYYMMDD3                           
+             , DATE_FORMAT(DATE_ADD(SYSDATE(), INTERVAL -1 DAY), '%Y.%m.%d')   AS YYYYMMDD4 
+
+             , CONCAT(DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -6 MONTH), '%Y%m'), '01')    AS YYYYMM_M6_SDATE
+             
+             , CONCAT(DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -6 MONTH), '%Y-%m'), '-01')  AS YYYYMM_M6_SDATE2
+             , CONCAT(DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -6 MONTH), '%Y.%m'), '.01')  AS YYYYMM_M6_SDATE3 
+             , DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -1 MONTH), '%Y%m%d')                AS YYYYMM_M1_SDATE1             
+             , CONCAT(DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -1 MONTH), '%Y%m'), '01')    AS YYYYMM_M1_SDATE2
+             , DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -1 MONTH), '%Y.%m.%d')              AS YYYYMM_M1_SDATE3     
+             
+             , CONCAT(DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -11 MONTH), '%Y%m'), '01')   AS YYYYMM_M12_SDATE
+             , CONCAT(DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -11 MONTH), '%Y-%m'), '-01') AS YYYYMM_M12_SDATE2
+             , CONCAT(DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -11 MONTH), '%Y.%m'), '.01') AS YYYYMM_M12_SDATE3
+             
+             , DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -11 MONTH), '%Y%m')  AS YYYYMM_M01
+             , DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -10 MONTH), '%Y%m')  AS YYYYMM_M02
+             , DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -9 MONTH), '%Y%m')   AS YYYYMM_M03
+             , DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -8 MONTH), '%Y%m')   AS YYYYMM_M04
+             , DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -7 MONTH), '%Y%m')   AS YYYYMM_M05
+             , DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -6 MONTH), '%Y%m')   AS YYYYMM_M06
+             , DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -5 MONTH), '%Y%m')   AS YYYYMM_M07
+             , DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -4 MONTH), '%Y%m')   AS YYYYMM_M08
+             , DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -3 MONTH), '%Y%m')   AS YYYYMM_M09
+             , DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -2 MONTH), '%Y%m')   AS YYYYMM_M10
+             , DATE_FORMAT(DATE_ADD(DATE_ADD(SYSDATE(), INTERVAL -1 DAY),  INTERVAL -1 MONTH), '%Y%m')   AS YYYYMM_M11
+             , DATE_FORMAT(DATE_ADD(SYSDATE(), INTERVAL -1 DAY), '%Y%m')    AS YYYYMM_M12   
+                                   
+        FROM DUAL 
+	</select>
+
+	<select id="selectDate" resultType="cMap">
+        SELECT /* DashboardDAO.selectDate */
+               DATE_FORMAT(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), '%H:%i')      AS HHMI 
+             , DATE_FORMAT(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), '%m')         AS MM
+             , DATE_FORMAT(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), '%d')         AS DD     
+			 
+             /* , DATE_FORMAT(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), 'DAY')        AS WEEK_NAME */
+			 , (case dayofweek(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d')) when '1' then '일요일' when '2' then '월요일' when '3' then '화요일' when '4' then '수요일' when '5' then '목요일' when '6' then '금요일'  when '7' then '토요일' else '' end) AS WEEK_NAME
+			 
+             , DATE_FORMAT(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), '%p')         AS DAYNIGHT      
+             , DATE_FORMAT(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), '%Y.%m.%d')   AS YYYYMMDD 
+             , DATE_FORMAT(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), '%Y%m%d')     AS YYYYMMDD2
+             , DATE_FORMAT(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), '%Y-%m-%d')   AS YYYYMMDD3                           
+             , DATE_FORMAT(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), '%Y.%m.%d')   AS YYYYMMDD4
+             
+			 , concat(DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -6 MONTH), '%Y%m'), '01')   AS YYYYMM_M6_SDATE
+             , concat(DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -6 MONTH), '%Y-%m'), '-01') AS YYYYMM_M6_SDATE2
+             , concat(DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -6 MONTH), '%Y.%m'), '.01') AS YYYYMM_M6_SDATE3 
+             , DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -1 MONTH), '%Y%m%d')               AS YYYYMM_M1_SDATE1             
+             , concat(DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -1 MONTH), '%Y%m'), '01')   AS YYYYMM_M1_SDATE2     
+             , DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -1 MONTH), '%Y.%m.%d')             AS YYYYMM_M1_SDATE3
+
+             , concat(DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -11 MONTH), '%Y%m'), '01')   AS YYYYMM_M12_SDATE
+             , concat(DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -11 MONTH), '%Y-%m'), '-01') AS YYYYMM_M12_SDATE2
+             , concat(DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -11 MONTH), '%Y.%m'), '.01') AS YYYYMM_M12_SDATE3
+			 
+             , DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -11 MONTH), '%Y%m')  AS YYYYMM_M01
+             , DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -10 MONTH), '%Y%m')  AS YYYYMM_M02
+             , DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -9 MONTH), '%Y%m')   AS YYYYMM_M03
+             , DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -8 MONTH), '%Y%m')   AS YYYYMM_M04
+             , DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -7 MONTH), '%Y%m')   AS YYYYMM_M05
+             , DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -6 MONTH), '%Y%m')   AS YYYYMM_M06
+             , DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -5 MONTH), '%Y%m')   AS YYYYMM_M07
+             , DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -4 MONTH), '%Y%m')   AS YYYYMM_M08
+             , DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -3 MONTH), '%Y%m')   AS YYYYMM_M09
+             , DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -2 MONTH), '%Y%m')   AS YYYYMM_M10
+             , DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), INTERVAL -1 MONTH), '%Y%m')   AS YYYYMM_M11
+             , DATE_FORMAT(DATE_FORMAT(#{yyyymmdd}, '%Y%m%d'), '%Y%m')    AS YYYYMM_M12              
+                                   
+        FROM DUAL 
+	</select>
+
+	<select id="selectStt1" resultType="cMap">
+
+		SELECT /* DashboardDAO.selectStt1 */
+		       SUM(MAIN.YEAR_CNT) AS YEAR_CNT,
+		       SUM(MAIN.FREE_CNT) AS FREE_CNT  
+		FROM (SELECT SUM(CASE WHEN(DATE_FORMAT(ANLMB_REGDATE,'%Y%m%d') <![CDATA[<=]]> DATE_FORMAT(#{yyyymmdd2},'%Y%m%d'))  THEN 1 ELSE 0 END) AS YEAR_CNT,
+		       0  AS FREE_CNT 
+		FROM ANULMEMB_HIST 
+		
+		UNION ALL 
+		
+		SELECT 0,
+		       SUM(CASE WHEN STATUS = '0000' AND ((DATE_FORMAT(A.JOIN_DATE,'%Y%m%d') <![CDATA[<=]]> DATE_FORMAT(#{yyyymmdd2},'%Y%m%d')) ) THEN 1 ELSE 0 END)  
+		FROM MEMBER 
+		  A LEFT JOIN ANULMEMB_HIST B 
+		    ON A.MEM_NO = B.MEM_NO 
+		  AND RET_YN ='N') MAIN 
+		   
+	</select>
+	
+	<select id="selectStt2" resultType="cMap">
+
+	    SELECT /* DashboardDAO.selectStt2 */
+	          MAIN.GRP_NAME 
+	        , SUM(MAIN.IO_QTY) AS IO_QTY   
+	     FROM ( SELECT  (SELECT A.CD_NM 
+		          FROM COT_GRPCD A 
+		         WHERE A.GRP_CD = 'CM_GATE_GRP' 
+				 
+		          /* AND A.CD = (SELECT GATE_GRPCD FROM COUNTER_LOCATION A WHERE A.GATE_NO = T.IO_GATENO AND USE_YN = 'Y' AND DEL_YN = 'N' AND ROWNUM = 1)) AS GRP_NAME */
+				  AND A.CD = (SELECT GATE_GRPCD FROM COUNTER_LOCATION A WHERE A.GATE_NO = T.IO_GATENO AND USE_YN = 'Y' AND DEL_YN = 'N' LIMIT 1)) AS GRP_NAME
+				  
+		       , T.IO_QTY 
+		FROM FREEGATE_INOUT T 
+		WHERE T.IO_DATE  = #{yyyymmdd2} 
+		  
+		  UNION ALL 
+		  
+		SELECT A.CD_NM, 0 
+		  FROM COT_GRPCD A 
+		 WHERE A.GRP_CD = 'CM_GATE_GRP' AND USE_YN = 'Y' AND DEL_YN = 'N'  	  
+		  
+		  ) MAIN 
+		 GROUP BY MAIN.GRP_NAME
+	 	 ORDER BY 1
+		
+	</select>	
+	
+	<select id="selectStt22" resultType="cMap">
+	
+		    SELECT /* DashboardDAO.selectStt22 */
+		           SUM(MAIN2.EDC)  AS EDC 
+		         , SUM(MAIN2.EVT)  AS EVT 
+		         , SUM(MAIN2.EXBT) AS EXBT
+		    FROM (SELECT SUM(MAIN.EDC_VISTNMPR) AS EDC   
+		             , 0   AS EVT
+		             , 0   AS EXBT
+		        FROM (SELECT NVL(T.EDC_VISTNMPR, 0) AS EDC_VISTNMPR      
+			           , T.EDC_REQ_SDATE 
+			           , T.EDC_REQ_EDATE   
+			       FROM EDC_RSVN_INFO T   
+			      WHERE T.COMCD = 'NOWONGU01'
+		            AND T.EDC_STAT IN ('20')  
+		            AND T.EDC_REQ_SDATE <![CDATA[<=]]> #{yyyymmdd2} 
+		            AND T.EDC_REQ_EDATE <![CDATA[>=]]> #{yyyymmdd2} ) MAIN 
+		    UNION         
+		       SELECT 0
+		            , SUM(MAIN.EVT_VEINGNMPR) 
+		            , 0 
+			   FROM (SELECT NVL(EVT_VEINGNMPR, 0) AS EVT_VEINGNMPR 
+		         FROM EVT_RSVN_MST T    
+				WHERE T.COMCD = 'NOWONGU01'   
+				  AND T.EVT_RSVN_APPTYPE IN ('20')    
+				  AND T.EVT_VEINGDATE = #{yyyymmdd2} ) MAIN  
+			UNION 
+		    SELECT 0
+		         , 0
+		         , SUM(MAIN.EXBT_VISTNMPR)  
+			FROM (SELECT NVL(T.EXBT_VISTNMPR, 0) EXBT_VISTNMPR
+			  FROM EXBT_RSVN_MST T  
+			 WHERE T.COMCD = 'NOWONGU01'  
+			   AND T.EXBT_APPTYPE IN ('20')
+			   AND T.EXBT_APPDATE = #{yyyymmdd2} ) MAIN ) MAIN2
+					
+		
+	</select>	
+		
+	<select id="selectStt3" resultType="cMap">
+	
+		SELECT /* DashboardDAO.selectStt3 */
+		       C.CD_NM AS CD_NM,SUBSTR(A.SELNG_DATE,1,6) AS SELNG_YYMM,
+		                SUM(CASE WHEN (A.SLIP_TYPE <![CDATA[<>]]> '1' AND A.SELNG_DATE = A.ORG_SELNG_DATE) THEN A.SALAMT ELSE 0 END +
+		                CASE WHEN (A.SLIP_TYPE  = '1' ) THEN A.SALAMT ELSE 0 END) AS SALAMT 
+		FROM SELNG_INFO A INNER JOIN PART_CD B
+												 ON A.COMCD = B.COMCD
+												 AND A.SELNG_PART_CD = B.PART_CD
+						  INNER JOIN COT_GRPCD C ON B.COMCD = C.COMCD AND B.PART_GBN = C.CD AND C.GRP_CD = 'SM_PART_GBN' AND C.CD != '9001' 
+ 		WHERE  A.SELNG_DATE = #{yyyymmdd2}  
+		AND  A.DEL_YN = 'N'
+		GROUP BY C.CD_NM,SUBSTR(A.SELNG_DATE,1,6) 
+			   
+	</select>		
+	
+	<select id="selectStt4" resultType="cMap">
+			
+		SELECT /* DashboardDAO.selectStt4 */
+		       #{yyyymmM01}           AS MONTH_01,
+		       #{yyyymmM02}           AS MONTH_02,
+		       #{yyyymmM03}           AS MONTH_03,
+		       #{yyyymmM04}           AS MONTH_04,
+		       #{yyyymmM05}           AS MONTH_05,
+		       #{yyyymmM06}           AS MONTH_06,
+		       #{yyyymmM07}           AS MONTH_07,
+		       #{yyyymmM08}           AS MONTH_08,
+		       #{yyyymmM09}           AS MONTH_09,
+		       #{yyyymmM10}           AS MONTH_10,
+		       #{yyyymmM11}           AS MONTH_11,
+		       #{yyyymmM12}           AS MONTH_12,
+		       SUM(MAIN2.FREE_CNT_01) AS FREE_CNT_01,
+		       SUM(MAIN2.FREE_CNT_02) AS FREE_CNT_02,
+		       SUM(MAIN2.FREE_CNT_03) AS FREE_CNT_03,
+		       SUM(MAIN2.FREE_CNT_04) AS FREE_CNT_04,
+		       SUM(MAIN2.FREE_CNT_05) AS FREE_CNT_05,
+		       SUM(MAIN2.FREE_CNT_06) AS FREE_CNT_06,
+		       SUM(MAIN2.FREE_CNT_07) AS FREE_CNT_07,
+		       SUM(MAIN2.FREE_CNT_08) AS FREE_CNT_08,
+		       SUM(MAIN2.FREE_CNT_09) AS FREE_CNT_09,
+		       SUM(MAIN2.FREE_CNT_10) AS FREE_CNT_10,
+		       SUM(MAIN2.FREE_CNT_11) AS FREE_CNT_11,
+		       SUM(MAIN2.FREE_CNT_12) AS FREE_CNT_12,
+		       SUM(MAIN2.YEAR_CNT_01) AS YEAR_CNT_01,
+		       SUM(MAIN2.YEAR_CNT_02) AS YEAR_CNT_02,
+		       SUM(MAIN2.YEAR_CNT_03) AS YEAR_CNT_03,
+		       SUM(MAIN2.YEAR_CNT_04) AS YEAR_CNT_04,
+		       SUM(MAIN2.YEAR_CNT_05) AS YEAR_CNT_05,
+		       SUM(MAIN2.YEAR_CNT_06) AS YEAR_CNT_06,
+		       SUM(MAIN2.YEAR_CNT_07) AS YEAR_CNT_07,
+		       SUM(MAIN2.YEAR_CNT_08) AS YEAR_CNT_08,
+		       SUM(MAIN2.YEAR_CNT_09) AS YEAR_CNT_09,
+		       SUM(MAIN2.YEAR_CNT_10) AS YEAR_CNT_10,
+		       SUM(MAIN2.YEAR_CNT_11) AS YEAR_CNT_11,
+		       SUM(MAIN2.YEAR_CNT_12) AS YEAR_CNT_12   
+		FROM ( SELECT 	
+		        (MAIN.MONTH_1) AS FREE_CNT_01,
+				(MAIN.MONTH_2) AS FREE_CNT_02,
+				(MAIN.MONTH_3) AS FREE_CNT_03,
+				(MAIN.MONTH_4) AS FREE_CNT_04,
+				(MAIN.MONTH_5) AS FREE_CNT_05,
+				(MAIN.MONTH_6) AS FREE_CNT_06,
+				(MAIN.MONTH_7) AS FREE_CNT_07,
+				(MAIN.MONTH_8) AS FREE_CNT_08,
+				(MAIN.MONTH_9) AS FREE_CNT_09,
+				(MAIN.MONTH_10) AS FREE_CNT_10,
+				(MAIN.MONTH_11) AS FREE_CNT_11,
+				(MAIN.MONTH_12) AS FREE_CNT_12,
+				0  AS YEAR_CNT_01,
+				0  AS YEAR_CNT_02,
+				0  AS YEAR_CNT_03,
+				0  AS YEAR_CNT_04,
+				0  AS YEAR_CNT_05,		
+				0  AS YEAR_CNT_06,
+				0  AS YEAR_CNT_07,
+				0  AS YEAR_CNT_08,
+				0  AS YEAR_CNT_09,
+				0  AS YEAR_CNT_10,
+				0  AS YEAR_CNT_11,
+				0  AS YEAR_CNT_12 
+		FROM ( SELECT  
+		SUM(CASE WHEN A.JOIN_DATE LIKE concat(#{yyyymmM01}, '%') THEN 1 ELSE 0 END) AS MONTH_1,
+		SUM(CASE WHEN A.JOIN_DATE LIKE concat(#{yyyymmM02}, '%') THEN 1 ELSE 0 END) AS MONTH_2,
+		SUM(CASE WHEN A.JOIN_DATE LIKE concat(#{yyyymmM03}, '%') THEN 1 ELSE 0 END) AS MONTH_3,
+		SUM(CASE WHEN A.JOIN_DATE LIKE concat(#{yyyymmM04}, '%') THEN 1 ELSE 0 END) AS MONTH_4,
+		SUM(CASE WHEN A.JOIN_DATE LIKE concat(#{yyyymmM05}, '%') THEN 1 ELSE 0 END) AS MONTH_5,
+		SUM(CASE WHEN A.JOIN_DATE LIKE concat(#{yyyymmM06}, '%') THEN 1 ELSE 0 END) AS MONTH_6,
+		SUM(CASE WHEN A.JOIN_DATE LIKE concat(#{yyyymmM07}, '%') THEN 1 ELSE 0 END) AS MONTH_7,
+		SUM(CASE WHEN A.JOIN_DATE LIKE concat(#{yyyymmM08}, '%') THEN 1 ELSE 0 END) AS MONTH_8,
+		SUM(CASE WHEN A.JOIN_DATE LIKE concat(#{yyyymmM09}, '%') THEN 1 ELSE 0 END) AS MONTH_9,
+		SUM(CASE WHEN A.JOIN_DATE LIKE concat(#{yyyymmM10}, '%') THEN 1 ELSE 0 END) AS MONTH_10,
+		SUM(CASE WHEN A.JOIN_DATE LIKE concat(#{yyyymmM11}, '%') THEN 1 ELSE 0 END) AS MONTH_11, 
+		SUM(CASE WHEN A.JOIN_DATE LIKE concat(#{yyyymmM12}, '%') THEN 1 ELSE 0 END) AS MONTH_12, 
+		
+		SUM(CASE WHEN B.ANLMB_REGDATE LIKE concat(#{yyyymmM01}, '%') AND B.RET_YN = 'N' THEN 1 ELSE 0 END) AS JOIN_PAY_MONTH_1,
+		SUM(CASE WHEN B.ANLMB_REGDATE LIKE concat(#{yyyymmM02}, '%') AND B.RET_YN = 'N' THEN 1 ELSE 0 END) AS JOIN_PAY_MONTH_2,
+		SUM(CASE WHEN B.ANLMB_REGDATE LIKE concat(#{yyyymmM03}, '%') AND B.RET_YN = 'N' THEN 1 ELSE 0 END) AS JOIN_PAY_MONTH_3,
+		SUM(CASE WHEN B.ANLMB_REGDATE LIKE concat(#{yyyymmM04}, '%') AND B.RET_YN = 'N' THEN 1 ELSE 0 END) AS JOIN_PAY_MONTH_4,
+		SUM(CASE WHEN B.ANLMB_REGDATE LIKE concat(#{yyyymmM05}, '%') AND B.RET_YN = 'N' THEN 1 ELSE 0 END) AS JOIN_PAY_MONTH_5,
+		SUM(CASE WHEN B.ANLMB_REGDATE LIKE concat(#{yyyymmM06}, '%') AND B.RET_YN = 'N' THEN 1 ELSE 0 END) AS JOIN_PAY_MONTH_6,
+		SUM(CASE WHEN B.ANLMB_REGDATE LIKE concat(#{yyyymmM07}, '%') AND B.RET_YN = 'N' THEN 1 ELSE 0 END) AS JOIN_PAY_MONTH_7,
+		SUM(CASE WHEN B.ANLMB_REGDATE LIKE concat(#{yyyymmM08}, '%') AND B.RET_YN = 'N' THEN 1 ELSE 0 END) AS JOIN_PAY_MONTH_8,
+		SUM(CASE WHEN B.ANLMB_REGDATE LIKE concat(#{yyyymmM09}, '%') AND B.RET_YN = 'N' THEN 1 ELSE 0 END) AS JOIN_PAY_MONTH_9,
+		SUM(CASE WHEN B.ANLMB_REGDATE LIKE concat(#{yyyymmM10}, '%') AND B.RET_YN = 'N' THEN 1 ELSE 0 END) AS JOIN_PAY_MONTH_10,
+		SUM(CASE WHEN B.ANLMB_REGDATE LIKE concat(#{yyyymmM11}, '%') AND B.RET_YN = 'N' THEN 1 ELSE 0 END) AS JOIN_PAY_MONTH_11, 
+		SUM(CASE WHEN B.ANLMB_REGDATE LIKE concat(#{yyyymmM12}, '%') AND B.RET_YN = 'N' THEN 1 ELSE 0 END) AS JOIN_PAY_MONTH_12  
+		FROM MEMBER A 
+		     LEFT JOIN ANULMEMB_HIST B 
+		         ON A.MEM_NO = B.MEM_NO 
+		            AND RET_YN ='N' ) MAIN    
+		
+		UNION ALL 
+		
+		SELECT
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		SUM(CASE WHEN RGIST_GBN IN ('1001', '1101') AND ANLMB_REGDATE LIKE concat(#{yyyymmM01}, '%') THEN 1 ELSE 0 END), 
+		SUM(CASE WHEN RGIST_GBN IN ('1001', '1101') AND ANLMB_REGDATE LIKE concat(#{yyyymmM02}, '%') THEN 1 ELSE 0 END),
+		SUM(CASE WHEN RGIST_GBN IN ('1001', '1101') AND ANLMB_REGDATE LIKE concat(#{yyyymmM03}, '%') THEN 1 ELSE 0 END),
+		SUM(CASE WHEN RGIST_GBN IN ('1001', '1101') AND ANLMB_REGDATE LIKE concat(#{yyyymmM04}, '%') THEN 1 ELSE 0 END),
+		SUM(CASE WHEN RGIST_GBN IN ('1001', '1101') AND ANLMB_REGDATE LIKE concat(#{yyyymmM05}, '%') THEN 1 ELSE 0 END),
+		SUM(CASE WHEN RGIST_GBN IN ('1001', '1101') AND ANLMB_REGDATE LIKE concat(#{yyyymmM06}, '%') THEN 1 ELSE 0 END),
+		SUM(CASE WHEN RGIST_GBN IN ('1001', '1101') AND ANLMB_REGDATE LIKE concat(#{yyyymmM07}, '%') THEN 1 ELSE 0 END),
+		SUM(CASE WHEN RGIST_GBN IN ('1001', '1101') AND ANLMB_REGDATE LIKE concat(#{yyyymmM08}, '%') THEN 1 ELSE 0 END),
+		SUM(CASE WHEN RGIST_GBN IN ('1001', '1101') AND ANLMB_REGDATE LIKE concat(#{yyyymmM09}, '%') THEN 1 ELSE 0 END),
+		SUM(CASE WHEN RGIST_GBN IN ('1001', '1101') AND ANLMB_REGDATE LIKE concat(#{yyyymmM10}, '%') THEN 1 ELSE 0 END),
+		SUM(CASE WHEN RGIST_GBN IN ('1001', '1101') AND ANLMB_REGDATE LIKE concat(#{yyyymmM11}, '%') THEN 1 ELSE 0 END),
+		SUM(CASE WHEN RGIST_GBN IN ('1001', '1101') AND ANLMB_REGDATE LIKE concat(#{yyyymmM12}, '%') THEN 1 ELSE 0 END)  
+		FROM ANULMEMB_HIST ) MAIN2      
+	
+	</select>		
+		
+	<select id="selectStt5" resultType="cMap">
+
+		SELECT /* DashboardDAO.selectStt5 */
+		       MAIN.GRP_CD_NM, 
+		       SUM(MAIN.IO_QTY) AS IO_QTY 
+	    FROM ( SELECT  
+	            (SELECT A.CD_NM 
+	              FROM COT_GRPCD A 
+	             WHERE A.GRP_CD = 'CM_GATE_GRP' 
+				 
+	               /* AND A.CD = (SELECT GATE_GRPCD FROM COUNTER_LOCATION A WHERE A.GATE_NO = T.IO_GATENO AND USE_YN = 'Y' AND DEL_YN = 'N' AND ROWNUM = 1 )) AS GRP_CD_NM */
+				   AND A.CD = (SELECT GATE_GRPCD FROM COUNTER_LOCATION A WHERE A.GATE_NO = T.IO_GATENO AND USE_YN = 'Y' AND DEL_YN = 'N' LIMIT 1 )) AS GRP_CD_NM 
+				   
+	           , T.IO_QTY 
+	    FROM FREEGATE_INOUT T 
+		WHERE T.IO_DATE = #{yyyymmdd2} 
+		
+		UNION ALL 
+		  
+		SELECT A.CD_NM, 0 
+		  FROM COT_GRPCD A 
+		 WHERE A.GRP_CD = 'CM_GATE_GRP' AND USE_YN = 'Y' AND DEL_YN = 'N'  	  		
+		
+		) MAIN   
+		GROUP BY MAIN.GRP_CD_NM 
+		ORDER BY 1 
+	
+	</select>
+	
+	<select id="selectStt52" resultType="cMap">
+
+		SELECT /* DashboardDAO.selectStt52 */
+		       MAIN2.PART_CD_NM 
+		     , SUM(MAIN2.VISTNMPR) AS VISTNMPR  
+			 
+		     /* , DECODE(MAIN2.PART_CD_NM, '강연/행사/영화', 7, '교육', 8, '본관 게이트', 9, 1) AS SORT_ORDER */
+			 , (case MAIN2.PART_CD_NM when '강연/행사/영화' then 7 when '교육' then 8 when '본관 게이트' then 9 else 1 end) AS SORT_ORDER 
+			 
+		FROM ( SELECT MAIN.PART_CD_NM 
+		    , SUM(MAIN.VISTNMPR)  AS VISTNMPR
+		FROM ( 
+		
+		SELECT  (SELECT A.PART_NM FROM PART_CD A WHERE A.PART_CD = T.EXBT_PARTCD) AS PART_CD_NM   
+		     , NVL(T.EXBT_VISTNMPR, 0) AS VISTNMPR  
+		  FROM EXBT_RSVN_MST T 
+		  WHERE T.COMCD = 'NOWONGU01'   
+			AND T.EXBT_APPTYPE IN ('20')    
+			AND T.EXBT_APPDATE = #{yyyymmdd2} 
+		    AND T.EXBT_PARTCD IS NOT NULL 
+		     
+		UNION ALL
+		 
+		SELECT  '강연/행사/영화'  
+		     , NVL(T.EVT_VEINGNMPR, 0) 
+		  FROM EVT_RSVN_MST T 
+		  WHERE T.COMCD = 'NOWONGU01'   
+		    AND T.EVT_RSVN_APPTYPE IN ('20')    
+			AND T.EVT_VEINGDATE = #{yyyymmdd2} 
+		    AND T.EVT_PARTCD IS NOT NULL 
+		       
+		UNION ALL
+		  
+		SELECT '교육' 
+		     , NVL(T.EDC_VISTNMPR, 0)
+		  FROM EDC_RSVN_INFO T 
+         WHERE T.COMCD = 'NOWONGU01'
+		   AND T.EDC_STAT IN ('20')  
+		   AND '20201209' BETWEEN T.EDC_REQ_SDATE AND T.EDC_REQ_EDATE
+
+		UNION ALL 
+		
+		SELECT '본관 게이트', 
+		       NVL(SUM(IO_QTY), 0)
+		  FROM FREEGATE_INOUT T 
+		       INNER JOIN COUNTER_LOCATION A ON T.IO_GATENO = A.GATE_NO 
+		       INNER JOIN COT_GRPCD B ON B.ITEM1 = 'Y' 
+		             AND B.ITEM2 = 'Y' 
+		WHERE A.GATE_GRPCD = B.CD 
+		  AND T.IO_DATE = #{yyyymmdd2}		 
+		   
+		UNION ALL   
+		   
+		SELECT PART_NM, 0 FROM PART_CD WHERE PART_GBN = '1001' AND USE_YN = 'Y' 
+		UNION ALL 
+		SELECT '강연/행사/영화', 0 FROM DUAL 
+		UNION ALL 
+		SELECT '교육', 0 FROM DUAL
+		UNION ALL 
+		SELECT '본관 게이트', 0 FROM DUAL		   
+		   
+		  ) MAIN   
+		  
+		GROUP BY MAIN.PART_CD_NM 
+
+		) MAIN2 
+		GROUP BY MAIN2.PART_CD_NM 
+		ORDER BY SORT_ORDER, 1 
+	
+	</select>	
+	
+	<select id="selectStt6" resultType="cMap">
+			
+		SELECT /* DashboardDAO.selectStt6 */
+		       MAIN.SELNG_YYMM,
+		       SUM(MAIN.SALAMT_EXBT) AS SALAMT_EXBT,
+		       SUM(MAIN.SALAMT_EDC) AS SALAMT_EDC,
+		       SUM(MAIN.SALAMT_EVT) AS SALAMT_EVT,
+		       (SUM(MAIN.SALAMT_EXBT) + SUM(MAIN.SALAMT_EDC) + SUM(MAIN.SALAMT_EVT)) AS ALL_SUM    
+		FROM ( SELECT  SUBSTR(A.SELNG_DATE,1,6) AS SELNG_YYMM,
+		        SUM(CASE WHEN (A.SLIP_TYPE <![CDATA[<>]]> '1' AND A.SELNG_DATE = A.ORG_SELNG_DATE) THEN A.SALAMT ELSE 0 END + CASE WHEN (A.SLIP_TYPE  = '1' ) THEN A.SALAMT ELSE 0 END) AS SALAMT_EXBT,   
+		        0  AS SALAMT_EDC,
+		        0  AS SALAMT_EVT 
+		FROM SELNG_INFO A INNER JOIN PART_CD B ON A.COMCD = B.COMCD
+											 AND A.SELNG_PART_CD = B.PART_CD
+						  INNER JOIN COT_GRPCD C ON B.COMCD = C.COMCD AND B.PART_GBN = C.CD AND C.GRP_CD = 'SM_PART_GBN' AND C.CD = '1001' 
+		WHERE  A.SELNG_DATE BETWEEN #{yyyymmM6Sdate} AND #{yyyymmdd2}
+		AND  A.DEL_YN = 'N'
+		GROUP BY C.CD_NM,SUBSTR(A.SELNG_DATE,1,6) 
+		
+		UNION ALL 
+		
+		SELECT  SUBSTR(A.SELNG_DATE,1,6),
+		        0, 
+		        SUM(CASE WHEN (A.SLIP_TYPE <![CDATA[<>]]> '1' AND A.SELNG_DATE = A.ORG_SELNG_DATE) THEN A.SALAMT ELSE 0 END + CASE WHEN (A.SLIP_TYPE  = '1' ) THEN A.SALAMT ELSE 0 END),
+		        0 
+		FROM SELNG_INFO A INNER JOIN PART_CD B ON A.COMCD = B.COMCD
+											 AND A.SELNG_PART_CD = B.PART_CD
+						  INNER JOIN COT_GRPCD C ON B.COMCD = C.COMCD AND B.PART_GBN = C.CD AND C.GRP_CD = 'SM_PART_GBN' AND C.CD = '2001' 
+		WHERE  A.SELNG_DATE BETWEEN #{yyyymmM6Sdate} AND #{yyyymmdd2}
+		AND  A.DEL_YN = 'N'
+		GROUP BY C.CD_NM,SUBSTR(A.SELNG_DATE,1,6) 
+		
+		UNION ALL 
+		
+		SELECT  SUBSTR(A.SELNG_DATE,1,6) AS SELNG_YYMM,
+		        0,
+		        0, 
+		        SUM(CASE WHEN (A.SLIP_TYPE <![CDATA[<>]]> '1' AND A.SELNG_DATE = A.ORG_SELNG_DATE) THEN A.SALAMT ELSE 0 END + CASE WHEN (A.SLIP_TYPE  = '1' ) THEN A.SALAMT ELSE 0 END) AS SALAMT  
+		FROM SELNG_INFO A INNER JOIN PART_CD B ON A.COMCD = B.COMCD
+											 AND A.SELNG_PART_CD = B.PART_CD
+						  INNER JOIN COT_GRPCD C ON B.COMCD = C.COMCD AND B.PART_GBN = C.CD AND C.GRP_CD = 'SM_PART_GBN' AND C.CD = '3001' 
+		WHERE  A.SELNG_DATE BETWEEN #{yyyymmM6Sdate} AND #{yyyymmdd2}
+		AND  A.DEL_YN = 'N'
+		GROUP BY C.CD_NM,SUBSTR(A.SELNG_DATE,1,6) 
+		
+		UNION ALL 
+		
+		/* SELECT DATE_FORMAT( DATE_ADD(DATE_FORMAT(#{yyyymmM6Sdate}, '%Y%m%d'), INTERVAL (ROWNUM - 1) MONTH), '%Y%m'),  */
+		SELECT DATE_FORMAT( DATE_ADD(DATE_FORMAT(#{yyyymmM6Sdate}, '%Y%m%d'), INTERVAL (ROW_NUMBER() OVER () - 1) MONTH), '%Y%m'),
+		       0,
+		       0,
+		       0 
+		  FROM DUAL
+		CONNECT BY LEVEL <![CDATA[<=]]> ROUND( 7 - 0 ) 
+		
+		) MAIN 
+		GROUP BY MAIN.SELNG_YYMM 
+		ORDER BY MAIN.SELNG_YYMM	
+	
+		<!-- 
+		SELECT /* DashboardDAO.selectStt6 */
+		       C.CD_NM AS CD_NM,SUBSTR(A.SELNG_DATE,1,6) AS SELNG_YYMM,
+		       SUM(CASE WHEN (A.SLIP_TYPE <![CDATA[<>]]> '1' AND A.SELNG_DATE = A.ORG_SELNG_DATE) THEN A.SALAMT ELSE 0 END +
+		       CASE WHEN (A.SLIP_TYPE  = '1' ) THEN A.SALAMT ELSE 0 END) AS SALAMT  
+		FROM SELNG_INFO A INNER JOIN PART_CD B
+												 ON A.COMCD = B.COMCD
+												 AND A.SELNG_PART_CD = B.PART_CD
+						  INNER JOIN COT_GRPCD C ON B.COMCD = C.COMCD AND B.PART_GBN = C.CD AND C.GRP_CD = 'SM_PART_GBN' AND C.CD != '9001' 
+		WHERE  A.SELNG_DATE BETWEEN '20200101' AND '20201208'
+		AND  A.DEL_YN = 'N'
+		GROUP BY C.CD_NM, SUBSTR(A.SELNG_DATE,1,6) 		
+		ORDER BY 1
+		--> 
+	
+		<!-- 
+		SELECT /* DashboardDAO.selectStt6 */
+		       MAIN.YYYYMM
+		     , SUM(MAIN.AALL) AS AALL 
+		     , SUM(MAIN.EXBT) AS EXBT
+		     , SUM(MAIN.EVT)  AS EVT
+		     , SUM(MAIN.EDC)  AS EDC 
+		FROM (SELECT SUBSTRING(T.SELNG_DATE, 1, 6) AS YYYYMM 
+		     , T.SALAMT AS AALL
+		     , 0        AS EXBT 
+		     , 0        AS EVT 
+		     , 0        AS EDC 
+		FROM SELNG_INFO T 
+		WHERE T.SLIP_TYPE = '1' 
+		  AND T.SELNG_DATE <![CDATA[>=]]> #{yyyymmM6Sdate} 
+		  AND T.SELNG_DATE <![CDATA[<=]]> #{yyyymmdd2} 
+		  
+		UNION ALL 
+		  
+		SELECT SUBSTRING(T.SELNG_DATE, 1, 6)
+		     , 0         
+		     , T.SALAMT  
+		     , 0         
+		     , 0         
+		FROM SELNG_INFO T 
+		WHERE T.SLIP_TYPE = '1' 
+		  AND T.SELNG_DATE <![CDATA[>=]]> #{yyyymmM6Sdate} 
+		  AND T.SELNG_DATE <![CDATA[<=]]> #{yyyymmdd2}
+		  AND T.OID IN (SELECT A.OID FROM PG_ORD_DET A WHERE A.OID_RSVN_NO LIKE 'R1%')
+		
+		UNION ALL 
+		  
+		SELECT SUBSTRING(T.SELNG_DATE, 1, 6)
+		     , 0         
+		     , 0  
+		     , T.SALAMT         
+		     , 0         
+		FROM SELNG_INFO T 
+		WHERE T.SLIP_TYPE = '1' 
+		  AND T.SELNG_DATE <![CDATA[>=]]> #{yyyymmM6Sdate} 
+		  AND T.SELNG_DATE <![CDATA[<=]]> #{yyyymmdd2}
+		  AND T.OID IN (SELECT A.OID FROM PG_ORD_DET A WHERE A.OID_RSVN_NO LIKE 'R2%')
+		
+		UNION ALL 
+		  
+		SELECT SUBSTRING(T.SELNG_DATE, 1, 6)
+		     , 0         
+		     , 0  
+		     , 0         
+		     , T.SALAMT     
+		FROM SELNG_INFO T 
+		WHERE T.SLIP_TYPE = '1' 
+		  AND T.SELNG_DATE <![CDATA[>=]]> #{yyyymmM6Sdate} 
+		  AND T.SELNG_DATE <![CDATA[<=]]> #{yyyymmdd2}
+		  AND T.OID IN (SELECT A.OID FROM PG_ORD_DET A WHERE A.OID_RSVN_NO LIKE 'R3%')) MAIN 
+		GROUP BY MAIN.YYYYMM
+		ORDER BY 1
+		--> 
+	</select>				
+					
+</mapper>
+

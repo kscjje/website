@@ -1,0 +1,439 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2020.9.14   	진수진     	 	마이페이지 - 강연/행사/영화 예약 정보
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="MyRsvnEvtDAO">
+
+	<select id="selectReserveCountData" resultType="cMap">
+			SELECT
+				NVL(SUM(CASE WHEN EVT_RSVN_APPTYPE='11' THEN 1 ELSE 0 END),0) WAITING_CNT,
+				NVL(SUM(CASE WHEN EVT_RSVN_APPTYPE='20' THEN 1 ELSE 0 END),0) COMP_CNT,
+				NVL(SUM(CASE WHEN EVT_RSVN_APPTYPE='12' OR EVT_RSVN_APPTYPE='31' OR EVT_RSVN_APPTYPE='32'  THEN 1 ELSE 0 END),0) CANCEL_CNT
+			FROM EVT_RSVN_MST
+			WHERE
+				COMCD=#{comcd}
+				<choose>
+					<when test="hpcertno !=null and hpcertno !=''">AND EVT_NONMEMB_CERTNO=#{hpcertno}</when>
+					<when test="uniqId !=null and uniqId !=''">AND EVT_RSVN_MEMNO=#{uniqId}</when>
+					<otherwise>AND EVT_RSVN_MEMNO='-'</otherwise>
+				</choose>
+	</select>
+
+
+	<update id="updateEvtMasterCancel" >
+			UPDATE EVT_RSVN_MST
+				SET EVT_RSVN_APPTYPE = '12' , MODDATE=SYSDATE, MODUSER=#{reguser}
+			WHERE
+				EVT_RSVN_IDX = #{rsvnIdxOne}
+				AND COMCD=#{comcd}
+				<choose>
+					<when test="hpcertno !=null and hpcertno !=''">AND EVT_NONMEMB_CERTNO=#{hpcertno}</when>
+					<when test="uniqId !=null and uniqId !=''">AND EVT_RSVN_MEMNO=#{uniqId}</when>
+					<otherwise>AND EVT_RSVN_MEMNO='-'</otherwise>
+				</choose>
+				AND EVT_RSVN_APPTYPE IN ('11','20')
+	</update>
+
+
+	<update id="updateEvtCouponCancel">
+ 		UPDATE CPN_PYMNT_INFO SET CPN_USEYN='N'
+ 		WHERE
+			CPN_UID IN  (SELECT EVT_DC_CPNNO FROM EVT_RSVN_ITEM T, EVT_RSVN_MST M WHERE T.EVT_RSVN_IDX = #{rsvnIdxOne}
+			AND T.EVT_RSVN_IDX = M.EVT_RSVN_IDX
+ 			AND M.COMCD=#{comcd}
+			<choose>
+				<when test="hpcertno !=null and hpcertno !=''">AND M.EVT_NONMEMB_CERTNO=#{hpcertno}</when>
+				<when test="uniqId !=null and uniqId !=''">AND M.EVT_RSVN_MEMNO=#{uniqId}</when>
+				<otherwise>AND EVT_RSVN_MEMNO='-'</otherwise>
+			</choose>
+			AND M.EVT_RSVN_APPTYPE IN ('11','20'))
+ 	</update>
+
+	<select id="selectMyEvtRsvnList" resultType="com.hisco.user.evtrsvn.service.EvtrsvnMstVO">
+			 SELECT
+			 		A.COMCD,
+			        A.EVT_NO,
+			        A.EVT_RSVN_IDX,
+					A.EVT_PARTCD,
+					(SELECT PART_NM FROM PART_CD WHERE COMCD=A.COMCD AND PART_CD=A.EVT_PARTCD) AS EVT_PARTNM,
+					A.EVT_RSVNNO,
+					EVT_RSVN_WEBID,
+			     	EVT_RSVN_GRPNM,
+					EVT_PERSN_GBN,
+					<if test="dbEncKey !=null and dbEncKey !=''">
+					CRYPTO.Decrypt_ARIA(EVT_RSVN_MOBLPHON ,#{dbEncKey}) AS evtRsvnMoblphon,
+					CRYPTO.Decrypt_ARIA(EVT_EMAIL ,#{dbEncKey}) AS EVT_EMAIL,
+					CRYPTO.Decrypt_ARIA(EVT_VISIT_MOBLPHON ,#{dbEncKey}) AS EVT_VISIT_MOBLPHON,
+					</if>
+					EVT_VEINGNMPR,
+					EVT_VEINGDATE,
+					EVT_RSVN_ETC,
+					EVT_RSVN_CUSTNM,
+					EVT_RSVN_APPTYPE,
+					(SELECT CD_NM FROM COT_GRPCD GRP WHERE GRP.GRP_CD = 'SM_RSVN_STAT' AND CD = EVT_RSVN_APPTYPE) AS EVT_APPTYPE_NM,
+					EVT_RSVN_SALEAMT,
+					EVT_RSVN_PAYAMT,
+					EVT_RSVN_PAYDATE,
+					EVT_RSVN_RETYN,
+					EVT_RECEIPTNO,
+					EVT_CANCEL_MEMO,
+					EVT_ONOFF_INTYPE,
+					EVT_ONOFFPYNTYPE,
+					EVT_VISIT_CUSTNM,
+					EVT_TRMNLTYPE,
+					EVT_PAYWAIT_ENDDATETIME,
+					EVT_VISITCARNO,
+					A.REGDATE,
+					A.MODDATE,
+					B.EVT_TIMESEQ,
+					B.EVT_STIME,
+					B.EVT_ETIME,
+					P.EVT_NAME,
+					P.EVT_GUIDE_TELNO AS GUIDE_TELNO,
+					CASE WHEN TO_DATE(A.EVT_VEINGDATE || B.EVT_STIME, 'YYYYMMDDHH24MI') > SYSDATE THEN 'Y' ELSE 'N' END AS EDIT_YN
+<if test='mode == "complete"'>
+			,(SELECT COUNT(*)
+				FROM
+					EVT_TICKET_INFO F, EVT_TICKET_CHKININFO H
+				WHERE
+					F.EVT_RSVN_IDX=A.EVT_RSVN_IDX AND F.TICKET_STATUS='1000'
+					AND H.COMCD=P.COMCD AND H.EVT_PARTCD=P.EVT_PARTCD AND H.EVT_TICKET_NO=F.EVT_TICKET_NO
+		) ticketChkCnt
+</if>
+				FROM EVT_RSVN_MST A , EVENT_PROGRAM P , EVT_RSVN_TIME B
+				WHERE
+					A.COMCD=#{comcd}
+					AND A.EVT_NO = P.EVT_NO
+					AND A.EVT_RSVN_IDX = B.EVT_RSVN_IDX
+				<choose>
+					<when test='mode == "waiting"'>
+						AND EVT_RSVN_APPTYPE='11'
+						<choose>
+							<when test="uniqId !=null and uniqId !=''">AND A.EVT_RSVN_MEMNO=#{uniqId}</when>
+							<when test="hpcertno !=null and hpcertno !=''">AND A.EVT_NONMEMB_CERTNO=#{hpcertno}</when>
+							<otherwise>AND A.EVT_RSVN_MEMNO='-'</otherwise>
+						</choose>
+					</when>
+					<when test='mode == "pay"'>
+						AND EVT_RSVN_APPTYPE='11'
+						<choose>
+							<when test="hpcertno !=null and hpcertno !=''">AND A.EVT_NONMEMB_CERTNO=#{hpcertno}</when>
+							<when test="uniqId !=null and uniqId !=''">AND A.EVT_RSVN_MEMNO=#{uniqId}</when>
+							<otherwise>AND A.EVT_RSVN_MEMNO='-'</otherwise>
+						</choose>
+						AND A.EVT_RSVN_IDX IN
+						<foreach collection="rsvnIdx" item="item"  open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</when>
+					<when test='mode == "save"'>
+						AND A.EVT_RSVNNO IN (SELECT OID_RSVN_NO FROM PG_ORD_DET WHERE COMCD=A.COMCD AND OID=#{LGD_OID})
+					</when>
+					<when test='mode == "complete"'>
+						<choose>
+							<when test="hpcertno !=null and hpcertno !=''">AND A.EVT_NONMEMB_CERTNO=#{hpcertno}</when>
+							<when test="uniqId !=null and uniqId !=''">AND A.EVT_RSVN_MEMNO=#{uniqId}</when>
+							<otherwise>AND A.EVT_RSVN_MEMNO='-'</otherwise>
+						</choose>
+						<if test="rsvnIdx != null">
+							AND A.EVT_RSVN_IDX IN
+							<foreach collection="rsvnIdx" item="item"  open="(" close=")" separator=",">
+								#{item}
+							</foreach>
+						</if>
+						AND A.EVT_RSVNNO IN (SELECT OID_RSVN_NO FROM PG_ORD_DET WHERE COMCD=A.COMCD AND OID=#{orderId})
+					</when>
+					<when test="rsvnIdxOne != null and rsvnIdxOne != ''">
+						AND A.EVT_RSVN_IDX=#{rsvnIdxOne}
+					</when>
+					<otherwise>
+						<choose>
+							<when test="hpcertno !=null and hpcertno !=''">AND A.EVT_NONMEMB_CERTNO=#{hpcertno}</when>
+							<when test="uniqId !=null and uniqId !=''">AND A.EVT_RSVN_MEMNO=#{uniqId}</when>
+							<otherwise>AND A.EVT_RSVN_MEMNO='-'</otherwise>
+						</choose>
+					</otherwise>
+				</choose>
+				ORDER BY A.EVT_RSVN_IDX DESC
+		</select>
+
+
+	<select id="selectEvtrsvnItem" resultType="com.hisco.user.evtrsvn.service.EvtRsvnItemVO">
+		SELECT
+				EVT_RSVN_IDX,
+				EVT_SALE_SEQ,
+				COMCD,
+				EVT_RSVN_ITEMCD,
+				EVT_COST,
+				EVT_RSVN_ITEMCNT,
+				EVT_MALE_CNT,
+				EVT_FEMALE_CNT,
+				EVT_SALAMT,
+				EVT_DC_TYPE,
+				EVT_DC_CPNNO,
+				EVT_EVENT_DCID,
+				EVT_DC_RATE,
+				EVT_DCAMT,
+				EVT_TOTAMT,
+				EVT_ONOFF_INTYPE,
+				RETURN_YN,
+				CANCEL_YN,
+				SLIP_NO,
+				EVT_TICKET_NO,
+				EVT_ETC,
+				EVT_TERMINAL_TYPE,
+				(SELECT ITEM_NM FROM PROGRAM_ITEM WHERE COMCD=A.COMCD AND ITEM_CD = A.EVT_RSVN_ITEMCD) AS EVT_ITEM_NM
+		FROM EVT_RSVN_ITEM A
+		WHERE COMCD = #{comcd}
+		AND EVT_RSVN_IDX = #{evtRsvnIdx}
+	</select>
+
+	<select id="selectMyEvtRsvn" resultType="com.hisco.user.evtrsvn.service.EvtrsvnMstVO">
+		 SELECT
+		        A.EVT_NO,
+		        A.EVT_RSVN_IDX,
+				EVT_PARTCD,
+				EVT_RSVNNO,
+				EVT_RSVN_WEBID,
+		     	EVT_RSVN_GRPNM,
+				EVT_PERSN_GBN,
+				CRYPTO.Decrypt_ARIA(EVT_RSVN_MOBLPHON ,#{dbEncKey}) AS EVT_RSVN_MOBLPHON,
+				CRYPTO.Decrypt_ARIA(EVT_EMAIL ,#{dbEncKey}) AS EVT_EMAIL,
+				EVT_VEINGNMPR,
+				EVT_VEINGDATE,
+				EVT_RSVN_ETC,
+				EVT_RSVN_WEBID,
+				EVT_RSVN_CUSTNM,
+				EVT_RSVN_APPTYPE,
+				(SELECT CD_NM FROM COT_GRPCD GRP WHERE GRP.GRP_CD = 'SM_RSVN_STAT' AND CD = EVT_RSVN_APPTYPE) AS EVT_APPTYPE_NM,
+				EVT_RSVN_SALEAMT,
+				EVT_RSVN_PAYAMT,
+				EVT_RSVN_PAYDATE,
+				EVT_RSVN_RETYN,
+				EVT_RECEIPTNO,
+				EVT_CANCEL_MEMO,
+				EVT_ONOFF_INTYPE,
+				EVT_ONOFFPYNTYPE,
+				EVT_VISIT_CUSTNM,
+				CRYPTO.Decrypt_ARIA(EVT_VISIT_MOBLPHON ,#{dbEncKey}) AS EVT_VISIT_MOBLPHON,
+				EVT_TRMNLTYPE,
+				EVT_PAYWAIT_ENDDATETIME,
+				EVT_VISITCARNO,
+				B.EVT_TIMESEQ,
+				B.EVT_STIME,
+				(SELECT EVT_NAME FROM EVENT_PROGRAM WHERE EVT_NO = A.EVT_NO) AS EVT_NAME,
+				B.EVT_ETIME,
+				A.REGDATE,
+				A.MODDATE
+			FROM EVT_RSVN_MST A INNER JOIN EVT_RSVN_TIME B ON A.EVT_RSVN_IDX = B.EVT_RSVN_IDX
+			WHERE 1=1
+			<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(id)">
+				AND A.EVT_RSVN_WEBID = #{id}
+			</if>
+			<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(evtRsvnIdx)">
+				AND A.EVT_RSVN_IDX = #{evtRsvnIdx}
+			</if>
+			<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(rsvnIdx)">
+				AND  A.EVT_RSVN_IDX IN
+				<foreach collection="rsvnIdx" item="item"  open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+			</if>
+			ORDER BY A.MODDATE DESC
+	</select>
+
+	<select id="selectEvtPayList" resultType="cMap">
+			 SELECT
+			        A.EVT_NO,
+			        A.EVT_RSVN_IDX as RSVN_IDX,
+			        (SELECT PART_NM FROM PART_CD WHERE COMCD=A.COMCD AND PART_CD=A.EVT_PARTCD) AS PART_NM,
+					EVT_PARTCD,
+					EVT_RSVNNO,
+					EVT_RSVN_WEBID,
+			     	EVT_RSVN_GRPNM,
+					EVT_PERSN_GBN,
+					CRYPTO.Decrypt_ARIA(EVT_RSVN_MOBLPHON ,#{dbEncKey}) AS evtRsvnMoblphon,
+					CRYPTO.Decrypt_ARIA(EVT_EMAIL ,#{dbEncKey}) AS EVT_EMAIL,
+					EVT_VEINGNMPR,
+					EVT_VEINGDATE,
+					EVT_RSVN_ETC,
+					EVT_RSVN_WEBID,
+					EVT_RSVN_CUSTNM,
+					EVT_RSVN_APPTYPE,
+					(SELECT CD_NM FROM COT_GRPCD GRP WHERE GRP.GRP_CD = 'SM_RSVN_STAT' AND CD = EVT_RSVN_APPTYPE) AS EVT_APPTYPE_NM,
+					EVT_RSVN_SALEAMT,
+					EVT_RSVN_PAYAMT,
+					EVT_RSVN_PAYDATE,
+					EVT_RSVN_RETYN,
+					EVT_RECEIPTNO,
+					EVT_CANCEL_MEMO,
+					EVT_ONOFF_INTYPE,
+					EVT_ONOFFPYNTYPE,
+					EVT_VISIT_CUSTNM,
+					CRYPTO.Decrypt_ARIA(EVT_VISIT_MOBLPHON ,#{dbEncKey}) AS EVT_VISIT_MOBLPHON,
+					EVT_TRMNLTYPE,
+					TO_CHAR(EVT_PAYWAIT_ENDDATETIME,'YYYY-MM-DD HH:MI:SS') as EVT_PAYWAIT_ENDDATETIME,
+					EVT_VISITCARNO,
+					B.EVT_TIMESEQ,
+					B.EVT_STIME,
+					(SELECT EVT_NAME FROM EVENT_PROGRAM WHERE EVT_NO = A.EVT_NO) AS EVT_NAME,
+					B.EVT_ETIME,
+					A.REGDATE,
+					A.MODDATE
+				FROM EVT_RSVN_MST A INNER JOIN EVT_RSVN_TIME B ON A.EVT_RSVN_IDX = B.EVT_RSVN_IDX
+				WHERE 1=1
+				<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(id)">
+					AND A.EVT_RSVN_WEBID = #{id}
+				</if>
+				<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(evtRsvnIdx)">
+					AND A.EVT_RSVN_IDX = #{evtRsvnIdx}
+				</if>
+				<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(rsvnIdx)">
+					AND  A.EVT_RSVN_IDX IN
+					<foreach collection="rsvnIdx" item="item"  open="(" close=")" separator=",">
+						#{item}
+					</foreach>
+				</if>
+				ORDER BY A.MODDATE DESC
+		</select>
+
+
+		<select id="selectMyEvtRsvnPagingList" resultType="com.hisco.user.evtrsvn.service.EvtrsvnMstVO">
+			SELECT /* MyRsvnEvtDAO.selectMyEvtRsvnPagingList */
+				T2.*,
+				T.EVT_TIMESEQ,
+				T.EVT_STIME,
+				T.EVT_ETIME,
+				R.EVT_NAME,
+				R.EVT_TICKET_CHKYN TICKET_CHKYN,
+			<![CDATA[
+				(SELECT
+				COUNT(*)
+				FROM REFUN_STDMNG
+				WHERE COMCD=T2.COMCD AND PART_CD=T2.EVT_PARTCD
+					AND RFND_NOFDAY <= (TO_DATE(EVT_VEINGDATE , 'YYYYMMDD')-TO_DATE( TO_CHAR(SYSDATE,'YYYYMMDD') , 'YYYYMMDD'))
+				  	AND
+					( (TO_DATE(EVT_VEINGDATE , 'YYYYMMDD')-TO_DATE( TO_CHAR(SYSDATE,'YYYYMMDD') , 'YYYYMMDD')) > RFND_NOFDAY
+						 OR ((TO_DATE(EVT_VEINGDATE , 'YYYYMMDD')-TO_DATE( TO_CHAR(SYSDATE,'YYYYMMDD') , 'YYYYMMDD'))=0 AND  T.EVT_STIME> TO_CHAR(SYSDATE,'HH24MI') )
+						 OR ((TO_DATE(EVT_VEINGDATE , 'YYYYMMDD')-TO_DATE( TO_CHAR(SYSDATE,'YYYYMMDD') , 'YYYYMMDD'))=RFND_NOFDAY AND RFND_ETIME >= TO_CHAR(SYSDATE,'HH24MI'))
+					)
+				) AS rfndSeq,
+				(CASE WHEN
+				(SELECT COUNT(*) FROM REFUN_STDMNG WHERE  COMCD=T2.COMCD AND PART_CD=T2.EVT_PARTCD)=0 AND
+				(DIFF >0 OR (DIFF=0 AND T.EVT_STIME> TO_CHAR(SYSDATE,'HH24MI'))) THEN 'Y' ELSE 'N' END) CANCEL_ABLE_YN,
+				CASE WHEN TO_DATE(T2.EVT_VEINGDATE || T.EVT_STIME, 'YYYYMMDDHH24MI') > SYSDATE THEN 'Y' ELSE 'N' END AS EDIT_YN
+			]]>
+			FROM (
+					SELECT
+					  	ROW_NUMBER()OVER(ORDER BY  NVL(PAYREGDATE,REGDATE) DESC) RNUM,
+					  	COUNT(*)OVER() TOT_COUNT,
+					 	NVL(PAYREGDATE,REGDATE) PAYREGDATE,
+					 	REGDATE,
+					 	NVL(MODDATE,REGDATE) MODDATE,
+					 	OID,
+					 	COMCD,
+					 	EVT_PARTCD,
+					 	EVT_RSVN_IDX,
+					 	EVT_NO,
+					 	EVT_RSVNNO,
+					 	EVT_RSVN_GRPNM,
+					 	EVT_PERSN_GBN,
+					 	EVT_VEINGNMPR,
+					 	EVT_VEINGDATE,
+					 	EVT_RSVN_APPTYPE,
+					 	EVT_RSVN_SALEAMT,
+					 	EVT_RSVN_PAYAMT,
+					 	(SELECT CD_NM FROM COT_GRPCD GRP WHERE GRP.GRP_CD = 'SM_RSVN_STAT' AND CD = EVT_RSVN_APPTYPE) AS EVT_APPTYPE_NM,
+					 	TO_DATE(EVT_VEINGDATE , 'YYYYMMDD') - TO_DATE( TO_CHAR(SYSDATE,'YYYYMMDD') , 'YYYYMMDD')  DIFF,
+					 	EVT_RSVN_RETYN
+					FROM (
+						SELECT
+						MAX(M.COMCD) COMCD,
+						MAX(M.EVT_PARTCD) EVT_PARTCD,
+						MAX(M.REGDATE) REGDATE ,
+						MAX(M.MODDATE) MODDATE ,
+						MAX(S.REGDATE) PAYREGDATE ,
+						MAX(S.OID)  OID ,
+						MAX(M.EVT_NO) EVT_NO,
+					    MAX(M.EVT_RSVNNO)  EVT_RSVNNO,
+					    MAX(M.EVT_RSVN_GRPNM) EVT_RSVN_GRPNM,
+					    MAX(M.EVT_PERSN_GBN) EVT_PERSN_GBN,
+					    MAX(M.EVT_VEINGNMPR) EVT_VEINGNMPR,
+					    MAX(M.EVT_VEINGDATE) EVT_VEINGDATE,
+					    MAX(M.EVT_RSVN_APPTYPE) EVT_RSVN_APPTYPE,
+					    MAX(M.EVT_RSVN_SALEAMT) EVT_RSVN_SALEAMT,
+					    MAX(M.EVT_RSVN_PAYAMT) EVT_RSVN_PAYAMT,
+					    MAX(M.EVT_RSVN_RETYN) EVT_RSVN_RETYN,
+					    M.EVT_RSVN_IDX
+					FROM
+						EVT_RSVN_MST M , EVT_RSVN_ITEM R
+							LEFT OUTER JOIN  SELNG_INFO S ON  R.SELNG_ID = S.SELNG_ID AND S.COMCD=#{comcd}
+					WHERE
+						M.EVT_RSVN_IDX=R.EVT_RSVN_IDX
+						AND M.COMCD= #{comcd}
+						<choose>
+							<when test='appStatus !=null and appStatus =="20"'>AND M.EVT_RSVN_APPTYPE = '20'</when>
+							<otherwise>AND (M.EVT_RSVN_APPTYPE LIKE '3%' OR M.EVT_RSVN_APPTYPE='12')</otherwise>
+						</choose>
+						<choose>
+							<when test="hpcertno !=null and hpcertno !=''">AND M.EVT_NONMEMB_CERTNO=#{hpcertno}</when>
+							<when test="uniqId !=null and uniqId !=''">AND M.EVT_RSVN_MEMNO=#{uniqId}</when>
+							<otherwise>AND M.EVT_RSVN_MEMNO='-'</otherwise>
+						</choose>
+						GROUP BY M.EVT_RSVN_IDX
+					) T1
+			) T2 , EVT_RSVN_TIME T
+					, EVENT_PROGRAM R
+			WHERE
+				 T2.EVT_RSVN_IDX = T.EVT_RSVN_IDX
+				AND T2.COMCD=R.COMCD AND T2.EVT_NO = R.EVT_NO
+				AND T2.RNUM BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+				ORDER BY RNUM
+	</select>
+
+	<select id="selectEvtCancelInfo" resultType="cMap">
+		SELECT
+			SUM(CASE WHEN EVT_RSVN_IDX IN <foreach collection="rsvnIdx" item="item"  open="(" close=")" separator=",">#{item}</foreach> THEN A.EVT_RSVN_PAYAMT ELSE 0 END) AS PAY_AMT,
+			COUNT(*) TOT_CNT,
+			SUM(CASE WHEN EVT_RSVN_APPTYPE LIKE '3%' OR EVT_RSVN_IDX IN <foreach collection="rsvnIdx" item="item"  open="(" close=")" separator=",">#{item}</foreach> THEN 1 ELSE 0 END) AS CANCEL_CNT,
+			(SELECT CARD_RATE
+				FROM
+					PAY_COM_RATE R
+				WHERE
+					R.P_COMCD=#{pComcd} AND R.P_TYPE=#{pType} AND R.METHOD_CD=#{cardCd}
+			) AS CARD_RATE
+		FROM
+			EVT_RSVN_MST A
+		WHERE
+			A.COMCD=#{comcd}
+			AND A.EVT_ONOFF_INTYPE='10'
+			<choose>
+				<when test="hpcertno !=null and hpcertno !=''">AND EVT_NONMEMB_CERTNO=#{hpcertno}</when>
+				<when test="uniqId !=null and uniqId !=''">AND EVT_RSVN_MEMNO=#{uniqId}</when>
+				<otherwise>AND EVT_RSVN_MEMNO='-'</otherwise>
+			</choose>
+			AND A.EVT_RSVNNO IN (SELECT OID_RSVN_NO FROM PG_ORD_DET WHERE COMCD=A.COMCD AND OID=#{orderId})
+	</select>
+
+
+	<select id="selectEvtDetailData" resultType="com.hisco.user.evtrsvn.service.EvtrsvnMstVO">
+			SELECT
+				EVT_RSVN_APPTYPE,
+				EVT_RSVN_SALEAMT,
+				EVT_RSVN_PAYAMT,
+				EVT_RSVN_IDX,
+				EVT_PARTCD,
+				EVT_RSVNNO,
+				REGDATE,
+				(SELECT MAX(OID) FROM PG_ORD_DET WHERE OID_RSVN_NO=M.EVT_RSVNNO) AS OID
+			FROM
+				EVT_RSVN_MST M
+			WHERE
+				M.COMCD=#{comcd}
+				AND M.EVT_RSVN_IDX = #{rsvnIdxOne}
+	</select>
+
+</mapper>

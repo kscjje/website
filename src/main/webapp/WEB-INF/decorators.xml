@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<decorators>
+
+	<!-- web -->
+    <decorator name="webDefaultTheme" page="/WEB-INF/jsp/layout/webDefaultTheme.jsp">
+        <pattern>/web/*</pattern>
+    </decorator>
+
+    <decorator name="blankTheme" page="/WEB-INF/jsp/layout/blankTheme.jsp">
+        <pattern>/modal/*.do</pattern>
+    </decorator>
+
+    <decorator name="admPopUpTheme" page="/WEB-INF/jsp/layout/webadmPopUpTheme.jsp">
+        <pattern>/webadm/*/*Popup</pattern>
+    </decorator>
+
+    <decorator name="popUpTheme" page="/WEB-INF/jsp/layout/webPopUpTheme.jsp">
+        <pattern>/*/*Popup</pattern>
+        <pattern>/web/intro</pattern>
+    </decorator>
+
+    <!-- webadm -->
+    <decorator name="webadmDefaultTheme" page="/WEB-INF/jsp/layout/webadmDefaultTheme.jsp">
+    	<pattern>/webadm/*</pattern>
+<!--         <pattern>/webadm/*</pattern> -->
+<!--         <pattern>/manager/*</pattern> -->
+    </decorator>
+
+    <decorator name="webadmLoginTheme" page="/WEB-INF/jsp/layout/webadmLoginTheme.jsp">
+        <pattern>/webadm/login</pattern>
+<!--         <pattern>/manager/login</pattern> -->
+    </decorator>
+
+    <!-- sitemesh 적용 예외 URL을 아래에 추가해 주세요. -->
+    <excludes>
+        <pattern>/web/exception/*</pattern>
+        <pattern>/*/resources/**</pattern>
+        <pattern>/*/egov_security_logout*</pattern>
+        <pattern>/*/validator</pattern>
+        <pattern>/*/loginAction</pattern>
+<!--         <pattern>/manager/egov_security_logout*</pattern> -->
+<!--         <pattern>/manager/validator</pattern> -->
+<!--         <pattern>/manager/resources/**</pattern> -->
+        <pattern>*Ajax*</pattern>
+        <pattern>*.json</pattern>
+        <pattern>*.html</pattern>
+        <pattern>/web/edc/toss/*</pattern>
+        <pattern>/web/edc/rsvn/pay/toss/*</pattern>
+        <pattern>*print</pattern>
+    </excludes>
+
+</decorators>

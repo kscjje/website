@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  Description : 회원 관리
+
+   수정일                  수정자           수정내용
+  =========     =======    =================================================
+  2021.03.19   	전영석            최초 작성
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hisco.admin.member.mapper.MemberMapper">
+
+	<!-- [공통 정보를 조회한다][2021-03-24][전영석] -->
+	<select id="selectCotGrpCdList" resultType="cMap">
+
+		select /* EduAdmDAO.selectCotGrpCdList */
+		       cd
+		     , cd_nm
+		from cot_grpcd
+		where grp_cd = #{grpCd}
+		order by sort_order
+
+	</select>
+
+ 	<!-- [회원목록을 조회한다][2021-10-18][진수진] -->
+	<select id="selectMemberList" resultType="cMap">
+			SELECT  /* MemberMapper.selectMemberList */
+			        *
+              FROM  (
+				SELECT
+					ROW_NUMBER() OVER (order by REGDATE DESC) RNUM
+					, ALL_LIST.*
+					, CASE
+						WHEN GENDER_CD='0' THEN '미기재'
+						WHEN GENDER_CD='1' THEN '남성'
+						WHEN GENDER_CD='2' THEN '여성'
+						WHEN GENDER_CD='3' THEN '성별미상'
+						WHEN GENDER_CD='9' THEN '기타'
+						ELSE GENDER_CD
+					END AS GENDER
+                FROM  (
+					SELECT
+						   M.MEM_NO
+						 , NVL(M.USER_ID , D.USER_ID) ID
+					     , NVL(M.MEM_NM , D.MEM_NM) MEM_NM
+					     , NVL(M.MEM_GBN , D.MEM_GBN) MEM_GBN
+					     , NVL(M.GENDER , D.GENDER) GENDER_CD
+					     , NVL(M.PWD , D.PWD) PW
+					     , NVL(M.BIRTH_DATE , D.BIRTH_DATE) BIRTH_DATE
+					     , NVL(M.BIRTH_SEC , D.BIRTH_SEC) BIRTH_SEC
+					     , NVL(fn_aes_decrypt(NVL(M.HP , D.HP),#{dbEncKey}), M.HP) AS HP
+					     , fn_aes_decrypt(NVL(M.EMAIL, D.EMAIL),#{dbEncKey}) AS EMAIL
+					     , NVL(M.RESDNC_GBN,D.RESDNC_GBN) RESDNC_GBN
+					     , NVL(M.RESDNC_ORGNAME , D.RESDNC_ORGNAME) RESDNC_ORGNAME
+					     , NVL(M.EMAIL_YN , D.EMAIL_YN) EMAIL_YN
+					     , NVL(M.SMS_YN , D.SMS_YN) SMS_YN
+					     , NVL(M.PI_AUTHKEY , D.PI_AUTHKEY) PI_AUTHKEY
+					     , NVL(M.SNS_REGIST_YN, D.SNS_REGIST_YN) SNS_REGIST_YN
+					     , M.STATUS
+					     , AA.CD_NM AS STATUS_NM
+					     , M.PI_P_AUTHKEY
+					     , 'N' AS YEAR_YN
+					     , 'N' AS SPECIAL_YN
+					     , (SELECT MAX(ANLMB_EDATE) FROM ANULMEMB_HIST WHERE MEM_NO=M.MEM_NO AND  RET_YN='N') ANLMB_EDATE
+					     , CASE WHEN DATE_FORMAT(SYSDATE(),'%Y')- SUBSTR(NVL(REPLACE(M.BIRTH_DATE,' ','') , D.BIRTH_DATE),1,4) >= 14 THEN 'normal' ELSE 'child' END type
+					     , substring_index(NVL(M.EMAIL, D.EMAIL), '@', 1)  AS email1
+					     , substring_index(NVL(M.EMAIL, D.EMAIL), '@', -1) AS email2
+					     , M.HOME_ZIPCD AS postNum
+					     , NVL(fn_aes_decrypt(NVL(M.HOME_ADDR1 , D.HOME_ADDR1),'oSCFuASUPw1Apbx7iuFEY2m4io2Ix8yiySJK3Ci39FU='), M.HOME_ADDR1) AS addr1
+					     , NVL(fn_aes_decrypt(NVL(M.HOME_ADDR2 , D.HOME_ADDR2),'oSCFuASUPw1Apbx7iuFEY2m4io2Ix8yiySJK3Ci39FU='), M.HOME_ADDR2) AS addr2
+						 , M.REGDATE
+                         , M.REGUSER
+                         , M.MODDATE
+                         , M.MODUSER
+                         , M.AGREE_LAST_DATE
+                         , M.LOCKED_YN
+                         , M.FAIL_CNT
+                         , M.PWD_CHANGE_DATE
+                         , M.JOIN_DATE
+                         , M.LOGIN_LASTDATE
+					     , COUNT(*) OVER() AS TB_ALL_COUNT
+					     <!-- <if test='excelyn !=null and excelyn=="Y"'>
+					     , fn_aes_decrypt(M.HOME_ADDR1 ,#{dbEncKey})  AS ADDR1
+		     			 , fn_aes_decrypt(M.HOME_ADDR2 ,#{dbEncKey}) AS ADDR2
+					     </if> -->
+					  FROM MEMBER M
+					  	LEFT OUTER JOIN DORMANT_MEMBER D ON M.MEM_NO = D.MEM_NO
+                        LEFT OUTER JOIN COT_GRPCD AA ON M.STATUS = AA.CD AND AA.GRP_CD = 'SM_MEMBER_STAT'
+					  WHERE 1 = 1
+					  	<if test="searchKeyword != null and searchKeyword !=''">
+					  		<choose>
+						  		<when test="searchCondition == 1">
+								 	AND M.MEM_NM LIKE CONCAT('%', #{searchKeyword}, '%')
+								 </when>
+								 <when test="searchCondition == 2">
+								 	AND M.USER_ID LIKE CONCAT('%', #{searchKeyword}, '%')
+								 </when>
+								 <when test="searchCondition == 3">
+								 	AND FN_AES_DECRYPT(M.HP, #{dbEncKey}) LIKE CONCAT('%', #{searchKeyword}, '%')
+								 </when>
+					  		</choose>
+					  	</if>
+			                ) ALL_LIST
+				) MAIN
+				<if test='excelyn ==null or excelyn!="Y"'>
+					<![CDATA[
+
+			             WHERE  RNUM  > #{firstIndex}
+			               AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+		            ]]>
+	            </if>
+	</select>
+
+	<!--[회원상세를 조회한다][2021-10-18][진수진] -->
+	<select id="selectMemberDetail" resultType="com.hisco.admin.member.vo.MemberUserVO">
+	    SELECT /* MemberMapper.selectMemberDetail */
+			   M.MEM_NO
+			 , NVL(M.USER_ID , D.USER_ID) ID
+		     , NVL(M.MEM_NM , D.MEM_NM) MEM_NM
+		     , NVL(M.MEM_GBN , D.MEM_GBN) MEM_GBN
+		     , NVL(M.GENDER , D.GENDER) GENDER
+		     , NVL(M.PWD , D.PWD) PW
+		     , NVL(M.BIRTH_DATE , D.BIRTH_DATE) BIRTH_DATE
+		     , NVL(M.BIRTH_SEC , D.BIRTH_SEC) BIRTH_SEC
+		     , fn_aes_decrypt(NVL(M.HP , D.HP) ,#{dbEncKey}) AS HP
+		     , fn_aes_decrypt(NVL(M.EMAIL, D.EMAIL),#{dbEncKey}) AS EMAIL
+		     , NVL(M.RESDNC_GBN,D.RESDNC_GBN) RESDNC_GBN
+		     , NVL(M.RESDNC_ORGNAME , D.RESDNC_ORGNAME) RESDNC_ORGNAME
+		     , NVL(M.EMAIL_YN , D.EMAIL_YN) EMAIL_YN
+		     , NVL(M.SMS_YN , D.SMS_YN) SMS_YN
+		     , NVL(M.PI_AUTHKEY , D.PI_AUTHKEY) PI_AUTHKEY
+		     , NVL(M.SNS_REGIST_YN, D.SNS_REGIST_YN) SNS_REGIST_YN
+		     , M.STATUS
+		     , AA.CD_NM AS STATUS_NM
+		     , M.PI_P_AUTHKEY
+		     , 'N' AS YEAR_YN
+		     , 'N' AS SPECIAL_YN
+		     , (SELECT MAX(ANLMB_EDATE) FROM ANULMEMB_HIST WHERE MEM_NO=M.MEM_NO AND  RET_YN='N') ANLMB_EDATE
+		     , NVL(M.EMAIL, D.EMAIL)  AS EMAIL
+		     , M.HOME_ZIPCD AS postNum
+		     , fn_aes_decrypt(M.HOME_ADDR1 ,#{dbEncKey})  AS addr1
+		     , fn_aes_decrypt(M.HOME_ADDR2 ,#{dbEncKey}) AS addr2
+			 , M.REGDATE
+             , M.REGUSER
+             , M.MODDATE
+             , M.MODUSER
+		     , M.OUT_DATE
+		     , M.OUT_REASON
+		     , M.AGREE_LAST_DATE
+		     , M.LOCKED_YN
+		     , M.FAIL_CNT
+		     , M.PWD_CHANGE_DATE
+		     , M.JOIN_DATE
+		     , M.LOGIN_LASTDATE
+		  FROM MEMBER M
+		  	LEFT OUTER JOIN DORMANT_MEMBER D ON M.MEM_NO = D.MEM_NO
+                     LEFT OUTER JOIN COT_GRPCD AA ON M.STATUS = AA.CD AND AA.GRP_CD = 'SM_MEMBER_STAT'
+          WHERE M.MEM_NO = #{memNo}
+
+	</select>
+
+
+	<!--[회원상세를 조회한다 ID로 ][2021-12-08][이윤호] -->
+	<select id="selectMemberDetailById" resultType="com.hisco.admin.member.vo.MemberUserVO">
+	    SELECT /* MemberMapper.selectMemberDetailById */
+			   M.MEM_NO
+			 , NVL(M.USER_ID , D.USER_ID) ID
+		     , NVL(M.MEM_NM , D.MEM_NM) MEM_NM
+		     , NVL(M.MEM_GBN , D.MEM_GBN) MEM_GBN
+		     , NVL(M.GENDER , D.GENDER) GENDER
+		     , NVL(M.PWD , D.PWD) PW
+		     , NVL(M.BIRTH_DATE , D.BIRTH_DATE) BIRTH_DATE
+		     , NVL(M.BIRTH_SEC , D.BIRTH_SEC) BIRTH_SEC
+		     , fn_aes_decrypt(NVL(M.HP , D.HP) ,#{dbEncKey}) AS HP
+		     , fn_aes_decrypt(NVL(M.EMAIL, D.EMAIL),#{dbEncKey}) AS EMAIL
+		     , NVL(M.RESDNC_GBN,D.RESDNC_GBN) RESDNC_GBN
+		     , NVL(M.RESDNC_ORGNAME , D.RESDNC_ORGNAME) RESDNC_ORGNAME
+		     , NVL(M.EMAIL_YN , D.EMAIL_YN) EMAIL_YN
+		     , NVL(M.SMS_YN , D.SMS_YN) SMS_YN
+		     , NVL(M.PI_AUTHKEY , D.PI_AUTHKEY) PI_AUTHKEY
+		     , NVL(M.SNS_REGIST_YN, D.SNS_REGIST_YN) SNS_REGIST_YN
+		     , M.STATUS
+		     , AA.CD_NM AS STATUS_NM
+		     , M.PI_P_AUTHKEY
+		     , 'N' AS YEAR_YN
+		     , 'N' AS SPECIAL_YN
+		     , (SELECT MAX(ANLMB_EDATE) FROM ANULMEMB_HIST WHERE MEM_NO=M.MEM_NO AND  RET_YN='N') ANLMB_EDATE
+		     , NVL(M.EMAIL, D.EMAIL)  AS EMAIL
+		     , M.HOME_ZIPCD AS postNum
+		     , fn_aes_decrypt(M.HOME_ADDR1 ,#{dbEncKey})  AS addr1
+		     , fn_aes_decrypt(M.HOME_ADDR2 ,#{dbEncKey}) AS addr2
+			 , M.REGDATE
+             , M.REGUSER
+             , M.MODDATE
+             , M.MODUSER
+		     , M.OUT_DATE
+		     , M.OUT_REASON
+		     , M.AGREE_LAST_DATE
+		     , M.LOCKED_YN
+		     , M.FAIL_CNT
+		     , M.PWD_CHANGE_DATE
+		     , M.JOIN_DATE
+		     , M.LOGIN_LASTDATE
+		  FROM MEMBER M
+		  	LEFT OUTER JOIN DORMANT_MEMBER D ON M.MEM_NO = D.MEM_NO
+                     LEFT OUTER JOIN COT_GRPCD AA ON M.STATUS = AA.CD AND AA.GRP_CD = 'SM_MEMBER_STAT'
+          WHERE M.USER_ID = #{id}
+
+	</select>
+</mapper>

@@ -1,0 +1,1001 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	수정일         수정자     수정내용
+    =========      =======    =================================================
+    2020.09.08     전영석     교육  예약 Tibero Mapper
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="EdcarsvnDAO">
+	<!-- [교육  파일 업로드 정보 ] 진수진 -->
+	<select id="selectEdcarsvnFileData" resultType="cMap">
+			SELECT
+			    P.EDC_PRGMID AS UNIQUE_ID
+			    , P.EDC_PRGMNM AS TITLE
+			    , P.EDC_IMG_FILEID
+			    , P.EDC_PRGMINTRCN_FILEID
+			    , P.EDC_PLAN_FILEID
+			  FROM EDC_PROGRAM P
+			 WHERE
+				P.COMCD = #{comcd}
+			   AND P.EDC_PRGMID = #{uniqueId}
+	</select>
+
+
+	<!-- 파일 아이디 수정 -->
+	<update id="updateEdcarsvnFileData" parameterType="map" >
+		UPDATE EDC_PROGRAM
+		SET
+		<choose>
+			<when test='uploadField == "EDC_IMG_FILEID"'> EDC_IMG_FILEID = #{fileId}</when>
+			<when test='uploadField == "EDC_PRGMINTRCN_FILEID"'> EDC_PRGMINTRCN_FILEID = #{fileId}</when>
+			<when test='uploadField == "EDC_PLAN_FILEID"'> EDC_PLAN_FILEID = #{fileId}</when>
+		</choose>
+		WHERE
+			COMCD = #{comcd}
+			   AND EDC_PRGMID = #{uniqueId}
+	</update>
+
+	<!-- [교육  예약 카테고리 정보를 조회한다][2020-09-08][전영석] -->
+ 	<select id="selectEdcarsvnLv1List" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnDAO.selectEdcarsvnLv1List */ CD
+		     , CD_NM
+		FROM COT_GRPCD
+		WHERE COMCD = #{comCd}
+		  AND GRP_CD = 'SM_EDCPROGM_TYPE'
+		ORDER BY SORT_ORDER
+
+	</select>
+
+	<!-- [교육  예약 프로그램 정보를 조회한다][2020-09-11][전영석] -->
+ 	<select id="selectEdcarsvnPrmList" parameterType="Map" resultType="cMap">
+
+     SELECT /* EdcarsvnDAO.selectEdcarsvnPrmList */
+               DISTINCT T.COM_CTGCD
+             , T.COM_CTGNM
+             , T.COM_TOPPARTGBN
+             , T.COM_PRNCTGCD
+             , T.COM_CTGSRTORD
+         FROM COM_CTGR T
+        WHERE T.COM_TOPPARTGBN = '2001'
+          AND T.COM_CTGLVL     = #{ctgLvl}
+	  	<!-- <trim prefix="AND">
+	  		<if test="ctgLvl == 1">
+		  		<if test="edcPrgmid != null and edcPrgmid != '' and edcPrgmid !='ALL'">
+		    		T.COM_PRNCTGCD = #{edcPrgmid}
+		  		</if>
+	  		</if>
+	  		<if test="ctgLvl == 2">
+		  		<if test="edcPrgmidSec != null and edcPrgmidSec != '' and edcPrgmidSec !='ALL'">
+			    		T.COM_PRNCTGCD = #{edcPrgmidSec}
+			  		</if>
+
+	  		</if>
+		</trim> -->
+     ORDER BY T.COM_CTGSRTORD
+	</select>
+
+
+	<!-- [교육  예약 프로그램 요일 정보를 조회한다][2020-09-11][전영석] -->
+ 	<select id="selectEdcarsvnWeekList" parameterType="Map" resultType="cMap">
+
+		SELECT DISTINCT /* EdcarsvnDAO.selectEdcarsvnWeekList */
+		       B.EDC_DAYGBN
+             , (fn_WeekName_Convert(1, B.EDC_DAYGBN)) AS EDC_DAYGBN_NM
+		FROM EDC_PROGRAM A, EDC_DAYS B
+		WHERE A.COMCD = #{comCd}
+		  AND A.COMCD = B.COMCD
+		  AND A.EDC_PRGMID = B.EDC_PRGMID
+		  AND A.USE_YN = 'Y'
+		ORDER BY DECODE(EDC_DAYGBN,'1','9',EDC_DAYGBN)
+
+	</select>
+
+	<!-- [교육  예약 프로그램 Tag 정보를 조회한다][2020-09-15][전영석] -->
+ 	<select id="selectEdcarsvnTagList" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnDAO.selectEdcarsvnTagList */
+		       B.EDC_TAGNM
+		FROM EDC_PROGRAM A, EDC_SBJCT_TAGS B
+		WHERE A.COMCD = #{comCd}
+		  AND A.COMCD = B.COMCD
+		  AND A.EDC_PRGMID = B.EDC_PRGMID
+		ORDER BY EDC_TAGNM
+
+	</select>
+
+	<!-- [교육 예약  정보를 조회한다.][2020-09-08][전영석] -->
+ 	<select id="selectEdcarsvnList" parameterType="Map" resultType="cMap">
+ 	<![CDATA[
+		SELECT /* EdcarsvnDAO.selectEdcarsvnList */ *
+		FROM ( SELECT SUB_MAIN.*
+			, ROWNUM AS ROW_NUM
+		     , COUNT(*) OVER() AS TB_ALL_COUNT
+		     , CASE WHEN SUB_MAIN.SALAMT <= 0 THEN 'Y' ELSE 'N' END AS EDUFREE_YN
+			 , CASE WHEN SUB_MAIN.EDC_RSVN_SDATETIME <= TO_CHAR(SYSDATE, 'YYYY.MM.DD HH24:MI')
+		             AND SUB_MAIN.EDC_RSVN_EDATETIME >= TO_CHAR(SYSDATE, 'YYYY.MM.DD HH24:MI') THEN 'ING'
+		            WHEN SUB_MAIN.EDC_RSVN_SDATETIME > TO_CHAR(SYSDATE, 'YYYY.MM.DD HH24:MI') THEN 'ACCT'
+		            WHEN SUB_MAIN.EDC_RSVN_EDATETIME < TO_CHAR(SYSDATE, 'YYYY.MM.DD HH24:MI') THEN 'END'
+		            ELSE 'OUT' END AS EDU_INTER_STATUS
+			, TO_DATE(EDC_RSVN_SDATE,'YYYYMMDD')- TO_DATE(TO_CHAR(SYSDATE,'YYYYMMDD'),'YYYYMMDD') AS REQ_DDAY
+		   , (SELECT LISTAGG(fn_WeekName_Convert(1, C.EDC_DAYGBN), ', ') WITHIN GROUP (ORDER BY DECODE(C.EDC_DAYGBN,'1','9',C.EDC_DAYGBN)) FROM EDC_DAYS C WHERE C.COMCD = #{comCd} AND C.EDC_PRGMID = SUB_MAIN.EDC_PRGMID ) AS EDC_DAYGBN_NM
+		   , (SELECT LISTAGG('_SSPAN' || C.EDC_TAGNM, '_ESPAN') WITHIN GROUP (ORDER BY EDC_TAGNM) FROM EDC_SBJCT_TAGS C WHERE C.COMCD = #{comCd} AND C.EDC_PRGMID = SUB_MAIN.EDC_PRGMID) AS EDC_TAGNM
+		FROM
+			(SELECT
+				SUB_TMP.*
+			FROM
+				(SELECT
+			      A.COMCD
+			     , A.EDC_PRGMID
+			     , A.EDC_PRGMNM     /* 프로그램명 */
+			     , A.EDC_TARGETINFO /* 교육 대상 */
+			     , A.EDC_PNCPA      /* 교육 정원 */
+			     , A.EDC_SDATE
+			     , A.EDC_EDATE
+			     , A.EDC_STIME
+			     , A.EDC_ETIME
+			     , A.EDC_RSVN_SDATE
+			     , A.EDC_RSVN_EDATE
+			     , A.EDC_RSVN_STIME
+			     , A.EDC_RSVN_ETIME
+			     , A.EDC_ANUALMEMBYN
+			     , A.EDC_STDMEMBYN
+			     , A.EDC_LIMIT_AGEYN
+			     , A.EDC_REQ_GENDER
+			     , fn_DateTime_Convert(1, A.EDC_SDATE, A.EDC_STIME) AS EDC_SDATETIME
+			     , fn_DateTime_Convert(1, A.EDC_EDATE, A.EDC_ETIME) AS EDC_EDATETIME
+			     , fn_DateTime_Convert(1, A.EDC_RSVN_SDATE, A.EDC_RSVN_STIME) AS EDC_RSVN_SDATETIME
+			     , fn_DateTime_Convert(1, A.EDC_RSVN_EDATE, A.EDC_RSVN_ETIME) AS EDC_RSVN_EDATETIME
+			     , (SELECT D.SALAMT
+			          FROM PROGRAM_ITEM D
+			         WHERE D.COMCD = A.COMCD
+			           AND D.ITEM_CD = (SELECT C.ITEM_CD
+			                              FROM EDC_PRGM_ITEM C
+			                             WHERE C.COMCD = A.COMCD
+			                               AND C.EDC_PRGMID = A.EDC_PRGMID
+			                           )
+			        ) AS SALAMT
+			      , A.EDC_PROGM_TYPE
+			      , A.PRDLST_CTGDID
+			      , A.EDC_ONLINEYN
+			      , A.REGDATE
+			      , (SELECT NVL(SUM(EDC_VISTNMPR),0) FROM EDC_RSVN_INFO F WHERE F.COMCD=A.COMCD AND F.EDC_PRGMID=A.EDC_PRGMID AND F.EDC_STAT IN ('11','20')) AS APP_CNT
+			FROM EDC_PROGRAM A, COM_CTGR C
+			WHERE A.COMCD = #{comCd}
+			  AND A.COM_CTGCD = C.COM_CTGCD
+			  AND A.USE_YN = 'Y'
+			  AND A.EDC_OPENYN = 'Y'
+	]]>
+		  		<if test="edcPrgmNm != null and edcPrgmNm != ''">
+		    		AND A.EDC_PRGMNM LIKE ('%' || #{edcPrgmNm} || '%')
+		  		</if>
+		  		<if test="mainEduCd != null and mainEduCd != '' and mainEduCd neq ALL">
+		    		AND A.EDC_PROGM_TYPE = #{mainEduCd}
+		  		</if>
+		  		<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(ctgLvl)">
+					<choose>
+						<when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(ctgLvl,'0')">
+							<if test="edcPrgmid != null and edcPrgmid != '' and edcPrgmid !='ALL'">
+								AND (C.COM_TOPCTGCD = #{edcPrgmid} OR C.COM_PRNCTGCD = #{edcPrgmid} OR C.COM_CTGCD = #{edcPrgmid})
+							</if>
+						</when>
+						<when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(ctgLvl,'1')">
+							<if test="edcPrgmidSec != null and edcPrgmidSec != '' and edcPrgmidSec !='ALL'">
+								AND (A.COM_CTGCD = #{edcPrgmidSec} OR C.COM_PRNCTGCD = #{edcPrgmidSec})
+							</if>
+						</when>
+						<when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(ctgLvl,'2')">
+	                       	<if test="edcPrgmidThr != null and edcPrgmidThr != '' and edcPrgmidThr !='ALL'">
+								AND A.COM_CTGCD = #{edcPrgmidThr}
+							</if>
+						</when>
+					</choose>
+				</if>
+				<if test="eduAccStus == 'ING'">
+				 	<![CDATA[
+					AND (A.EDC_RSVN_SDATE||A.EDC_RSVN_STIME) <= TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI')
+	            	AND (A.EDC_RSVN_EDATE||A.EDC_RSVN_ETIME) >= TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI')
+	            	]]>
+				</if>
+				<if test="eduAccStus == 'ACCT'">
+					AND (A.EDC_RSVN_SDATE||A.EDC_RSVN_STIME)  > TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI')
+				</if>
+				<if test="eduAccStus == 'END'">
+					<![CDATA[
+					AND (A.EDC_RSVN_EDATE||A.EDC_RSVN_ETIME) < TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI')
+					]]>
+				</if>
+				<if test="eduFreeYN == 1">
+					AND A.EDC_FEE_TYPE='2001'
+				</if>
+				<if test="eduFreeYN == 0">
+					AND A.EDC_FEE_TYPE='1001'
+				</if>
+				<if test="edcWeekNm != '' and edcWeekNm != null">
+					AND A.EDC_PRGMID IN (SELECT EDC_PRGMID FROM EDC_DAYS WHERE COMCD=#{comCd} AND EDC_DAYGBN=#{edcWeekNm})
+				</if>
+			 ) SUB_TMP
+			 <choose>
+				<when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(orderField,'title')">
+                     ORDER BY EDC_PRGMNM ASC
+				</when>
+				<otherwise>
+				<![CDATA[
+                     ORDER BY
+                     	(CASE WHEN EDC_RSVN_EDATETIME >= TO_CHAR(SYSDATE, 'YYYY.MM.DD HH24:MI')  THEN 1
+			            	ELSE 2 END) ASC
+			           , (CASE WHEN EDC_PNCPA > APP_CNT THEN 1 ELSE 2 END) ASC
+                      , EDC_RSVN_SDATETIME
+			          , EDC_PRGMNM
+                   ]]>
+				</otherwise>
+			</choose>
+		  ) SUB_MAIN
+		) MAIN
+		WHERE ROW_NUM BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+		ORDER BY ROW_NUM
+	</select>
+
+	<!-- [교육 예약 정보를 상세 조회한다.][2020-09-08][전영석] -->
+ 	<select id="selectEdcarsvnDetail" parameterType="Map" resultType="cMap">
+ 	<![CDATA[
+		SELECT /* EdcarsvnDAO.selectEdcarsvnDetail */ *
+		FROM(SELECT SUB_MAIN.*
+		     , CASE WHEN SUB_MAIN.SALAMT <= 0 THEN 'Y' ELSE 'N' END AS EDUFREE_YN
+			 , CASE WHEN SUB_MAIN.EDC_RSVN_SDATETIME <= TO_CHAR(SYSDATE, 'YYYY.MM.DD HH24:MI')
+		             AND SUB_MAIN.EDC_RSVN_EDATETIME >= TO_CHAR(SYSDATE, 'YYYY.MM.DD HH24:MI') THEN 'ING'
+		            WHEN SUB_MAIN.EDC_RSVN_SDATETIME >= TO_CHAR(SYSDATE, 'YYYY.MM.DD HH24:MI') THEN 'ACCT'
+		            WHEN SUB_MAIN.EDC_RSVN_EDATETIME <= TO_CHAR(SYSDATE, 'YYYY.MM.DD HH24:MI') THEN 'END'
+		            ELSE 'OUT' END AS EDU_INTER_STATUS
+		     , TO_DATE(EDC_SDATE,'YYYYMMDD')- TO_DATE(TO_CHAR(SYSDATE,'YYYYMMDD'),'YYYYMMDD') AS EDU_DDAY
+		     , TO_DATE(EDC_RSVN_SDATE,'YYYYMMDD')- TO_DATE(TO_CHAR(SYSDATE,'YYYYMMDD'),'YYYYMMDD') AS REQ_DDAY
+		     , (SELECT NVL(SUM(EDC_VISTNMPR),0) FROM EDC_RSVN_INFO WHERE COMCD=SUB_MAIN.COMCD AND EDC_PRGMID=SUB_MAIN.EDC_PRGMID AND EDC_STAT IN ('11','20')) AS APP_CNT
+			 , CASE WHEN EDC_LIMIT_AGEYN='Y'
+			 	AND (SELECT COUNT(*) FROM TARGET_AGELIST
+			 		WHERE COMCD=SUB_MAIN.COMCD AND EDC_PRGMID=SUB_MAIN.EDC_PRGMID
+			 			AND (SELECT TO_CHAR(SYSDATE,'YYYY')- SUBSTR(BIRTH_DATE,1,4) +1 FROM MEMBER WHERE MEM_NO=#{memNo}) BETWEEN EDC_TARGET_SAGE AND EDC_TARGET_EAGE)<1 THEN 'N' ELSE 'Y' END AS AGE_ABLE_YN
+	]]>
+<if test="(memNo !=null and memNo !='') or (hpCertno!=null and hpCertno !='')">
+			,(SELECT
+                   COUNT(*) 
+             FROM EDC_RSVN_INFO T
+                WHERE T.COMCD = #{comCd}
+ <choose>
+ 	<when test="memNo !=null and memNo !=''">AND T.EDC_MEM_NO = #{memNo}</when>
+ 	<otherwise>AND T.EDC_NONMEMB_CERTNO = #{hpCertno}</otherwise>
+ </choose>
+    <![CDATA[
+					AND T.EDC_STAT IN ('11' , '20')
+					AND T.EDC_PRGMID = SUB_MAIN.EDC_PRGMID
+					AND (SUB_MAIN.EDC_SDATE BETWEEN T.EDC_REQ_SDATE AND T.EDC_REQ_EDATE OR SUB_MAIN.EDC_EDATE BETWEEN T.EDC_REQ_SDATE AND T.EDC_REQ_EDATE OR (SUB_MAIN.EDC_SDATE >= T.EDC_REQ_SDATE AND SUB_MAIN.EDC_EDATE <= T.EDC_REQ_SDATE))
+			) AS DUP_CHK
+	]]>
+</if>
+		FROM (SELECT
+		       A.EDC_PRGMID
+		     , A.COMCD
+		     , A.EDC_PRGMNM     /* 프로그램명 */
+		     , A.EDC_TARGETINFO /* 교육 대상 */
+		     , A.EDC_PNCPA      /* 교육 정원 */
+		     , A.EDC_SDATE
+		     , A.EDC_EDATE
+		     , A.EDC_STIME
+		     , A.EDC_ETIME
+		     , A.EDC_RSVN_SDATE
+		     , A.EDC_RSVN_EDATE
+		     , A.EDC_RSVN_STIME
+		     , A.EDC_RSVN_ETIME
+		     , A.EDC_PART_CD
+		     , A.EDC_ADDR_OPENYN
+		     , A.EDC_LIMIT_AGEYN
+		     , A.EDC_REQ_GENDER
+		     , A.EDC_RSVNLIMIT_YN
+		     , A.EDC_RSVNLMIT_GBN
+             , A.EDC_RSVNLIMIT_CNT
+             , A.EDC_RSVNLIMIT_PD
+		     , fn_DateTime_Convert(1, A.EDC_SDATE, A.EDC_STIME) AS EDC_SDATETIME
+		     , fn_DateTime_Convert(1, A.EDC_EDATE, A.EDC_ETIME) AS EDC_EDATETIME
+		     , fn_DateTime_Convert(1, A.EDC_RSVN_SDATE, A.EDC_RSVN_STIME) AS EDC_RSVN_SDATETIME
+		     , fn_DateTime_Convert(1, A.EDC_RSVN_EDATE, A.EDC_RSVN_ETIME) AS EDC_RSVN_EDATETIME
+		     , (SELECT LISTAGG('_SSPAN' || C.EDC_TAGNM, '_ESPAN') WITHIN GROUP (ORDER BY EDC_TAGNM) FROM EDC_SBJCT_TAGS C WHERE C.COMCD = A.COMCD AND C.EDC_PRGMID = A.EDC_PRGMID) AS EDC_TAGNM
+		     , (SELECT D.SALAMT
+		          FROM PROGRAM_ITEM D
+		         WHERE D.COMCD = A.COMCD
+		           AND D.ITEM_CD = (SELECT C.ITEM_CD
+		                              FROM EDC_PRGM_ITEM C
+		                             WHERE C.COMCD = A.COMCD
+		                               AND C.EDC_PRGMID = A.EDC_PRGMID
+		                           )
+		        ) AS SALAMT
+		      , (SELECT LISTAGG(fn_WeekName_Convert(1, C.EDC_DAYGBN), ', ') WITHIN GROUP (ORDER BY DECODE(C.EDC_DAYGBN,'1','9',C.EDC_DAYGBN)) FROM EDC_DAYS C WHERE C.COMCD = A.COMCD AND C.EDC_PRGMID = A.EDC_PRGMID ) AS EDC_DAYGBN_NM
+		      , A.EDC_ODR
+		      , A.EDC_TCHMTR_GUIDEYN
+		      , A.EDC_TCHMTR_GUIDE
+		      , A.EDC_PLACENM
+		      , A.EDC_ONLINEYN
+		      , A.EDC_GUIDE_TELNO
+		      , A.EDC_GUIDE_COMMENT
+		      , A.EDC_PRGMINTRCN
+		      , A.EDC_IMG_FILEID
+		      , A.EDC_PRGMINTRCN_FILEID
+		      , A.EDC_PLAN_FILEID
+		      , A.EDC_GRP_MINCNT
+		      , A.EDC_GRP_MAXCNT
+		      , A.EDC_SHTLBUS_YN
+		      , A.EDC_SHTLBUS_GUIDE
+			  ,	A.EDC_VISITFAMILY_YN
+			  ,	A.EDC_VISITFAMILY_CNT
+			  , A.EDC_PAYWAIT_GBN
+			  , A.EDC_PAYWAIT_TIME
+			  , A.EDC_PAYWAIT_DATE
+			  , A.EDC_PAYWAIT_HHMM
+			  , A.EDC_PROGM_TYPE
+			  , A.PRDLST_CTGDID
+		FROM EDC_PROGRAM A
+		WHERE A.COMCD = #{comCd}
+          AND A.EDC_PRGMID = #{edcPrgmid}
+          AND A.USE_YN = 'Y'
+		  AND A.EDC_OPENYN = 'Y'
+		  ) SUB_MAIN
+		) MAIN
+
+	</select>
+
+	<!-- [교육 예약  안내 정보를 조회한다.][2020-09-09][전영석] -->
+ 	<select id="selectEdcarsvnInfo" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnDAO.selectEdcarsvnInfo */
+	           COMCD
+	         , EDC_PRGMID
+	         , COM_CTGCD
+	         , EDC_PRGMNM
+	         , EDC_PLACENM
+	         , EDC_SDATE
+	         , EDC_EDATE
+	         , EDC_STIME
+	         , EDC_ETIME
+		 FROM EDC_PROGRAM T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="comCd != null and comCd != ''">
+		    	T.COMCD = #{comCd}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+	<!-- [교육 예약  정보제공 동의 및 환불동의 정보를 조회한다.][2020-09-09][전영석] -->
+ 	<select id="selectEdcarsvnAgree" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnDAO.selectEdcarsvnAgree */
+	           COMCD
+	         , EDC_PRGMID
+	         , COM_CTGCD
+	         , EDC_PRGMNM
+	         , EDC_PLACENM
+	         , EDC_SDATE
+	         , EDC_EDATE
+	         , EDC_STIME
+	         , EDC_ETIME
+		 FROM EDC_PROGRAM T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="comCd != null and comCd != ''">
+		    	T.COMCD = #{comCd}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+	<!-- [교육 예약  예약 완료 정보를 조회한다.][2020-09-09][전영석] -->
+ 	<select id="selectEdcarsvnEnd" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnDAO.selectEdcarsvnEnd */
+	           COMCD
+	         , EDC_PRGMID
+	         , COM_CTGCD
+	         , EDC_PRGMNM
+	         , EDC_PLACENM
+	         , EDC_SDATE
+	         , EDC_EDATE
+	         , EDC_STIME
+	         , EDC_ETIME
+		 FROM EDC_PROGRAM T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="comCd != null and comCd != ''">
+		    	T.COMCD = #{comCd}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+	<!-- [교육 예약  결제 대기 정보를 조회한다.][2020-09-09][전영석] -->
+ 	<select id="selectEdcarsvnPaySBy" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnDAO.selectEdcarsvnPaySBy */
+	           COMCD
+	         , EDC_PRGMID
+	         , COM_CTGCD
+	         , EDC_PRGMNM
+	         , EDC_PLACENM
+	         , EDC_SDATE
+	         , EDC_EDATE
+	         , EDC_STIME
+	         , EDC_ETIME
+		 FROM EDC_PROGRAM T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="comCd != null and comCd != ''">
+		    	T.COMCD = #{comCd}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+	<!-- [교육 예약  결제 할인 대상 정보를 조회한다][2020-09-09][전영석] -->
+ 	<select id="selectEdcarsvnDisCnt" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnDAO.selectEdcarsvnDisCnt */
+	           COMCD
+	         , EDC_PRGMID
+	         , COM_CTGCD
+	         , EDC_PRGMNM
+	         , EDC_PLACENM
+	         , EDC_SDATE
+	         , EDC_EDATE
+	         , EDC_STIME
+	         , EDC_ETIME
+		 FROM EDC_PROGRAM T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="comCd != null and comCd != ''">
+		    	T.COMCD = #{comCd}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+	<!-- [교육 예약  예약 등록 관련 정보를 조회한다][2020-09-09][전영석] -->
+ 	<select id="selectEdcarsvnRegist" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnDAO.selectEdcarsvnRegist */
+	           COMCD
+	         , EDC_PRGMID
+	         , COM_CTGCD
+	         , EDC_PRGMNM
+	         , EDC_PLACENM
+	         , EDC_SDATE
+	         , EDC_EDATE
+	         , EDC_STIME
+	         , EDC_ETIME
+		 FROM EDC_PROGRAM T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="comCd != null and comCd != ''">
+		    	T.COMCD = #{comCd}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+	<!-- [교육 예약  출력을 위한 예약 정보를 표출한다][2020-09-09][전영석] -->
+ 	<select id="selectEdcarsvnPrint" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnDAO.selectEdcarsvnPrint */
+	           COMCD
+	         , EDC_PRGMID
+	         , COM_CTGCD
+	         , EDC_PRGMNM
+	         , EDC_PLACENM
+	         , EDC_SDATE
+	         , EDC_EDATE
+	         , EDC_STIME
+	         , EDC_ETIME
+		 FROM EDC_PROGRAM T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="comCd != null and comCd != ''">
+		    	T.COMCD = #{comCd}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+	<!-- [교육 예약 등록을 위한 마스터 [교육신청고유번호]를 조회한다][2020-09-16][전영석] -->
+ 	<select id="selectEdcRsvnReqid" parameterType="Map" resultType="int">
+
+		SELECT /* EdcarsvnDAO.selectEdcRsvnReqid */
+	           SEQ_EDC_REQID.NEXTVAL FROM DUAL
+
+	</select>
+
+	<!-- [교육 결제 마감시간 가져온다 ] -->
+ 	<select id="selectEdcPaywaitTime" parameterType="Map" resultType="String">
+
+		SELECT /* EdcarsvnDAO.selectEdcPaywaitTime */
+			CASE WHEN #{edcPaywaitGbn}='1001' THEN SUBSTR(TO_CHAR((SYSDATE + #{edcPaywaitTime}/24 + 9/1440) ,'YYYYMMDDHH24MI'),1,11) ||'0'
+			ELSE #{edcPaywaitDate}||#{edcPaywaitHhmm} END
+	   FROM DUAL
+
+	</select>
+
+	<!-- 예약  번호 -->
+	<select id="selectRsvnNumber" resultType="java.lang.String">
+		   SELECT 'R3'||TO_CHAR(SYSDATE, 'YYMMDD')||LPAD(SEQ_EDC_RSVNNO.NEXTVAL , 5, '0') FROM DUAL
+	</select>
+
+	<!-- [교육 예약 등록을 위한 마스터를 신규 저장한다][2020-09-16][전영석] -->
+ 	<update id="insertEduRsvnMst" parameterType="Map">
+
+		INSERT INTO /* EdcarsvnDAO.insertEduRsvnMst */
+		            EDC_RSVN_INFO (
+		                         	COMCD
+		                          , EDC_RSVN_REQID
+		                          , EDC_RSVN_NO
+		                          , EDC_REQ_DATE
+		                          , EDC_REQ_TIME
+		                          , EDC_PRGMID
+		                          , EDC_RSVN_MEMTYPE
+		                          , EDC_REASONDC
+		                          , EDC_EVENT_DCID
+		                          , EDC_DCAMT
+								  , EDC_TOTAMT
+								  , EDC_INDVDLINFO_AGRID
+								  , EDC_INDVDLINFO_AGRYN
+								  , EDC_AGREEID
+								  , EDC_AGREEYN
+								  , EDC_REFND_AGRID
+								  , EDC_REFND_AGRYN
+								  , EDC_ONOFFINTYPE
+								  , EDC_TRMNL_TYPE
+								  , EDC_RETYN
+								  , RET_SELNG_ID
+								  , EDC_IN_BUSLOCT
+								  , EDC_OUT_BUSLOCT
+								  , EDC_PAYWAIT_ENDDATETIME
+								  , EDC_MEM_NO
+								  , EDC_RSVN_MEMNO
+								  , EDC_REQ_SDATE
+								  ,	EDC_REQ_EDATE
+								  ,	EDC_REQ_STIME
+								  ,	EDC_REQ_ETIME
+								  , EDC_MONTHCNT
+								  , EDC_STAT
+								  , EDC_PROGM_COST
+								  , EDC_HOME_ZIPNO
+								  , EDC_HOME_ADDR1
+								  , EDC_HOME_ADDR2
+								  , EDC_RSVN_ORGNAME
+								  , EDC_REQ_CUSTNM
+								  , EDC_REQ_MOBLPHON
+								  , EDC_EMAIL
+								  , EDC_VISTNMPR
+								  , EDC_RSVN_CUSTNM
+								  , EDC_RSVN_MOBLPHON
+								  , EDC_REQ_ITEM_CD
+								  , EDC_ONOFFPYNTYPE
+								  , EDC_NONMEMB_CERTNO
+								  , EDC_VISTOR_GRADENM
+								  , REGDATE
+		                          , REGUSER
+		                          , MODDATE
+		                          , MODUSER
+		                         ) SELECT
+		                            #{comCd}
+		                          , #{edcRsvnReqid}
+		                          , #{rsvnNo}
+		                          , TRIM(TO_CHAR(SYSDATE, 'YYYYMMDD'))
+		                          , TRIM(TO_CHAR(SYSDATE, 'HH24MI'))
+		                          , #{edcPrgmid}
+								  , #{edcRsvnMemtype}
+								  , #{edcReasondc}
+								  , #{edcEventDcid}
+								  , NVL(#{edcDcamt},0)
+								  , NVL(#{edcTotamt},0)
+								  , '1001'
+								  , 'Y'
+								  ,'3001'
+								  , 'Y'
+								  , '3002'
+								  , 'Y'
+								  , #{edcOnoffintype}
+								  , #{edcTrmnlType}
+								  , #{edcRetyn}
+								  , #{retSelngId}
+								  , #{edcInBusloct}
+								  , #{edcOutBusloct}
+								  , TO_DATE(#{edcPaywaitData},'YYYYMMDDHH24MI')
+								  , #{edcMemNo}
+								  , #{edcRsvnMemno}
+								  ,	EDC_SDATE
+								  ,	EDC_EDATE
+								  ,	EDC_STIME
+								  ,	EDC_ETIME
+								  , 0
+								  , #{edcStat}
+								  , #{edcProgmCost}
+								  , #{edcHomeZipno}
+								  , CRYPTO.Encrypt_ARIA(#{edcHomeAddr1}, #{dbEncKey})
+								  , CRYPTO.Encrypt_ARIA(#{edcHomeAddr2}, #{dbEncKey})
+								  , #{edcRsvnOrgname}
+								  , #{edcReqCustnm}
+								  , CRYPTO.Encrypt_ARIA(REPLACE(#{edcReqMoblphon},'-',''), #{dbEncKey})
+								  , CRYPTO.Encrypt_ARIA(#{edcEmail}, #{dbEncKey})
+								  , NVL(#{edcVistnmpr},1)
+								  , #{edcRsvnCustnm}
+								  , CRYPTO.Encrypt_ARIA(REPLACE(#{edcRsvnMoblphon},'-',''), #{dbEncKey})
+								  , (SELECT ITEM_CD FROM EDC_PRGM_ITEM WHERE COMCD = #{comCd} AND EDC_PRGMID = #{edcPrgmid})
+								  , #{edcOnoffpyntype}
+								  , #{edcNonmembCertno}
+								  , #{edcVistorGradenm}
+		                          , SYSDATE
+		                          , #{regUser}
+		                          , SYSDATE
+		                          , #{modUser}
+		                        FROM EDC_PROGRAM
+		                        WHERE
+		                        	COMCD=#{comCd} AND EDC_PRGMID=#{edcPrgmid}
+ 	</update>
+
+	<!-- [교육 예약 등록을 위한 참석자를 신규 저장한다][2020-09-16][전영석] -->
+ 	<insert id="insertEdcRsvnAddinfo" parameterType="Map">
+
+		INSERT INTO /* EdcarsvnDAO.insertEdcRsvnAddinfo */
+		            EDC_RSVN_ADDINFO (
+		                         	COMCD
+		                          , EDC_RSVN_REQID
+		                          , EDC_MNGITEMID
+		                          , EDC_MNGITEM_VALUE
+		                          , REGDATE
+		                          , REGUSER
+		                          , MODDATE
+		                          , MODUSER
+		                         ) VALUES (
+		                            #{comCd}
+		                          , #{edcRsvnReqid}
+		                          , #{edcMngitemid}
+								  , #{edcMngitemValue}
+		                          , SYSDATE
+		                          , #{regUser}
+		                          , SYSDATE
+		                          , #{modUser}
+		                         )
+ 	</insert>
+
+	<!-- [교육 예약 등록을 위한 참석자를 신규 저장한다][2020-09-16][전영석] -->
+ 	<insert id="insertEdcRsvnFamlyinfo" parameterType="Map">
+
+		INSERT INTO /* EdcarsvnDAO.insertEdcRsvnFamlyinfo */
+		            EDC_RSVN_FAMLYINFO (
+		                         	COMCD
+		                          , EDC_RSVN_REQID
+		                          , EDC_RSVN_FMSEQ
+		                          , EDC_RSVNFM_NAME
+		                          , EDC_RSVNFM_SEXGBN
+		                          , EDC_RSVNFM_TELNO
+		                         ) VALUES (
+		                            #{comCd}
+		                          , #{edcRsvnReqid}
+		                          , (SELECT NVL(MAX(EDC_RSVN_FMSEQ),0)+1 FROM EDC_RSVN_FAMLYINFO WHERE COMCD= #{comCd} AND EDC_RSVN_REQID=#{edcRsvnReqid})
+		                          , #{edcRsvnfmName}
+								  , #{edcRsvnfmSexgbn}
+								  , CRYPTO.Encrypt_ARIA(REPLACE(#{edcRsvnfmTelno},'-',''), #{dbEncKey})
+		                         )
+ 	</insert>
+
+	<!-- [교육 예약  Master 정보를 조회한다][2020-09-17][전영석] -->
+ 	<select id="selectEdcRsvnInfoData" parameterType="Map" resultType="cMap">
+
+			SELECT /* EdcarsvnDAO.selectEdcRsvnInfoList */
+				    COMCD
+			      , EDC_RSVN_REQID
+			      , EDC_RSVN_NO
+			      , EDC_REQ_DATE
+			      , EDC_REQ_TIME
+			      , EDC_PRGMID
+			      , EDC_RSVN_MEMTYPE
+			      , EDC_MONTHCNT
+				  , EDC_TOTAMT
+				  , EDC_DCAMT
+				  , EDC_INDVDLINFO_AGRID
+				  , EDC_INDVDLINFO_AGRYN
+				  , EDC_AGREEID
+				  , EDC_AGREEYN
+				  , EDC_REFND_AGRID
+				  , EDC_REFND_AGRYN
+				  , EDC_ONOFFINTYPE
+				  , EDC_TRMNL_TYPE
+				  , EDC_RETYN
+				  , RET_SELNG_ID
+				  , TO_CHAR(EDC_PAYWAIT_ENDDATETIME, 'YYYY"년" MM"월" DD"일" HH24"시" MI"분"') AS EDC_PAYWAIT_ENDDATETIME
+				  , EDC_HOME_ZIPNO
+				  , CRYPTO.Decrypt_ARIA(EDC_HOME_ADDR1, #{dbEncKey}) AS EDC_HOME_ADDR1
+				  , CRYPTO.Decrypt_ARIA(EDC_HOME_ADDR2, #{dbEncKey}) AS EDC_HOME_ADDR2
+				  , EDC_IN_BUSLOCT
+				  , EDC_OUT_BUSLOCT
+				  , EDC_VISTOR_GRADENM
+				  , EDC_RSVN_ORGNAME
+				  , EDC_RSVN_CUSTNM
+				  , CRYPTO.Decrypt_ARIA(EDC_RSVN_MOBLPHON, #{dbEncKey})           AS EDC_RSVN_MOBLPHON
+				  , CRYPTO.Decrypt_ARIA(EDC_REQ_MOBLPHON, #{dbEncKey})           AS EDC_REQ_MOBLPHON
+				  , EDC_REQ_CUSTNM
+				  , CRYPTO.Decrypt_ARIA(EDC_EMAIL, #{dbEncKey})           AS EDC_EMAIL
+				  , (SELECT M.MEM_NM FROM MEMBER M WHERE M.MEM_NO = T.EDC_MEM_NO) AS EDC_MEM_NO_NM
+				  , (SELECT M.ID FROM MEMBER M WHERE M.MEM_NO = T.EDC_MEM_NO)     AS EDC_MEM_NO_ID
+				  , (SELECT CRYPTO.Decrypt_ARIA(M.EMAIL, #{dbEncKey}) FROM MEMBER M WHERE M.MEM_NO = T.EDC_MEM_NO)  AS EDC_MEM_NO_EMAIL
+				  , T.EDC_MEM_NO
+				  , T.EDC_REQ_ITEM_CD
+			      , REGDATE
+			      , REGUSER
+			      , MODDATE
+			      , MODUSER
+			   FROM EDC_RSVN_INFO T
+				WHERE COMCD = #{comCd}
+				  AND EDC_RSVN_REQID = #{edcRsvnReqid}
+
+	</select>
+
+	<!-- [교육 예약 참가 인원 정보를 조회한다][2020-09-17][전영석] -->
+ 	<select id="selectEdcRsvnFamlyinfoList" parameterType="Map" resultType="cMap">
+			SELECT /* EdcarsvnDAO.selectEdcRsvnFamlyinfoList */
+				    COMCD
+                  , EDC_RSVN_REQID
+                  , EDC_RSVN_FMSEQ
+                  , EDC_RSVNFM_NAME
+                  , EDC_RSVNFM_SEXGBN
+                  , fn_SexGbn_Convert(1, EDC_RSVNFM_SEXGBN) AS EDC_RSVNFM_SEXGBN_NM
+                  , EDC_RSVNFM_TELNO
+                  , CRYPTO.Decrypt_ARIA(EDC_RSVNFM_TELNO, #{dbEncKey}) AS EDC_RSVNFM_TELNO_DEC
+             FROM EDC_RSVN_FAMLYINFO
+				WHERE COMCD = #{comCd}
+				  AND EDC_RSVN_REQID = #{edcRsvnReqid}
+		     ORDER BY EDC_RSVN_FMSEQ
+
+	</select>
+
+	<!-- [교육별 관리 항목 추가 정보를 조회한다][2020-09-17][전영석] -->
+ 	<select id="selectProgmMngiteminfoList" parameterType="Map" resultType="cMap">
+
+            SELECT /* EdcarsvnDAO.selectProgmMngiteminfoList */
+                    COMCD
+                  , (SELECT E.EDC_MNGITEMNM FROM EDC_PROGM_MNGITEM E WHERE E.COMCD = T.COMCD AND E.EDC_MNGITEMID = T.EDC_MNGITEMID) AS EDC_MNGITEMNM
+                  , EDC_PRGMID
+                  , EDC_MNGITEMID
+                  , EDC_MNGITEMGUIDE
+             FROM EDC_PROGM_MNGITEMINFO T
+                WHERE COMCD = #{comCd}
+                  AND EDC_PRGMID = #{edcPrgmid}
+             ORDER BY EDC_MNGITEMGUIDE
+
+	</select>
+
+	<!-- [교육 예약 약관 정보를 상세 조회한다.][2020-09-23][전영석] -->
+ 	<select id="selectCmStplatInfoList" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnDAO.selectCmStplatInfoList */
+		       T.COMCD
+		     , T.STPLAT_ID
+		     , T.STPLAT_NAME
+		     , T.STPLAT_CN
+		FROM CM_STPLAT_INFO T
+		WHERE T.COMCD = #{comCd}
+		 AND T.STPLAT_ID  IN ('1001', '3001', '3002')
+		 AND T.USE_YN = 'Y'
+
+	</select>
+
+	<!-- [재료 받을 배송 주소 정보를 변경한다][2020-09-27][전영석] -->
+ 	<update id="updateEduRsvnJuso" parameterType="Map">
+
+		UPDATE /* EdcarsvnDAO.updateEduRsvnJuso */
+		       EDC_RSVN_INFO
+		   SET EDC_HOME_ZIPNO = #{edcHomeZipno}
+		     , EDC_HOME_ADDR1 = CRYPTO.Encrypt_ARIA(#{edcHomeAddr1}, #{dbEncKey})
+		     , EDC_HOME_ADDR2 = CRYPTO.Encrypt_ARIA(#{edcHomeAddr2}, #{dbEncKey})
+		WHERE COMCD = #{comCd}
+		  AND EDC_RSVN_REQID = #{edcRsvnReqid}
+
+ 	</update>
+
+	<!-- [교육 신청등록정보 신규 저장한다][2020-09-16][전영석] -->
+ 	<update id="insertEduRsvnComptinfo" parameterType="Map">
+
+		INSERT INTO /* EdcarsvnDAO.insertEduRsvnComptinfo */
+		            EDC_RSVN_COMPTINFO (
+                         	COMCD
+                          , EDC_RSVN_REQID
+                          , EDC_RSVN_COMPTID
+                          , EDC_RSVN_MEMTYPE
+                          , EDC_MEM_NO
+                          , EDC_REQ_MEM_NO
+                          , EDC_RSVN_CUSTNM
+                          , EDC_RSVN_MOBLPHON
+                          , EDC_RSVN_EMAIL
+                          , EDC_NONMEMB_CERTNO
+                          , EDC_SDATE
+                          , EDC_EDATE
+                          , EDC_STIME
+                          , EDC_ETIME
+                          , EDC_RETYN
+						  , REGDATE
+                          , REGUSER
+                          , MODDATE
+                          , MODUSER
+                         )
+                         SELECT
+                            #{comCd}
+                          , #{edcRsvnReqid}
+                          , (SELECT NVL(MAX(EDC_RSVN_COMPTID), 0) + 1 FROM EDC_RSVN_COMPTINFO WHERE COMCD = #{comCd} AND EDC_RSVN_REQID = #{edcRsvnReqid})
+                          , EDC_RSVN_MEMTYPE
+                          , EDC_MEM_NO
+                          , EDC_RSVN_MEMNO
+                          , EDC_RSVN_CUSTNM
+                          , EDC_RSVN_MOBLPHON
+                          , EDC_EMAIL
+                          , EDC_NONMEMB_CERTNO
+						  ,	EDC_REQ_SDATE
+						  ,	EDC_REQ_EDATE
+						  ,	EDC_REQ_STIME
+						  ,	EDC_REQ_ETIME
+						  ,	EDC_RETYN
+                          , SYSDATE
+                          , #{regUser}
+                          , SYSDATE
+                          , #{modUser}
+                          FROM
+                         	EDC_RSVN_INFO
+                         WHERE
+                         	COMCD=#{comCd} AND EDC_RSVN_REQID=#{edcRsvnReqid}
+ 	</update>
+
+
+	<!-- [교육별 관리 항목 추가 정보를 조회한다][2020-09-17][전영석] -->
+ 	<select id="selectProgmMngiteminfoList2" parameterType="Map" resultType="cMap">
+
+            SELECT /* EdcarsvnDAO.selectProgmMngiteminfoList2 */
+                    T.COMCD
+                  , (SELECT E.EDC_MNGITEMNM FROM EDC_PROGM_MNGITEM E WHERE E.COMCD = T.COMCD AND E.EDC_MNGITEMID = T.EDC_MNGITEMID) AS EDC_MNGITEMNM
+                  , T.EDC_PRGMID
+                  , T.EDC_MNGITEMID
+                  , T.EDC_MNGITEMGUIDE
+                  , D.EDC_MNGITEM_VALUE AS ITEM_VALUE
+             FROM EDC_PROGM_MNGITEMINFO T
+             	LEFT OUTER JOIN EDC_RSVN_ADDINFO D ON T.COMCD=D.COMCD AND D.EDC_RSVN_REQID=#{edcRsvnReqid} AND T.EDC_MNGITEMID=D.EDC_MNGITEMID
+                WHERE T.COMCD = #{comCd}
+                  AND T.EDC_PRGMID = #{edcPrgmid}
+             ORDER BY T.EDC_MNGITEMGUIDE
+
+	</select>
+
+	<!-- 이용횟수 제한 조회 -->
+ 	<select id="selectProgramRsvnLimitCheck" parameterType="Map" resultType="integer">
+ 	<![CDATA[
+            SELECT /* EdcarsvnDAO.selectProgramRsvnLimitCheck */
+                   COUNT(*)
+             FROM EDC_RSVN_INFO T , EDC_PROGRAM P   , EDC_PROGRAM PM
+                WHERE T.COMCD = #{comCd}
+                  	AND T.EDC_MEM_NO = #{memNo}
+					AND T.EDC_STAT IN ('11' , '20')
+					AND T.COMCD = P.COMCD
+					AND T.EDC_PRGMID = P.EDC_PRGMID
+					AND PM.COMCD = #{comCd} AND PM.EDC_PRGMID=#{edcPrgmid}
+					AND (
+						PM.EDC_RSVNLMIT_GBN='1001'
+						OR
+						(PM.EDC_RSVNLMIT_GBN='2001' AND P.PRDLST_CTGDID IN (SELECT PRDLST_CTGDID FROM EDC_PROGRAM_LIMIT WHERE COMCD=#{comCd} AND EDC_PRGMID=#{edcPrgmid}))
+					)
+					AND
+					(
+						(PM.EDC_RSVNLIMIT_PD='1001' AND (PM.EDC_SDATE BETWEEN T.EDC_REQ_SDATE AND T.EDC_REQ_EDATE OR PM.EDC_EDATE BETWEEN T.EDC_REQ_SDATE AND T.EDC_REQ_EDATE OR (PM.EDC_SDATE >= T.EDC_REQ_SDATE AND PM.EDC_EDATE <= T.EDC_REQ_SDATE) ))
+						OR
+						(PM.EDC_RSVNLIMIT_PD='2001' AND (SUBSTR(PM.EDC_SDATE,1,6) BETWEEN SUBSTR(T.EDC_REQ_SDATE,1,6) AND SUBSTR(T.EDC_REQ_EDATE,1,6) OR SUBSTR(PM.EDC_EDATE,1,6) BETWEEN SUBSTR(T.EDC_REQ_SDATE,1,6) AND SUBSTR(T.EDC_REQ_EDATE,1,6) ))
+						OR
+						(PM.EDC_RSVNLIMIT_PD='3001' AND (SUBSTR(PM.EDC_SDATE,1,4) BETWEEN SUBSTR(T.EDC_REQ_SDATE,1,4) AND SUBSTR(T.EDC_REQ_EDATE,1,4) OR SUBSTR(PM.EDC_EDATE,1,4) BETWEEN SUBSTR(T.EDC_REQ_SDATE,1,4) AND SUBSTR(T.EDC_REQ_EDATE,1,4) ))
+					)
+	]]>
+	</select>
+
+	<!-- 이용횟수 제한 조회 -->
+ 	<select id="selectProgramRsvnCount" parameterType="Map" resultType="integer">
+             SELECT
+             	/* EdcarsvnDAO.selectProgramRsvnCount */
+             	NVL(SUM(EDC_VISTNMPR),0)
+             FROM
+             	EDC_RSVN_INFO
+             WHERE
+             	COMCD=#{comCd} AND EDC_PRGMID=#{edcPrgmid} AND EDC_STAT IN ('11','20')
+	</select>
+
+		<!-- [교육 예약 정보를 변경한다][2020-09-27][전영석] -->
+ 	<update id="updateEduRsvnMst" parameterType="Map">
+		UPDATE /* EdcarsvnDAO.updateEduRsvnMst */
+		       EDC_RSVN_INFO
+		   SET EDC_HOME_ZIPNO = #{edcHomeZipno}
+		     , EDC_HOME_ADDR1 = CRYPTO.Encrypt_ARIA(#{edcHomeAddr1}, #{dbEncKey})
+		     , EDC_HOME_ADDR2 = CRYPTO.Encrypt_ARIA(#{edcHomeAddr2}, #{dbEncKey})
+		     , EDC_IN_BUSLOCT =#{edcInBusloct}
+		     , EDC_OUT_BUSLOCT=#{edcOutBusloct}
+			 , EDC_VISTOR_GRADENM=#{edcVistorGradenm}
+		     , EDC_RSVN_ORGNAME = #{edcRsvnOrgname}
+		     , EDC_EMAIL = CRYPTO.Encrypt_ARIA(#{edcEmail}, #{dbEncKey})
+		    <if test="edcReqCustnm !=null and edcReqCustnm !=''"> , EDC_REQ_CUSTNM = #{edcReqCustnm}</if>
+		    <if test="edcReqMoblphon !=null and edcReqMoblphon !=''"> , EDC_REQ_MOBLPHON = CRYPTO.Encrypt_ARIA(REPLACE(#{edcReqMoblphon},'-',''), #{dbEncKey})</if>
+		     , MODUSER = #{modUser}
+		     , MODDATE = SYSDATE
+		WHERE COMCD = #{comCd}
+		  AND EDC_RSVN_REQID = #{edcRsvnReqid}
+			AND EDC_STAT IN ('11' ,'20')
+			AND EDC_REQ_SDATE > TO_CHAR(SYSDATE,'YYYYMMDD')
+		 <choose>
+		 	<when test="uniqId !=null and uniqId !=''">AND EDC_RSVN_MEMNO=#{uniqId}</when>
+			<when test="edcNonmembCertno !=null and edcNonmembCertno !=''">AND EDC_NONMEMB_CERTNO=#{edcNonmembCertno}</when>
+			<otherwise>AND EDC_RSVN_MEMNO='-'</otherwise>
+		</choose>
+ 	</update>
+
+ 	<!-- [교육 예약 수정을 위해 기존 정보 삭제][2020-09-16][전영석] -->
+ 	<delete id="deleteEdcRsvnAddinfo" parameterType="Map">
+		DELETE FROM /* EdcarsvnDAO.deleteEdcRsvnAddinfo */
+		            EDC_RSVN_ADDINFO
+		WHERE
+			COMCD = #{comCd}
+			AND EDC_RSVN_REQID=#{edcRsvnReqid}
+			AND EDC_MNGITEMID=#{edcMngitemid}
+ 	</delete>
+
+ 	<!-- [교육 예약 등록을 위한 참석자를 신규 저장한다][2020-09-16][전영석] -->
+ 	<delete id="deleteEdcRsvnFamlyinfo" parameterType="Map">
+		DELETE FROM /* EdcarsvnDAO.deleteEdcRsvnFamlyinfo */
+		            EDC_RSVN_FAMLYINFO
+		      WHERE
+              	COMCD=#{comCd}
+               AND  EDC_RSVN_REQID=#{edcRsvnReqid}
+
+ 	</delete>
+
+ 	<!-- [교육 인원 정보를 변경한다][2020-09-27][전영석] -->
+ 	<update id="updateEduRsvnMstPerson" parameterType="Map">
+		UPDATE /* EdcarsvnDAO.updateEduRsvnMstPerson */
+		       EDC_RSVN_INFO
+		   SET EDC_VISTNMPR = #{edcVistnmpr}
+		     , MODUSER = #{modUser}
+		     , MODDATE = SYSDATE
+		WHERE COMCD = #{comCd}
+		  AND EDC_RSVN_REQID = #{edcRsvnReqid}
+			AND EDC_STAT IN ('11' ,'20')
+			AND EDC_REQ_SDATE > TO_CHAR(SYSDATE,'YYYYMMDD')
+		 <choose>
+		 	<when test="uniqId !=null and uniqId !=''">AND EDC_RSVN_MEMNO=#{uniqId}</when>
+			<when test="edcNonmembCertno !=null and edcNonmembCertno !=''">AND EDC_NONMEMB_CERTNO=#{edcNonmembCertno}</when>
+			<otherwise>AND EDC_RSVN_MEMNO='-'</otherwise>
+		</choose>
+ 	</update>
+
+ 	<!-- 교육 신청정보 이메일 수정 -->
+	<update id="updateEduRsvnEmail" parameterType="map" >
+		UPDATE EDC_RSVN_INFO
+		SET
+			EDC_EMAIL= CRYPTO.Encrypt_ARIA(#{edcEmail} , #{dbEncKey})
+		WHERE
+			COMCD = #{comcd}
+			   AND EDC_RSVN_REQID = #{edcRsvnReqid}
+	</update>
+</mapper>

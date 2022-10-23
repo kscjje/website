@@ -1,0 +1,599 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 관리자 계정 관리
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2020.07.15   	진수진          최초 작성(전자정부용)
+  2021.03.19   	진수진          노원 수학문학관 수정
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="menuManageDAO">
+
+	<select id="selectMenuManageList_D" parameterType="comDefaultVO" resultType="egovMap">
+SELECT /* menuManageDAO.selectMenuManageList_D */
+		*
+		FROM (
+					SELECT
+						  MENU_NO           AS menuNo
+						  , 1				AS menuDepth
+						, MENU_ORDR         AS upperMenuOrdr
+						, MENU_ORDR         AS menuOrdr
+						, MENU_NM           AS menuNm
+						, MENU_URL			AS menuUrl
+						, MENU_NO     		AS upperMenuNo
+						, MENU_DC           AS menuDc
+						, RELATE_IMAGE_PATH AS relateImagePath
+						, RELATE_IMAGE_NM   AS relateImageNm
+						, USE_YN    AS useYn
+						, NVL(FRONT_GNBMENUYN,'N') AS mainYn
+						, 0 AS roleCount
+						, '' AS rolePttrn
+					FROM COMTNMENUINFO
+					WHERE SITE_GUBUN = #{searchKeyword} AND UPPER_MENU_NO=0
+					UNION ALL
+					SELECT
+						  MENU_NO           AS menuNo
+						 , 2				AS menuDepth
+						, (SELECT MENU_ORDR FROM COMTNMENUINFO WHERE MENU_NO=A.UPPER_MENU_NO)  AS upperMenuOrdr
+						, MENU_ORDR 		AS menuOrdr
+						, MENU_NM           AS menuNm
+						, MENU_URL			AS menuUrl
+						, UPPER_MENU_NO     AS upperMenuNo
+						, MENU_DC           AS menuDc
+						, RELATE_IMAGE_PATH AS relateImagePath
+						, RELATE_IMAGE_NM   AS relateImageNm
+						, USE_YN    AS useYn
+						, NVL(FRONT_GNBMENUYN,'N') AS mainYn
+						, (SELECT COUNT(*) FROM COMTNROLEINFO WHERE ROLE_MENU_NO=A.MENU_NO)  AS roleCount
+						, (SELECT GROUP_CONCAT(ROLE_PTTRN,'||')
+			                FROM COMTNROLEINFO R
+			                WHERE R.ROLE_MENU_NO=A.MENU_NO
+			           )  AS rolePttrn
+					FROM COMTNMENUINFO  A
+					WHERE SITE_GUBUN = #{searchKeyword} AND UPPER_MENU_NO <![CDATA[>]]> 0
+		) MAIN
+		<if test="searchCondition != null and searchCondition != ''">
+			WHERE upperMenuNo = menuNo
+		</if>
+		ORDER BY upperMenuOrdr , upperMenuNo  , menuDepth , menuOrdr
+	</select>
+
+	<!-- 총건수 조회 -->
+	<select id="selectMenuManageListTotCnt_S" parameterType="comDefaultVO" resultType="int">
+
+		SELECT COUNT(MENU_NO) AS totcnt
+		  FROM COMTNMENUINFO
+		 WHERE MENU_NM like CONCAT('%', #{searchKeyword}, '%')
+
+	</select>
+
+
+	<select id="selectMenuManage_D" parameterType="comDefaultVO" resultType="egovframework.com.sym.mnu.mpm.service.MenuManageVO">
+
+			SELECT /* menuManageDAO.selectMenuManage_D */
+				  MENU_NO           AS menuNo
+				, MENU_ORDR         AS menuOrdr
+				, MENU_NM           AS menuNm
+				, MENU_URL			AS menuUrl
+				, UPPER_MENU_NO     AS upperMenuNo
+				, MENU_DC           AS menuDc
+				, RELATE_IMAGE_PATH AS relateImagePath
+				, RELATE_IMAGE_NM   AS relateImageNm
+				, USE_YN            AS useYn
+				, FRONT_GNBMENUYN   AS mainYn
+				, MENU_DEPTH        AS menuDepth
+				, SITE_GUBUN
+			FROM COMTNMENUINFO
+			WHERE MENU_NO = #{searchKeyword}
+
+	</select>
+
+	<insert id="insertMenuManage_S"  parameterType="egovframework.com.sym.mnu.mpm.service.MenuManageVO">
+		<selectKey keyProperty="menuNo" resultType="java.lang.Long" order="BEFORE">
+			SELECT NVL(MAX(MENU_NO),0)+1 AS MENU_NO  FROM COMTNMENUINFO
+		</selectKey>
+			INSERT INTO COMTNMENUINFO
+				( MENU_NO
+            , MENU_ORDR
+            , MENU_NM
+            , UPPER_MENU_NO
+            , MENU_DC
+            , RELATE_IMAGE_PATH
+            , RELATE_IMAGE_NM
+            , MENU_URL
+            , SITE_GUBUN
+            , USE_YN
+            , FRONT_GNBMENUYN
+            , MENU_DEPTH
+            , DEL_YN)
+			VALUES (   #{menuNo}
+                  , #{menuOrdr}
+                  , #{menuNm}
+                  , #{upperMenuNo}
+                  , #{menuDc}
+                  , #{relateImagePath}
+                  , #{relateImageNm}
+                  , #{menuUrl}
+                  , #{siteGubun}
+                  , NVL(#{useYn},'Y')
+                  , NVL(#{mainYn},'N')
+                  , #{menuDepth}
+                  , 'N')
+
+	</insert>
+
+	<update id="updateMenuManage_S"  parameterType="egovframework.com.sym.mnu.mpm.service.MenuManageVO">
+
+			UPDATE COMTNMENUINFO
+			SET   MENU_NM       = #{menuNm}
+            , UPPER_MENU_NO     = #{upperMenuNo}
+            , MENU_DC           = #{menuDc}
+            , RELATE_IMAGE_PATH = #{relateImagePath}
+            , RELATE_IMAGE_NM   = #{relateImageNm}
+            , MENU_URL    = #{menuUrl}
+            , USE_YN	  = #{useYn}
+            , FRONT_GNBMENUYN = #{mainYn}
+			WHERE MENU_NO = #{menuNo}
+
+	</update>
+
+
+	<update id="updateMenuManage_O"  parameterType="egovframework.com.sym.mnu.mpm.service.MenuManageVO">
+			UPDATE COMTNMENUINFO
+			SET
+				MENU_ORDR	= #{menuOrdr}
+			WHERE MENU_NO = #{menuNo}
+	</update>
+
+	<delete id="deleteMenuManage_S">
+			DELETE FROM COMTNMENUINFO
+			WHERE MENU_NO=#{menuNo} OR UPPER_MENU_NO=#{menuNo}
+	</delete>
+
+
+	<update id="updateMenuManageDelete">
+			UPDATE COMTNMENUINFO
+				SET DEL_YN='Y'
+			WHERE MENU_NO=#{menuNo} OR UPPER_MENU_NO=#{menuNo}
+	</update>
+
+	<!-- 메뉴번호 존재여부 조회 -->
+	<select id="selectMenuNoByPk" parameterType="egovframework.com.sym.mnu.mpm.service.MenuManageVO" resultType="int">
+
+		SELECT COUNT(MENU_NO) AS "totcnt"
+		  FROM COMTNMENUINFO
+		 WHERE MENU_NO = #{menuNo}
+
+	</select>
+
+	<!-- 상위 메뉴번호 존재여부 조회 -->
+	<select id="selectUpperMenuNoByPk" parameterType="egovframework.com.sym.mnu.mpm.service.MenuManageVO" resultType="int">
+
+		SELECT COUNT(MENU_NO) AS totcnt
+		  FROM COMTNMENUINFO
+		 WHERE UPPER_MENU_NO = #{menuNo}
+
+	</select>
+
+
+	<select id="selectMenuListT_D" parameterType="comDefaultVO" resultType="egovMap">
+
+            SELECT
+			      MENU_NO           AS menuNo
+				, MENU_ORDR         AS menuOrdr
+				, MENU_NM           AS menuNm
+				, UPPER_MENU_NO     AS upperMenuNo
+				, MENU_DC           AS menuDc
+				, RELATE_IMAGE_PATH AS relateImagePath
+				, RELATE_IMAGE_NM   AS relateImageNm
+				, PROGRM_FILE_NM    AS progrmFileNm
+			FROM COMTNMENUINFO
+			WHERE Menu_NO > 0
+			ORDER BY MENU_ORDR
+
+	</select>
+
+	<delete id="deleteAllMenuList">
+
+			DELETE FROM COMTNMENUINFO
+
+	</delete>
+
+	<!-- 메뉴정보 총건수 조회 -->
+	<select id="selectMenuListTotCnt" parameterType="egovframework.com.sym.mnu.mpm.service.MenuManageVO" resultType="int">
+
+		SELECT COUNT(MENU_NO) AS totcnt
+		  FROM COMTNMENUINFO
+
+	</select>
+
+	<!--로그인 사용자의 메뉴 정보(일반사용자) -->
+	<select id="selectMenuManageListUser" parameterType="egovframework.com.sym.mnu.mpm.service.MenuManageVO" resultType="egovframework.com.sym.mnu.mpm.service.MenuManageVO">
+		SELECT /* menuManageDAO.selectMenuManageListUser */
+			  MENU_NO           AS menuNo
+			, MENU_ORDR 		AS menuOrdr
+			, MENU_NM           AS menuNm
+			, MENU_URL			AS menuUrl
+			, UPPER_MENU_NO     AS upperMenuId
+			, UPPER_MENU_NO     AS upperMenuNo
+			, MENU_DC           AS menuDc
+			, RELATE_IMAGE_PATH AS relateImagePath
+			, USE_YN            AS useYn
+			, FRONT_GNBMENUYN 	AS mainYn
+			, FRONT_GNBMENUYN   AS frontGnbmenuyn
+			, (SELECT GROUP_CONCAT(ROLE_PTTRN,'||') FROM COMTNROLEINFO R WHERE R.ROLE_MENU_NO=T.MENU_NO)  AS rolePttrn
+            , CASE WHEN UPPER_MENU_NO=0 THEN MENU_NM ELSE (SELECT MENU_NM FROM COMTNMENUINFO WHERE MENU_NO=T.UPPER_MENU_NO) END                               AS upperMenuNm
+            , CASE WHEN UPPER_MENU_NO=0 THEN FRONT_GNBMENUYN ELSE (SELECT FRONT_GNBMENUYN FROM COMTNMENUINFO WHERE MENU_NO=T.UPPER_MENU_NO) END               AS upperMainYn
+            , CASE WHEN RELATE_IMAGE_NM IS NOT NULL AND LENGTH(RELATE_IMAGE_NM)>0 THEN RELATE_IMAGE_NM  ELSE (SELECT RELATE_IMAGE_NM FROM COMTNMENUINFO WHERE MENU_NO=T.UPPER_MENU_NO) END  AS relateImageNm
+            , INS_YN    AS insYn
+            , UPD_YN    AS updYn
+            , DEL_YN    AS delYn
+            , MENU_DEPTH as menuDepth
+            , (select COUNT(*) from COMTNMENUINFO where USE_YN = 'Y' AND DEL_YN='N' and site_gubun='USER' and UPPER_MENU_NO = T.MENU_NO) childCnt
+            , (select COUNT(*) from COMTNMENUINFO where USE_YN = 'Y' AND DEL_YN='N' and site_gubun='USER' and UPPER_MENU_NO = T.UPPER_MENU_NO) tabMenuCnt
+            , (select MENU_NO from CONTENTS_MNG where USE_YN = 'Y' AND MENU_NO = T.MENU_NO LIMIT 1) contentsAutoRow
+		FROM (
+					SELECT
+						  A.MENU_NO
+						, A.UPPER_MENU_NO
+						, A.MENU_ORDR
+						, A.MENU_NM
+						, A.MENU_URL
+						, A.MENU_DC
+						, A.RELATE_IMAGE_PATH
+						, A.RELATE_IMAGE_NM
+						, A.USE_YN
+						, A.FRONT_GNBMENUYN
+						, A.MENU_DEPTH
+			<choose>
+				<when test='siteGubun == "USER"'>
+					, '' INS_YN
+					, '' UPD_YN
+					, '' DEL_YN
+					FROM COMTNMENUINFO A
+					WHERE SITE_GUBUN = #{siteGubun}
+						AND USE_YN = 'Y'
+						AND DEL_YN = 'N'
+				</when>
+				<otherwise>
+					    , DECODE(B.MENU_NO, 1 ,'Y', B.INS_YN) AS INS_YN
+						, DECODE(B.MENU_NO, 1 ,'Y', B.UPD_YN) AS UPD_YN
+						, DECODE(B.MENU_NO, 1 ,'Y', B.DEL_YN) AS DEL_YN
+					FROM COMTNMENUINFO A
+						, (SELECT MENU_NO , INS_YN , UPD_YN , DEL_YN FROM COMTNMENUCREATDTLS WHERE AUTHOR_CODE =(SELECT AUTHOR_CODE from COMTNEMPLYRSCRTYESTBS
+	                                      WHERE CONCAT(COMCD , '_', SCRTY_DTRMN_TRGET_ID) = #{tmpId})) B
+					WHERE SITE_GUBUN = #{siteGubun}
+					  AND USE_YN='Y'
+					  AND (A.MENU_NO = B.MENU_NO OR (B.MENU_NO=1 AND A.MENU_URL IS NOT NULL))
+				</otherwise>
+			</choose>
+
+		) T
+
+		ORDER BY MENU_ORDR
+
+	</select>
+
+	<!--로그인 사용자의 메뉴 정보(관리자) -->
+	<select id="selectMenuManageListAdmin" parameterType="egovframework.com.sym.mnu.mpm.service.MenuManageVO" resultType="egovframework.com.sym.mnu.mpm.service.MenuManageVO">
+
+		with recursive MENU as  /* menuManageDAO.selectMenuManageListAdmin */
+        (
+            select
+                P.MENU_NO ,  P.UPPER_MENU_NO ,  P.MENU_DEPTH ,  P.MENU_NM  , P.MENU_ORDR,P.MENU_URL,P.MENU_DC,P.RELATE_IMAGE_PATH,P.USE_YN,P.FRONT_GNBMENUYN
+            from
+                COMTNMENUINFO P
+            where
+                P.USE_YN='Y'
+                AND P.DEL_YN='N'
+                AND P.site_gubun=#{siteGubun}
+                <if test="groupId > 0">
+                and P.MENU_NO in (select MENU_NO from COMTNMENUCREATDTLS where AUTHOR_CODE=(SELECT AUTHOR_CODE from COMTNEMPLYRSCRTYESTBS WHERE CONCAT(COMCD , '_', SCRTY_DTRMN_TRGET_ID) = #{tmpId}))
+                </if>
+                <if test="frontGnbmenuyn != null and frontGnbmenuyn!=''">
+                AND P.FRONT_GNBMENUYN = #{frontGnbmenuyn}
+                </if>
+           union all
+           select
+               S.MENU_NO , S.UPPER_MENU_NO , S.MENU_DEPTH , S.MENU_NM  , S.MENU_ORDR , S.MENU_URL,S.MENU_DC,S.RELATE_IMAGE_PATH,S.USE_YN,S.FRONT_GNBMENUYN
+            from
+                COMTNMENUINFO S
+             inner join
+                MENU on S.MENU_NO = MENU.UPPER_MENU_NO
+            WHERE
+                S.USE_YN='Y'
+                AND S.DEL_YN='N'
+                and S.site_gubun=#{siteGubun}
+        )
+        select
+            TT.MENU_NO ,
+            UPPER_MENU_NO ,
+            MENU_NM ,
+            MENU_DEPTH ,
+            MENU_ORDR,
+            MENU_URL,
+            MENU_DC,
+            RELATE_IMAGE_PATH,
+            USE_YN,
+            FRONT_GNBMENUYN
+            <choose>
+            	<when test="groupId > 0">
+            		 , NVL(G.INS_YN ,'N') AS INS_YN
+            		 , NVL(G.UPD_YN ,'N') AS UPD_YN
+            		 , NVL(G.DEL_YN ,'N') AS DEL_YN
+            	</when>
+            	<otherwise>
+            		 , NVL(G.INS_YN ,'Y') AS INS_YN
+            		 , NVL(G.UPD_YN ,'Y') AS UPD_YN
+            		 , NVL(G.DEL_YN ,'Y') AS DEL_YN
+            	</otherwise>
+            </choose>
+            , (select COUNT(0) from COMTNMENUINFO STT
+                where  STT.USE_YN='Y' AND STT.DEL_YN='N' and STT.SITE_GUBUN=#{siteGubun}
+                and STT.UPPER_MENU_NO=TT.MENU_NO) AS CHILD_CNT
+        from (
+            select
+                MENU_NO ,
+                UPPER_MENU_NO ,
+                MENU_NM ,
+                MENU_DEPTH ,
+                MENU_ORDR,
+                MENU_URL,
+                MENU_DC,
+                RELATE_IMAGE_PATH,
+                USE_YN,
+                FRONT_GNBMENUYN
+            from MENU T
+            group by
+                MENU_NO ,
+                UPPER_MENU_NO ,
+                MENU_NM ,
+                MENU_DEPTH ,
+                MENU_ORDR,
+                MENU_URL,
+                MENU_DC,
+                RELATE_IMAGE_PATH,
+                USE_YN,
+                FRONT_GNBMENUYN
+        ) as TT
+         left outer join  COMTNMENUCREATDTLS G on TT.MENU_NO=G.MENU_NO
+         			AND G.AUTHOR_CODE=(SELECT AUTHOR_CODE from COMTNEMPLYRSCRTYESTBS WHERE CONCAT(COMCD , '_', SCRTY_DTRMN_TRGET_ID) = #{tmpId})
+        order by MENU_ORDR
+
+	</select>
+
+	<!-- 메뉴 정렬 순서 조회 -->
+	<select id="selectNextMenuOrdr" parameterType="egovframework.com.sym.mnu.mpm.service.MenuManageVO" resultType="int">
+		SELECT NVL(MAX(MENU_ORDR),0) + 1
+		  FROM COMTNMENUINFO
+		  <where>
+		  	SITE_GUBUN = #{siteGubun}
+		  	AND DEL_YN='N'
+		  </where>
+	</select>
+
+	<!-- 메뉴 정렬 순서 변경 -->
+	<update id="updateMenuOrdr"  parameterType="egovframework.com.sym.mnu.mpm.service.MenuManageVO">
+
+			UPDATE COMTNMENUINFO
+			SET  MENU_ORDR         = MENU_ORDR + 1
+			WHERE
+				SITE_GUBUN = #{siteGubun}
+				AND MENU_ORDR >= #{menuOrdr}
+
+	</update>
+
+	<select id="selectAllList" parameterType="comDefaultVO" resultType="egovMap">
+				SELECT /* menuManageDAO.selectAllList */
+						  MENU_NO           AS menu_srl
+						, MENU_DEPTH		AS depth
+						, MENU_ORDR         AS align
+						, MENU_NM           AS name
+						, MENU_URL			AS menu_url
+						, UPPER_MENU_NO 	AS parent_menu_srl
+						, USE_YN    		AS use_yn
+						, NVL(FRONT_GNBMENUYN,'N') AS main_YN
+					FROM COMTNMENUINFO
+					WHERE SITE_GUBUN = #{searchKeyword}
+						AND MENU_NO > 0
+						AND DEL_YN='N'
+					ORDER BY MENU_ORDR
+	</select>
+
+	<update id="updateOrder" parameterType="com.hisco.admin.menu.service.MenuSortVO">
+		UPDATE
+			COMTNMENUINFO
+		<set>
+			UPPER_MENU_NO = (CASE MENU_ORDR WHEN ${alignStart} THEN ${parentMenuSrl} ELSE UPPER_MENU_NO END)
+			<choose>
+				<!-- 선택 메뉴보다 윗쪽으로 이동시 처리 -->
+				<when test="alignStart gt alignNew and alignEnd gt alignNew">
+					, MENU_DEPTH = (CASE
+								WHEN MENU_ORDR &gt;= ${alignStart} AND MENU_ORDR &lt;= ${alignEnd} THEN MENU_DEPTH + ${depthNew} - ${depthStart}
+								ELSE MENU_DEPTH
+							END)
+					, MENU_ORDR = (CASE
+								WHEN MENU_ORDR &gt;= ${alignStart} AND MENU_ORDR &lt;= ${alignEnd} THEN ${alignNew} + MENU_ORDR - ${alignStart}
+								ELSE MENU_ORDR + (${alignEnd} - ${alignStart} + 1)
+							END)
+				</when>
+				<!-- 선택 메뉴보다 아랫쪽으로 이동시 처리 -->
+				<when test="alignStart lt alignNew and alignEnd lt alignNew">
+					, MENU_DEPTH = (CASE
+								WHEN MENU_ORDR &gt;= ${alignStart} AND MENU_ORDR &lt;= ${alignEnd} THEN MENU_DEPTH + ${depthNew} - ${depthStart}
+								ELSE MENU_DEPTH
+							END)
+					, MENU_ORDR = (CASE
+								WHEN MENU_ORDR &gt;= ${alignStart} AND MENU_ORDR &lt;= ${alignEnd} THEN ${alignNew} - (${alignEnd} - ${alignStart} + 1) + MENU_ORDR - ${alignStart}
+								ELSE MENU_ORDR - (${alignEnd} - ${alignStart} + 1)
+							END)
+				</when>
+				<otherwise>
+					, MENU_DEPTH = (CASE
+								WHEN MENU_ORDR &gt;= ${alignStart} AND MENU_ORDR &lt;= ${alignEnd} THEN MENU_DEPTH + ${depthNew} - ${depthStart}
+								ELSE MENU_DEPTH
+							END)
+				</otherwise>
+			</choose>
+		</set>
+		<where>
+			AND SITE_GUBUN = #{siteGubun}
+			AND DEL_YN='N'
+			AND MENU_NO > 1
+			<choose>
+				<!-- 선택 메뉴보다 윗쪽으로 이동시 처리 -->
+				<when test="alignStart gt alignNew and alignEnd gt alignNew">
+					AND
+					(
+						( MENU_ORDR &gt;= ${alignStart} AND MENU_ORDR &lt;= ${alignEnd} )
+						OR
+						( MENU_ORDR &gt;= ${alignNew} AND MENU_ORDR &lt; ${alignStart} )
+					)
+				</when>
+				<!-- 선택 메뉴보다 아랫쪽으로 이동시 처리 -->
+				<when test="alignStart lt alignNew and alignEnd lt alignNew">
+					AND
+					(
+						( MENU_ORDR &gt;= ${alignStart} AND MENU_ORDR &lt;= ${alignEnd} )
+						OR
+						( MENU_ORDR &gt; ${alignEnd} AND MENU_ORDR &lt; ${alignNew} )
+					)
+				</when>
+			</choose>
+		</where>
+	</update>
+
+	<!-- [메뉴 상세 정보를 조회한다][2021-03-24][전영석] -->
+	<select id="selectMenuByParam" resultType="cMap">
+			/* menuManageDAO.selectMenuByParam */
+			SELECT MENU_NO
+				 , MENU_ORDR
+				 , MENU_NM
+				 , MENU_URL
+				 , UPPER_MENU_NO
+				 , MENU_DC
+				 , RELATE_IMAGE_PATH
+				 , RELATE_IMAGE_NM
+				 , USE_YN
+				 , FRONT_GNBMENUYN
+				 , MENU_DEPTH
+				 , (SELECT COUNT(*) FROM CONTENTS_MNG WHERE MENU_NO = #{menuNo}) AS CONTENTS_ROW
+			FROM COMTNMENUINFO
+			WHERE MENU_NO = #{menuNo}
+
+	</select>
+
+	<!-- [하위 메뉴가 있느지 조회한다][2021-03-24][전영석] -->
+	<select id="selectSubMenuByParam" resultType="cMap">
+			/* menuManageDAO.selectSubMenuByParam */
+			SELECT MENU_NO
+				 , MENU_ORDR
+				 , MENU_NM
+				 , MENU_URL
+				 , UPPER_MENU_NO
+				 , MENU_DC
+				 , RELATE_IMAGE_PATH
+				 , RELATE_IMAGE_NM
+				 , USE_YN
+				 , FRONT_GNBMENUYN
+				 , MENU_DEPTH
+				 , (SELECT COUNT(*) FROM CONTENTS_MNG WHERE MENU_NO = #{menuNo}) AS CONTENTS_ROW
+			from COMTNMENUINFO T
+			where SITE_GUBUN = 'USER'
+			  AND MENU_NO = #{menuNo}
+			order by menu_ordr
+			LIMIT 1
+
+	</select>
+
+	<!-- [하위 메뉴가 있느지 조회한다][2021-03-24][전영석] -->
+	<select id="selectUpperMenuByParam" resultType="cMap">
+			/* menuManageDAO.selectUpperMenuByParam */
+			SELECT MENU_NO
+				 , MENU_ORDR
+				 , MENU_NM
+				 , MENU_URL
+				 , UPPER_MENU_NO
+				 , MENU_DC
+				 , RELATE_IMAGE_PATH
+				 , RELATE_IMAGE_NM
+				 , USE_YN
+				 , FRONT_GNBMENUYN
+				 , MENU_DEPTH
+				 , (SELECT COUNT(*) FROM CONTENTS_MNG WHERE MENU_NO = #{menuNo}) AS CONTENTS_ROW
+			from COMTNMENUINFO T
+			where SITE_GUBUN = 'USER'
+			  AND UPPER_MENU_NO = #{menuNo}
+			order by menu_ordr
+	</select>
+
+	<!-- [하위 메뉴가 있느지 조회한다][2021-03-24][전영석] -->
+	<select id="selectUpperMenuOnlyOne" resultType="cMap">
+			/* menuManageDAO.selectUpperMenuOnlyOne */
+			SELECT MENU_NO
+				 , MENU_ORDR
+				 , MENU_NM
+				 , MENU_URL
+				 , UPPER_MENU_NO
+				 , MENU_DC
+				 , RELATE_IMAGE_PATH
+				 , RELATE_IMAGE_NM
+				 , USE_YN
+				 , FRONT_GNBMENUYN
+				 , MENU_DEPTH
+				 , (SELECT COUNT(*) FROM CONTENTS_MNG WHERE MENU_NO = #{menuNo}) AS CONTENTS_ROW
+			from COMTNMENUINFO T
+			where SITE_GUBUN = 'USER'
+			  AND UPPER_MENU_NO = #{menuNo}
+			order by menu_ordr
+			LIMIT 1
+	</select>
+
+	<!-- [하위 메뉴가 있느지 조회한다][2021-03-24][전영석] -->
+	<select id="selectUpperMenuOnlyOneN" resultType="cMap">
+			/* menuManageDAO.selectUpperMenuOnlyOneN */
+			SELECT MENU_NO
+				 , MENU_ORDR
+				 , MENU_NM
+				 , MENU_URL
+				 , UPPER_MENU_NO
+				 , MENU_DC
+				 , RELATE_IMAGE_PATH
+				 , RELATE_IMAGE_NM
+				 , USE_YN
+				 , FRONT_GNBMENUYN
+				 , MENU_DEPTH
+				 , (SELECT COUNT(*) FROM CONTENTS_MNG WHERE MENU_NO = #{menuNo}) AS CONTENTS_ROW
+			from COMTNMENUINFO T
+			where SITE_GUBUN = 'USER'
+			  AND UPPER_MENU_NO = #{upperMenuNo}
+			  AND MENU_ORDR <![CDATA[>]]> #{menuOrdr}
+			order by menu_ordr
+			LIMIT 1
+	</select>
+
+	<select id="selectMenuManageForSel" parameterType="comDefaultVO" resultType="egovframework.com.sym.mnu.mpm.service.MenuManageVO">
+
+			SELECT /* menuManageDAO.selectMenuManageForSel */
+				  T.MENU_NO             AS menuNo
+				, T.MENU_ORDR           AS menuOrdr
+				, T.MENU_NM             AS menuNm
+				, T.MENU_URL			AS menuUrl
+				, T.MENU_DC             AS menuDc
+				, T.RELATE_IMAGE_PATH   AS relateImagePath
+				, T.RELATE_IMAGE_NM     AS relateImageNm
+				, T.USE_YN              AS useYn
+				, T.FRONT_GNBMENUYN     AS mainYn
+				, T.FRONT_GNBMENUYN     AS frontGnbmenuyn
+				, T.MENU_DEPTH          AS menuDepth
+				, T.UPPER_MENU_NO       AS upperMenuNo
+				, T.UPPER_MENU_NO       AS upperMenuId
+				, (CASE WHEN UPPER_MENU_NO=0 THEN FRONT_GNBMENUYN ELSE (SELECT FRONT_GNBMENUYN FROM COMTNMENUINFO WHERE MENU_NO=T.UPPER_MENU_NO) END)  AS upperMainYn
+				, (CASE WHEN UPPER_MENU_NO = 0 THEN MENU_NM ELSE (SELECT MENU_NM FROM COMTNMENUINFO WHERE MENU_NO=T.UPPER_MENU_NO) END)                AS upperMenuNm
+			FROM COMTNMENUINFO T
+			WHERE T.MENU_NO = #{searchKeyword}
+
+	</select>
+
+</mapper>

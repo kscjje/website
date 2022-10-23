@@ -1,0 +1,79 @@
+@charset "utf-8";
+
+
+/* Noto Sans */
+/* NotoSansKR */
+@font-face {
+	font-family:'Noto Sans KR';
+	font-style:normal;
+	font-weight:400;
+	src:url(../fonts/NotoSansKR-Regular.eot);
+	src:local('Noto Sans CJK KR Regular'), url(../fonts/NotoSansKR-Regular.eot?#iefix) format('embedded-opentype'), url(../fonts/NotoSansKR-Regular.woff2) format('woff2'), url(../fonts/NotoSansKR-Regular.woff) format('woff'), url(../fonts/NotoSansKR-Regular.ttf) format('truetype')
+}
+@font-face {
+	font-family:'Noto Sans KR';
+	font-style:normal;
+	font-weight:500;
+	src:url(../fonts/NotoSansKR-Medium.eot);
+	src:local('Noto Sans CJK KR Medium'), url(../fonts/NotoSansKR-Medium.eot?#iefix) format('embedded-opentype'), url(../fonts/NotoSansKR-Medium.woff2) format('woff2'), url(../fonts/NotoSansKR-Medium.woff) format('woff'), url(../fonts/NotoSansKR-Medium.ttf) format('truetype')
+}
+@font-face {
+	font-family:'Noto Sans KR';
+	font-style:normal;
+	font-weight:700;
+	src:url(../fonts/NotoSansKR-Bold.eot);
+	src:local('Noto Sans CJK KR Bold'), url(../fonts/NotoSansKR-Bold.eot?#iefix) format('embedded-opentype'), url(../fonts/NotoSansKR-Bold.woff2) format('woff2'), url(../fonts/NotoSansKR-Bold.woff) format('woff'), url(../fonts/NotoSansKR-Bold.ttf) format('truetype')
+}
+@font-face {
+	font-family:'Noto Sans KR';
+	font-style:normal;
+	font-weight:900;
+	src:url(../fonts/NotoSansKR-Black.eot);
+	src:local('Noto Sans CJK KR Black'), url(../fonts/NotoSansKR-Black.eot?#iefix) format('embedded-opentype'), url(../fonts/NotoSansKR-Black.woff2) format('woff2'), url(../fonts/NotoSansKR-Black.woff) format('woff'), url(../fonts/NotoSansKR-Black.ttf) format('truetype')
+}
+
+/* Roboto */
+@font-face {
+	font-family: 'Roboto';
+	font-style: normal;
+	font-weight: 400;
+	src: url('../fonts/Roboto-Regular.woff2') format('woff2'),  url('../fonts/Roboto-Regular.woff') format('woff'),  url('../fonts/Roboto-Regular.otf') format('opentype');
+}
+@font-face {
+	font-family: 'Roboto';
+	font-style: normal;
+	font-weight: 500;
+	src: url('../fonts/Roboto-Medium.woff2') format('woff2'),  url('../fonts/Roboto-Medium.woff') format('woff'),  url('../fonts/Roboto-Medium.otf') format('opentype');
+}
+@font-face {
+	font-family: 'Roboto';
+	font-style: normal;
+	font-weight: 700;
+	src: url('../fonts/Roboto-Bold.woff2') format('woff2'),  url('../fonts/Roboto-Bold.woff') format('woff'),  url('../fonts/Roboto-Bold.otf') format('opentype');
+}
+
+@font-face {
+	font-family: 'nanum_hana';
+	font-style: normal;
+	font-weight: 700;
+	src: url('../fonts/nanum_hana.ttf') format('ttf'),  url('../fonts/nanum_hana.woff') format('woff'),  url('../fonts/nanum_hana.otf') format('opentype');
+}
+
+
+@font-face {
+	font-family: 'MaruBuri';
+	font-style: normal;
+	font-weight: 500;
+	src: url('../fonts/MaruBuri-SemiBold.ttf') format('ttf'),  url('../fonts/MaruBuri-SemiBold.woff') format('woff'),  url('../fonts/MaruBuri-SemiBold.otf') format('opentype');
+}
+
+
+@font-face {
+	font-family: 'MaruBuri';
+	font-style: normal;
+	font-weight: 700;
+	src: url('../fonts/MaruBuri-Bold.ttf') format('ttf'),  url('../fonts/MaruBuri-Bold.woff') format('woff'),  url('../fonts/MaruBuri-Bold.otf') format('opentype');
+}
+
+
+

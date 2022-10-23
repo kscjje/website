@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	수정일         수정자     수정내용
+    =========      =======    =================================================
+    2020.09.08     전영석     주차 연계 Tibero Mapper 
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="CmmServiceDAO">
+
+ 	<select id="selectUserInfor" parameterType="Map" resultType="cMap">
+
+		SELECT /* CmmServiceDAO.selectUserInfor */ 
+	           CRYPTO.DEcrypt_ARIA(A.HP, #{DbEncKey}) AS HP 
+		 FROM MEMBER A   
+		WHERE A.ID = #{id}   		
+ 
+ 	</select>
+
+	<insert id="insertPaywaitLog">	
+		INSERT INTO RSVN_PAYWAITTIME_LOG
+			(
+				LOG_SEQ,
+				PART_GBN,
+				RSVN_NO,
+				PAYWAIT_DATETIME,
+				REGDATE
+			)
+			VALUES
+			(
+				SEQ_PAYWAITITME_LOG.NEXTVAL,
+				#{partGbn},
+				#{rsvnNo},
+				(TO_DATE(#{paytime},'YYYYMMDDHH24MI')),
+				SYSDATE
+			)
+	</insert>
+</mapper>

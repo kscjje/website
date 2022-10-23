@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 게시판 카테고리 관리
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2020.07.22   	진수진          최초 작성
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.admin.board.mapper.BoardCtgMapper">
+
+	<resultMap id="boardCtgDetail" type="com.hisco.admin.board.vo.BoardCtgVO">
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="ctgId" column="CTG_ID"/>
+		<result property="ctgNm" column="CTG_NM"/>
+		<result property="ctgSort" column="SORT_ORDER"/>
+		<result property="useAt" column="USE_YN"/>
+		<result property="frstRegisterId" column="REGUSER"/>
+		<result property="frstRegisterNm" column="FRST_REGISTER_NM"/>
+		<result property="frstRegisterPnttm" column="REGDATE"/>
+	</resultMap>
+
+	<insert id="insertCtgInf" parameterType="com.hisco.admin.board.vo.BoardCtgVO">
+
+			INSERT INTO COMTNBBSCTG
+			(BBS_ID, CTG_ID, CTG_NM , SORT_ORDER , USE_YN ,
+			 REGUSER, REGDATE )
+			VALUES
+			( #{bbsId}, (select concat('BBSCTG_', lpad((nvl(cast(replace(MAX(CTG_ID), 'BBSCTG_', '') as integer),0) + 1), 13, '0')) from COMTNBBSCTG ALIAS_FOR_SUBQUERY where CTG_ID like 'BBSCTG_%') ,#{ctgNm} , 
+			 <choose><when test="ctgSort !=null and ctgSort !=''"> #{ctgSort}</when><otherwise>(SELECT NVL(MAX(SORT_ORDER),0) + 1 FROM COMTNBBSCTG ALIAS_FOR_SUBQUERY WHERE BBS_ID= #{bbsId})</otherwise></choose>
+			   , #{useAt} , #{frstRegisterId}, SYSDATE()
+			 )
+
+	</insert>
+
+	<select id="selectCtgInfList" parameterType="com.hisco.admin.board.vo.BoardCtgVO" resultMap="boardCtgDetail">
+
+			SELECT
+				BBS_ID, CTG_ID, CTG_NM , SORT_ORDER , USE_YN , REGUSER , REGDATE
+			FROM
+				COMTNBBSCTG
+			WHERE BBS_ID = #{bbsId}
+			<if test="useAt != null and useAt !=''"> AND USE_YN=#{useAt}</if>
+				ORDER BY SORT_ORDER
+
+	</select>
+
+	<select id="selectCtgInfDetail" parameterType="com.hisco.admin.board.vo.BoardCtgVO" resultMap="boardCtgDetail">
+
+			SELECT
+				BBS_ID, CTG_ID, CTG_NM , SORT_ORDER , USE_YN , REGUSER , REGDATE
+			FROM
+				COMTNBBSCTG
+			WHERE CTG_ID = #{ctgId}
+	</select>
+
+ 	<update id="updateCtgInf" parameterType="com.hisco.admin.board.vo.BoardCtgVO">
+
+			UPDATE COMTNBBSCTG SET
+				CTG_NM = #{ctgNm},
+				<if test="ctgSort !=null and ctgSort !=''">SORT_ORDER = #{ctgSort},</if>
+				USE_YN = #{useAt},
+				MODUSER = #{frstRegisterId},
+				MODDATE = SYSDATE()
+			WHERE CTG_ID = #{ctgId}
+
+ 	</update>
+
+ 	<delete id="deleteCtgInf" parameterType="com.hisco.admin.board.vo.BoardCtgVO">
+			DELETE FROM COMTNBBSCTG
+			WHERE CTG_ID = #{ctgId}
+ 	</delete>
+
+
+ 	<update id="clearArticleCtg" parameterType="com.hisco.admin.board.vo.BoardCtgVO">
+
+			UPDATE COMTNBBS SET
+				CTG_ID = NULL
+			WHERE CTG_ID = #{ctgId} AND BBS_ID = #{bbsId}
+
+ 	</update>
+</mapper>

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="authorRoleManageDAO">
+
+    <resultMap id="authorRole" type="egovframework.com.sec.ram.service.AuthorRoleManageVO">
+        <result property="roleCode" column="ROLE_CODE"/>
+        <result property="roleNm" column="ROLE_NM"/>
+        <result property="rolePtn" column="ROLE_PTTRN"/>
+        <result property="roleDc" column="ROLE_DC"/>
+        <result property="roleTyp" column="ROLE_TY"/>
+        <result property="roleSort" column="ROLE_SORT"/>
+        <result property="authorCode" column="AUTHOR_CODE"/>
+        <result property="regYn" column="REG_YN"/>
+        <result property="creatDt" column="CREAT_DT"/>
+         <result property="roleMenuNo" column="ROLE_MENU_NO"/>
+    </resultMap>
+
+    <select id="selectAuthorRoleList" parameterType="egovframework.com.sec.ram.service.AuthorRoleManageVO" resultMap="authorRole">
+            SELECT A.ROLE_CODE,
+                   A.ROLE_NM,
+                   A.ROLE_PTTRN,
+                   A.ROLE_DC,
+                   A.ROLE_TY,
+                   A.ROLE_SORT,
+                   A.ROLE_MENU_NO,
+                   B.AUTHOR_CODE,
+                   B.CREAT_DT,
+                   <choose>
+                   	<when test="roleMenuNo > 0">
+		 			(CASE WHEN A.ROLE_MENU_NO = #{roleMenuNo} THEN 'Y'
+                         ELSE 'N'
+                     END) AS REG_YN
+		 			</when>
+		 			<otherwise>
+		 			(CASE WHEN B.ROLE_CODE IS NULL THEN 'N'
+                         ELSE 'Y'
+                     END) AS REG_YN
+		 			</otherwise>
+                   </choose>
+
+              FROM COMTNROLEINFO A
+                   LEFT OUTER JOIN (SELECT AUTHOR_CODE , ROLE_CODE, CREAT_DT FROM COMTNAUTHORROLERELATE WHERE AUTHOR_CODE = #{searchKeyword}) B
+                ON A.ROLE_CODE = B.ROLE_CODE
+
+
+             ORDER BY A.ROLE_SORT , A.ROLE_NM
+
+    </select>
+
+    <select id="selectAuthorRoleListTotCnt" parameterType="egovframework.com.sec.ram.service.AuthorRoleManageVO" resultType="int">
+
+            SELECT COUNT(*) totcnt
+              FROM COMTNROLEINFO A
+                   LEFT OUTER JOIN (SELECT AUTHOR_CODE , ROLE_CODE, CREAT_DT FROM COMTNAUTHORROLERELATE WHERE AUTHOR_CODE = #{searchKeyword}) B
+                ON A.ROLE_CODE = B.ROLE_CODE
+    </select>
+
+    <insert id="insertAuthorRole" parameterType="egovframework.com.sec.ram.service.AuthorRoleManage">
+
+            INSERT INTO COMTNAUTHORROLERELATE
+                  ( AUTHOR_CODE
+                  , ROLE_CODE
+                  , CREAT_DT)
+           VALUES ( #{authorCode}
+                  , #{roleCode}
+                  , SYSDATE)
+
+    </insert>
+
+    <delete id="deleteAuthorRole">
+
+            DELETE FROM COMTNAUTHORROLERELATE
+             WHERE AUTHOR_CODE=#{authorCode}
+               AND ROLE_CODE=#{roleCode}
+
+    </delete>
+
+    <delete id="deleteAuthorRoleByAuthorCode">
+
+            DELETE FROM COMTNAUTHORROLERELATE
+             WHERE AUTHOR_CODE=#{authorCode}
+
+    </delete>
+
+
+    <update id="updateAuthorRoleMenu" parameterType="egovframework.com.sec.ram.service.AuthorRoleManage">
+           UPDATE COMTNROLEINFO SET ROLE_MENU_NO = #{roleMenuNo}
+           WHERE
+           	 ROLE_CODE IN <foreach collection="authorCodeList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+    </update>
+
+    <update id="updateAuthorRoleMenuNull" parameterType="egovframework.com.sec.ram.service.AuthorRoleManage">
+           UPDATE COMTNROLEINFO SET ROLE_MENU_NO = '' WHERE ROLE_MENU_NO = #{roleMenuNo}
+    </update>
+
+</mapper>

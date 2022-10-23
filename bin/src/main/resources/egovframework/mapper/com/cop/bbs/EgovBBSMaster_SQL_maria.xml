@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="BBSMaster">
+
+	<resultMap id="boardMasterList" type="egovframework.com.cop.bbs.service.BoardMasterVO">
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="bbsTyCode" column="BBS_TY_CODE"/>
+		<result property="bbsTyCodeNm" column="BBS_TY_CODE_NM"/>
+		<result property="bbsNm" column="BBS_NM"/>
+		<result property="tmplatId" column="TMPLAT_ID"/>
+		<result property="useAt" column="USE_YN"/>
+		<result property="frstRegisterId" column="REGUSER"/>
+		<result property="frstRegisterPnttm" column="REGDATE"/>
+		<result property="articleDate" column="ARTICLE_DATE"/>
+		<result property="articleCnt" column="ARTICLE_CNT"/>
+	</resultMap>
+
+	<resultMap id="boardMasterDetail" type="egovframework.com.cop.bbs.service.BoardMasterVO">
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="bbsTyCode" column="BBS_TY_CODE"/>
+		<result property="bbsNm" column="BBS_NM"/>
+		<result property="bbsIntrcn" column="BBS_INTRCN"/>
+		<result property="replyPosblAt" column="REPLY_POSBL_YN"/>
+		<result property="fileAtchPosblAt" column="FILE_ATCH_POSBL_YN"/>
+		<result property="atchPosblFileNumber" column="ATCH_POSBL_FILE_NUMBER"/>
+		<result property="atchPosblFileSize" column="ATCH_POSBL_FILE_SIZE"/>
+		<result property="tmplatId" column="TMPLAT_ID"/>
+		<result property="frstRegisterId" column="REGUSER"/>
+		<result property="frstRegisterNm" column="FRST_REGISTER_NM"/>
+		<result property="frstRegisterPnttm" column="REGDATE"/>
+		<result property="lastUpdusrId" column="MODUSER"/>
+		<result property="lastUpdusrPnttm" column="MODDATE"/>
+		<result property="bbsTyCodeNm" column="BBS_TY_CODE_NM"/>
+ 	    <result property="tmplatNm" column="TMPLAT_NM"/>
+		<result property="authFlag" column="AUTH_FLAG"/>
+		<result property="tmplatCours" column="TMPLAT_COURS"/>
+		<result property="cmmntyId" column="CMMNTY_ID"/>
+		<result property="blogId" column="BLOG_ID"/>
+		<result property="tmplatCours" column="TMPLAT_COURS"/>
+		<result property="useAt" column="USE_YN"/>
+	</resultMap>
+
+	<resultMap id="boardMasterAll" type="egovframework.com.cop.bbs.service.BoardMasterVO">
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="bbsTyCode" column="BBS_TY_CODE"/>
+		<result property="bbsNm" column="BBS_NM"/>
+		<result property="tmplatId" column="TMPLAT_ID"/>
+	</resultMap>
+
+	<resultMap id="BlogList" type="egovframework.com.cop.bbs.service.BlogVO">
+		<result property="blogId" column="BLOG_ID"/>
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="blogNm" column="BLOG_NM"/>
+		<result property="registSeCode" column="REGIST_SE_CODE"/>
+		<result property="registSeCodeNm" column="REGIST_SE_CODE_NM"/>
+		<result property="useAt" column="USE_YN"/>
+		<result property="frstRegisterId" column="REGUSER"/>
+		<result property="frstRegisterNm" column="FRST_REGISTER_NM"/>
+		<result property="frstRegisterPnttm" column="REGDATE"/>
+	</resultMap>
+
+	<resultMap id="selectBlogDetail" type="egovframework.com.cop.bbs.service.BlogVO">
+		<result property="blogId" column="BLOG_ID"/>
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="blogNm" column="BLOG_NM"/>
+		<result property="blogIntrcn" column="BLOG_INTRCN"/>
+	</resultMap>
+
+	<resultMap id="selectBlogUser" type="egovframework.com.cop.bbs.service.BlogVO">
+		<result property="frstRegisterId" column="REGUSER"/>
+	</resultMap>
+
+	<resultMap id="BlogListPortlet" type="egovframework.com.cop.bbs.service.BlogVO">
+		<result property="blogId" column="BLOG_ID"/>
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="blogNm" column="BLOG_NM"/>
+	</resultMap>
+
+	<resultMap id="BBSListPortlet" type="egovframework.com.cop.bbs.service.BoardMasterVO">
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="bbsTyCodeNm" column="BBS_TY_CODE"/>
+		<result property="bbsNm" column="BBS_NM"/>
+	</resultMap>
+
+	<insert id="insertBBSMaster" parameterType="egovframework.com.cop.bbs.service.BoardMasterVO">
+
+			INSERT INTO COMTNBBSMASTER
+			(BBS_ID, BBS_TY_CODE, BBS_NM, BBS_INTRCN,
+			 REPLY_POSBL_YN, FILE_ATCH_POSBL_YN, ATCH_POSBL_FILE_NUMBER, ATCH_POSBL_FILE_EXT,
+			 TMPLAT_ID, USE_YN,
+			 REGUSER, REGDATE )
+			VALUES
+			( #{bbsId}, #{bbsTyCode}, #{bbsNm}, #{bbsIntrcn},
+			  #{replyPosblAt}, #{fileAtchPosblAt}, #{atchPosblFileNumber}, #{atchPosblFileExt},
+			  #{tmplatId}, #{useAt},  #{frstRegisterId}, SYSDATE()
+			 )
+
+	</insert>
+
+	<select id="selectBBSMasterList" parameterType="egovframework.com.cop.bbs.service.BoardMasterVO" resultMap="boardMasterList">
+
+		SELECT T.*
+			, (SELECT COUNT(*) FROM COMTNBBS WHERE BBS_ID=T.BBS_ID AND USE_YN='Y') ARTICLE_CNT
+			, (SELECT MAX(REGDATE) FROM COMTNBBS WHERE BBS_ID=T.BBS_ID AND USE_YN='Y') ARTICLE_DATE
+			
+		FROM ( SELECT ROW_NUMBER() OVER (ORDER BY TB.REGDATE DESC) rn, TB.* FROM (
+		
+			SELECT
+				a.BBS_ID, a.BBS_TY_CODE, b.CD_NM as BBS_TY_CODE_NM,
+				a.BBS_NM, a.BBS_INTRCN,
+				a.TMPLAT_ID, a.USE_YN,
+				a.REGUSER,
+				a.REGDATE
+			FROM
+				COMTNBBSMASTER a
+			LEFT OUTER JOIN
+				(SELECT  CD, CD_NM FROM
+					COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD = 'COM101' ) b
+				ON a.BBS_TY_CODE = b.CD
+			WHERE 1=1
+			<if test="searchCnd == 0">AND
+					a.BBS_NM LIKE CONCAT('%', #{searchWrd}, '%')
+			</if>
+			<if test="searchCnd == 1">AND
+					a.BBS_INTRCN LIKE CONCAT('%', #{searchWrd}, '%')
+			</if>
+
+			ORDER BY a.REGDATE DESC
+			) TB
+		) T WHERE rn BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+
+	</select>
+
+	<select id="selectBBSMasterListTotCnt" parameterType="egovframework.com.cop.bbs.service.BoardMasterVO" resultType="java.lang.Integer">
+
+			SELECT
+				COUNT(a.BBS_ID)
+			FROM
+				COMTNBBSMASTER a
+			WHERE 1=1
+			<if test="searchCnd == 0">AND
+					a.BBS_NM LIKE CONCAT('%', #{searchWrd}, '%')
+			</if>
+			<if test="searchCnd == 1">AND
+					a.BBS_INTRCN LIKE CONCAT('%', #{searchWrd}, '%')
+			</if>
+	</select>
+
+	<select id="selectBBSMasterDetail" parameterType="egovframework.com.cop.bbs.service.BoardMasterVO" resultMap="boardMasterDetail">
+/*selectBBSMasterDetail*/
+			SELECT
+				a.BBS_ID, a.BBS_TY_CODE, b.CD_NM as BBS_TY_CODE_NM, a.BBS_INTRCN,
+				a.BBS_NM,
+				a.TMPLAT_ID, d.TMPLAT_NM, d.TMPLAT_COURS, a.FILE_ATCH_POSBL_YN, a.ATCH_POSBL_FILE_NUMBER, a.ATCH_POSBL_FILE_EXT,
+				a.ATCH_POSBL_FILE_SIZE, a.REPLY_POSBL_YN, a.REGUSER,
+				a.USE_YN, a.REGDATE, a.MODUSER, a.MODDATE, a.USE_YN,
+				d.TMPLAT_COURS
+			FROM
+				COMTNBBSMASTER a
+			LEFT OUTER JOIN
+				(SELECT  CD, CD_NM FROM
+					COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD = 'COM101' ) b
+				ON a.BBS_TY_CODE = b.CD
+			LEFT OUTER JOIN COMTNTMPLATINFO d
+				ON a.TMPLAT_ID = d.TMPLAT_ID
+			WHERE a.BBS_ID = #{bbsId}
+			<if test='useAt !=null and useAt !=""'> AND A.USE_YN = #{useAt}</if>
+	</select>
+
+ 	<update id="updateBBSMaster" parameterType="egovframework.com.cop.bbs.service.BoardMasterVO">
+
+			UPDATE COMTNBBSMASTER SET
+				BBS_NM = #{bbsNm},
+				BBS_INTRCN = #{bbsIntrcn},
+				BBS_TY_CODE = #{bbsTyCode},
+				FILE_ATCH_POSBL_YN = #{fileAtchPosblAt},
+				ATCH_POSBL_FILE_NUMBER = #{atchPosblFileNumber},
+				ATCH_POSBL_FILE_SIZE = (CASE WHEN #{atchPosblFileSize} = '' THEN 0 ELSE NVL(#{atchPosblFileSize}, 0) END),
+				ATCH_POSBL_FILE_EXT = #{atchPosblFileExt},
+				TMPLAT_ID = #{tmplatId},
+				REPLY_POSBL_YN = #{replyPosblAt},
+				MODUSER = #{frstRegisterId},
+				MODDATE = SYSDATE(),
+				USE_YN = #{useAt}
+			WHERE BBS_ID = #{bbsId} 
+
+ 	</update>
+
+ 	<update id="deleteBBSMaster" parameterType="egovframework.com.cop.bbs.service.BoardMasterVO">
+
+			UPDATE COMTNBBSMASTER SET
+				USE_YN = 'N',
+				MODUSER = #{lastUpdusrId},
+				MODDATE = SYSDATE()
+			WHERE BBS_ID = #{bbsId}
+
+ 	</update>
+
+</mapper>

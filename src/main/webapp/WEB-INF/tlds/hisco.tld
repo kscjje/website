@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<taglib xmlns="http://java.sun.com/xml/ns/javaee"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-jsptaglibrary_2_1.xsd"
+    version="2.1">
+
+	<description>hisco 태그라이브러리</description>
+	<display-name>hisco tag lib</display-name>
+	<tlib-version>1.1</tlib-version>
+	<short-name>hisco</short-name>
+
+	<!--
+	<uri>http://www.knsoft.kr/jsp/jstl/kntools</uri>
+	-->
+
+	<!-- 보안 토큰 생성 처리 -->
+	<tag>
+		<description>폼 POST 전송 보안토큰 생성</description>
+		<name>SecurityToken</name>
+		<tag-class>com.hisco.cmm.taglib.SecurityTokenTag</tag-class>
+		<body-content>empty</body-content>
+		<attribute>
+			<description>토큰 폼 이름 또는 modelAttribute 명칭</description>
+			<name>name</name>
+			<required>true</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+	</tag>
+
+	<!-- 복호화 처리-->
+	<tag>
+		<description>복호화 처리</description>
+		<name>Decrypt</name>
+		<tag-class>com.hisco.cmm.taglib.DecryptTag</tag-class>
+		<body-content>empty</body-content>
+		<attribute>
+			<description>암호화 된 값</description>
+			<name>encrypt</name>
+			<required>true</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>결과 정보 받기</description>
+			<name>var</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+	</tag>
+
+	<!-- 기관 목록 공통 태크 -->
+	<tag>
+		<description>기관 목록 불러오기</description>
+		<name>OrgList</name>
+		<tag-class>com.hisco.cmm.taglib.OrgListTag</tag-class>
+		<body-content>empty</body-content>
+		<attribute>
+			<description>객체 아이디</description>
+			<name>id</name>
+			<required>true</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>객체 이름</description>
+			<name>name</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>기관 타입</description>
+			<name>orgKind</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>css Class명</description>
+			<name>cssClass</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>style</description>
+			<name>style</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>디폴트 값</description>
+			<name>defaultNo</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>첫번째값 선택여부</description>
+			<name>defaultSelect</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>빈값추가 여부</description>
+			<name>blankYn</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>빈값 value</description>
+			<name>nullValue</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>결과 정보 받기</description>
+			<name>var</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+	</tag>
+
+	<!-- 분야 목록 공통 태크 -->
+	<tag>
+		<description>분야 목록 불러오기</description>
+		<name>CateList</name>
+		<tag-class>com.hisco.cmm.taglib.CateListTag</tag-class>
+		<body-content>empty</body-content>
+		<attribute>
+			<description>객체 아이디</description>
+			<name>id</name>
+			<required>true</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>객체 이름</description>
+			<name>name</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>css Class명</description>
+			<name>cssClass</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>style</description>
+			<name>style</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>디폴트 값</description>
+			<name>defaultNo</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>빈값추가 여부</description>
+			<name>blankYn</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>결과 정보 받기</description>
+			<name>var</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+	</tag>
+
+	<!-- 관리자 웹 경로 공통 태크 -->
+	<tag>
+		<description>관리자 웹 경로에 대한 리소스 경로 반환</description>
+		<name>AdminRes</name>
+		<tag-class>com.hisco.cmm.taglib.AdminResTag</tag-class>
+		<body-content>empty</body-content>
+		<attribute>
+			<description>리소스 상대 경로</description>
+			<name>path</name>
+			<required>true</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>RequestURI</description>
+			<name>referer</name>
+			<required>false</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+	</tag>
+
+	<!-- 날짜 변환 태그 -->
+	<tag>
+		<description>날짜 변환</description>
+		<name>DateUtil</name>
+		<tag-class>com.hisco.cmm.taglib.DateUtilTag</tag-class>
+		<body-content>empty</body-content>
+		<attribute>
+			<description>변환대상 문자열</description>
+			<name>datestr</name>
+			<required>true</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+		<attribute>
+			<description>변환포맷</description>
+			<name>format</name>
+			<required>true</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+	</tag>
+
+	<!-- 휴대폰 번호 변환 태그 -->
+	<tag>
+		<description>휴대폰 번호</description>
+		<name>HpPrint</name>
+		<tag-class>com.hisco.cmm.taglib.HpPrintTag</tag-class>
+		<body-content>empty</body-content>
+		<attribute>
+			<description>변환대상 문자열</description>
+			<name>hp</name>
+			<required>true</required>
+			<rtexprvalue>true</rtexprvalue>
+		</attribute>
+	</tag>
+
+	<function>
+	    <description>
+	      make options for selectBox
+	    </description>
+	    <name>makeOptions</name>
+	    <function-class>com.hisco.cmm.util.JSTLFunction</function-class>
+	    <function-signature>java.lang.String makeOptions(java.lang.String, java.lang.String, java.lang.String)</function-signature>
+	    <example>
+	       ${hisco:makeOptions('groupcd', 'default_text', 'selectValue')}
+	    </example>
+	</function>
+
+	<function>
+	    <description>
+	      make year options for selectBox
+	    </description>
+	    <name>makeYearOptions</name>
+	    <function-class>com.hisco.cmm.util.JSTLFunction</function-class>
+	    <function-signature>java.lang.String makeYearOptions(java.lang.String, java.lang.Integer, java.lang.String)</function-signature>
+	    <example>
+	       ${hisco:makeYearOptions('년도', 30, "2019")}
+	    </example>
+	</function>
+
+	<function>
+	    <description>
+	      make month options for selectBox
+	    </description>
+	    <name>makeMonthOptions</name>
+	    <function-class>com.hisco.cmm.util.JSTLFunction</function-class>
+	    <function-signature>java.lang.String makeMonthOptions(java.lang.String, java.lang.String)</function-signature>
+	    <example>
+	       ${hisco:makeMonthOptions('월', "12")}
+	    </example>
+	</function>
+
+</taglib>

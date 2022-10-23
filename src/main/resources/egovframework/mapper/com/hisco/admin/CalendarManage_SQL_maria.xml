@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일          수정자                          수정내용
+  ===========      ========    =================================================
+  2021.10.31		이윤호     	 	월력 관리
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.admin.calendar.mapper.CalendarManageMapper">
+
+	<select id="selectCalendarList" parameterType="com.hisco.admin.calendar.vo.CalendarInfoVO" resultType="com.hisco.admin.calendar.vo.CalendarInfoVO">
+		/* com.hisco.admin.code.mapper.CalendarManageMapper.selectCalendarList */
+			SELECT
+				*
+			FROM COM_CALENDAR
+			WHERE
+	  			COMCD=#{comcd}
+	  		<if test="searchStartDts !=null and searchStartDts !=''">	<![CDATA[
+				AND CAL_DATE >= #{searchStartDts}	]]>
+			</if>
+	  		<if test="searchEndDts !=null and searchEndDts !=''">	<![CDATA[
+				AND CAL_DATE <= #{searchEndDts}	]]>
+			</if>
+			ORDER BY
+				CAL_DATE
+				, DATE_TYPE
+	</select>
+
+
+
+	<select id="selectCalendarDetail" parameterType="com.hisco.admin.calendar.vo.CalendarInfoVO" resultType="com.hisco.admin.calendar.vo.CalendarInfoVO">
+		/* com.hisco.admin.code.mapper.CalendarManageMapper.selectCalendarDetail */
+			SELECT
+				*
+			FROM COM_CALENDAR
+			WHERE
+		<![CDATA[
+	  			COMCD=#{comcd}
+	  			AND CAL_DATE = #{calDate}
+	  			AND DATE_TYPE = #{dateType}
+             ]]>
+
+	</select>
+
+	<insert id="insertCalendarDetail">
+		/* com.hisco.admin.code.mapper.CalendarManageMapper.insertCalendarDetail */
+			INSERT INTO COM_CALENDAR (
+							COMCD
+							, CAL_DATE
+							, DATE_TYPE
+							, CALENDAR_ETC
+							, REGDATE
+							, REGUSER
+				)
+			VALUES (
+		<![CDATA[
+							#{comcd}
+							, #{calDate}
+							, #{dateType}
+							, #{calendarEtc}
+							, SYSDATE()
+							, #{reguser}
+		         ]]>
+		         )
+	</insert>
+
+	<update id="updateCalendarDetail">
+		/* com.hisco.admin.code.mapper.CalendarManageMapper.updateCalendarDetail */
+		<![CDATA[
+			UPDATE COM_CALENDAR
+					SET DATE_TYPE = #{dateType}
+                 	, CALENDAR_ETC = #{calendarEtc}
+                 	, MODDATE = SYSDATE()
+                 	, MODUSER = #{reguser}
+			WHERE COMCD=#{comcd}
+		  			AND CAL_DATE = #{calDate}
+		  			AND DATE_TYPE = #{dateTypeOri}
+             ]]>
+	</update>
+
+
+	<delete id="deleteCalendarDetail">
+		/* com.hisco.admin.code.mapper.CalendarManageMapper.deleteCalendarDetail */
+            DELETE FROM  COM_CALENDAR
+		<![CDATA[
+			WHERE COMCD=#{comcd}
+		  			AND CAL_DATE = #{calDate}
+		  			AND DATE_TYPE = #{dateType}
+             ]]>
+	</delete>
+
+	<delete id="deleteCalendarDetailAll">
+		/* com.hisco.admin.code.mapper.CalendarManageMapper.deleteCalendarDetailAll */
+            DELETE FROM  COM_CALENDAR
+			WHERE
+		<![CDATA[
+				COMCD=#{comcd}
+				AND SUBSTRING(CAL_DATE,1,4) = #{calDate}
+             ]]>
+	</delete>
+
+
+
+
+	<select id="selectCalendarYearGroup" parameterType="com.hisco.admin.calendar.vo.CalendarInfoVO" resultType="java.lang.String">
+		/* com.hisco.admin.code.mapper.CalendarManageMapper.selectCalendarYearGroup */
+			SELECT
+				SUBSTRING(CAL_DATE,1,4) AS YYYY
+			FROM COM_CALENDAR C
+			WHERE
+				COMCD = #{comcd}
+			GROUP BY SUBSTRING(CAL_DATE,1,4)
+			ORDER BY SUBSTRING(CAL_DATE,1,4) DESC
+	</select>
+
+
+	<select id="selectOrgCalendarList" parameterType="com.hisco.admin.calendar.vo.CalendarInfoVO" resultType="com.hisco.admin.calendar.vo.CalendarInfoVO">
+		/* com.hisco.admin.code.mapper.CalendarManageMapper.selectOrgCalendarList */
+			SELECT
+				*
+			FROM CALENDAR
+			WHERE
+	  			COMCD=#{comcd}
+  				AND ORG_NO = #{orgNo}
+	  		<if test="searchStartDts !=null and searchStartDts !=''">	<![CDATA[
+				AND CAL_DATE >= #{searchStartDts}	]]>
+			</if>
+	  		<if test="searchEndDts !=null and searchEndDts !=''">	<![CDATA[
+				AND CAL_DATE <= #{searchEndDts}	]]>
+			</if>
+			ORDER BY
+				CAL_DATE
+				, GUBUN
+				, DATE_TYPE
+	</select>
+
+
+
+	<select id="selectOrgCalendarDetail" parameterType="com.hisco.admin.calendar.vo.CalendarInfoVO" resultType="com.hisco.admin.calendar.vo.CalendarInfoVO">
+		/* com.hisco.admin.code.mapper.CalendarManageMapper.selectOrgCalendarDetail */
+			SELECT
+				*
+			FROM CALENDAR
+			WHERE
+		<![CDATA[
+	  			COMCD=#{comcd}
+  				AND ORG_NO = #{orgNo}
+	  			AND CAL_DATE = #{calDate}
+	  			AND GUBUN = #{gubun}
+	  			AND DATE_TYPE = #{dateType}
+             ]]>
+
+	</select>
+
+	<insert id="insertOrgCalendarDetail">
+		/* com.hisco.admin.code.mapper.CalendarManageMapper.insertOrgCalendarDetail */
+			INSERT INTO CALENDAR (
+							COMCD
+							, ORG_NO
+							, GUBUN
+							, CAL_DATE
+							, DATE_TYPE
+							, CALENDAR_ETC
+							, REGDATE
+							, REGUSER
+				)
+			VALUES (
+		<![CDATA[
+							#{comcd}
+							, #{orgNo}
+							, NVL(#{gubun},'1001')
+							, #{calDate}
+							, #{dateType}
+							, #{calendarEtc}
+							, SYSDATE()
+							, #{reguser}
+		         ]]>
+		         )
+	</insert>
+
+	<update id="updateOrgCalendarDetail">
+		/* com.hisco.admin.code.mapper.CalendarManageMapper.updateOrgCalendarDetail */
+		<![CDATA[
+			UPDATE CALENDAR
+					SET GUBUN = NVL(#{gubun},'1001')
+                 	, DATE_TYPE = #{dateType}
+                 	, CALENDAR_ETC = #{calendarEtc}
+                 	, MODDATE = SYSDATE()
+                 	, MODUSER = #{reguser}
+			WHERE COMCD=#{comcd}
+	  				AND ORG_NO = #{orgNo}
+		  			AND CAL_DATE = #{calDate}
+		  			AND GUBUN = #{gubunOri}
+		  			AND DATE_TYPE = #{dateTypeOri}
+             ]]>
+	</update>
+
+
+	<delete id="deleteOrgCalendarDetail">
+		/* com.hisco.admin.code.mapper.CalendarManageMapper.deleteOrgCalendarDetail */
+            DELETE FROM  CALENDAR
+			WHERE
+		<![CDATA[
+				COMCD=#{comcd}
+				AND ORG_NO = #{orgNo}
+				AND CAL_DATE = #{calDate}
+				AND GUBUN = #{gubun}
+				AND DATE_TYPE = #{dateType}
+             ]]>
+
+	</delete>
+
+
+
+	<delete id="deleteOrgCalendarDetailAll">
+		/* com.hisco.admin.code.mapper.CalendarManageMapper.deleteOrgCalendarDetailAll */
+            DELETE FROM  CALENDAR
+			WHERE
+		<![CDATA[
+				COMCD=#{comcd}
+				AND ORG_NO = #{orgNo}
+				AND SUBSTRING(CAL_DATE,1,4) = #{calDate}
+             ]]>
+	</delete>
+
+
+
+	<insert id="copyCalendarDetailAll">
+		/* com.hisco.admin.code.mapper.CalendarManageMapper.copyCalendarDetailAll */
+			INSERT INTO CALENDAR (
+					COMCD
+					, ORG_NO
+					, GUBUN
+					, CAL_DATE
+					, DATE_TYPE
+					, CARDPAY_CLOSEYN
+					, CALENDAR_ETC
+					,REGDATE
+					,REGUSER
+				)
+			SELECT
+		<![CDATA[
+				COMCD
+				,#{target}
+				,'1000'
+				,date_format(CAL_DATE,'%Y%m%d')
+				,DATE_TYPE
+				,CARDPAY_CLOSEYN
+				,CALENDAR_ETC
+				,SYSDATE()
+				,#{reguser}
+		         ]]>
+			FROM COM_CALENDAR C
+			WHERE
+		<![CDATA[
+				COMCD = #{comcd}
+				AND SUBSTRING(CAL_DATE,1,4) = #{yyyy}
+		         ]]>
+
+	</insert>
+</mapper>

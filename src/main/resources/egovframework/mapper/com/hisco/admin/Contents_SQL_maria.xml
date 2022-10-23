@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  Description : 교육프로그램 관리
+
+   수정일                  수정자           수정내용
+  =========     =======    =================================================
+  2021.03.19   	전영석            최초 작성
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hisco.admin.contents.mapper.ContentsMapper">
+
+ 	<!-- [개인 교육 프로그램 정보를 조회한다][2021-03-24][전영석] -->
+	<select id="selectContentList" resultType="com.hisco.admin.contents.vo.ContentsVO">
+		/* com.hisco.admin.contents.mapper.ContentsMapper.selectContentList */
+		SELECT *
+            FROM (SELECT MAIN.*
+			      , ROW_NUMBER() OVER (order by CONTENTS_SEQ DESC) RNUM
+              FROM  (
+						 SELECT
+							  A.CONTENTS_SEQ
+							, A.CNTS_TYPE
+							, A.TITLE
+							, A.FILE_01_ID AS FILE_ID
+							, A.MENU_NO
+							, A.USE_YN
+							, A.REGDATE
+							, A.REGUSER
+							, A.MODDATE
+							, A.MODUSER
+							, M.MENU_NM
+						    , COUNT(*) OVER() AS TOT_CNT
+						 from CONTENTS_MNG A
+						 LEFT OUTER JOIN COMTNMENUINFO M ON A.MENU_NO = M.MENU_NO
+						 <trim prefix="WHERE" suffixOverrides="AND">
+						 	<if test='searchKeyword != null and searchKeyword != ""'>
+						 		TITLE LIKE CONCAT('%',#{searchKeyword}, '%')
+						 	</if>
+						 </trim>
+				) MAIN
+			) MAIN2
+			<![CDATA[
+
+	             WHERE  MAIN2.RNUM  > #{firstIndex}
+	               AND  MAIN2.RNUM <= #{firstIndex} + #{recordCountPerPage}
+
+            ]]>
+	</select>
+
+	<!-- [컨텐츠 관리 상세 정보를 조회한다][2021-03-24][전영석] -->
+	<select id="selectContentsDetail" resultType="com.hisco.admin.contents.vo.ContentsVO">
+		/* com.hisco.admin.contents.mapper.ContentsMapper.selectContentsDetail */
+	   	SELECT A.CONTENTS_SEQ
+				, A.MENU_NO
+				, A.CNTS_TYPE
+				, A.TITLE
+				, A.CNTS
+				, A.FILE_01_ID  AS FILE_ID
+				, A.FILE_01_ID2 AS FILE_ID2
+				, A.USE_YN
+				, A.REGDATE
+				, A.REGUSER
+				, A.MODDATE
+				, A.MODUSER
+				, M.MENU_NM
+				, M.MENU_URL
+			  FROM CONTENTS_MNG A
+			  LEFT OUTER JOIN COMTNMENUINFO M ON A.MENU_NO = M.MENU_NO
+			 <where>
+			 	 <choose>
+					 <when test="menuNo != null and menuNo > 0">
+					   			AND A.MENU_NO = #{menuNo}
+					   </when>
+					   <otherwise>
+					   			AND A.CONTENTS_SEQ = #{contentsSeq}
+					   </otherwise>
+				   </choose>
+			 </where>
+	</select>
+
+	<!-- 컨텐츠를 등록한다 -->
+ 	<insert id="insertContents" useGeneratedKeys="true">
+ 		<selectKey keyProperty="contentsSeq" resultType="Integer" order="BEFORE">
+				SELECT NVL(MAX(CONTENTS_SEQ),0)+1 FROM CONTENTS_MNG AS SUB_ALIAS
+		</selectKey>
+ 		/* com.hisco.admin.contents.mapper.ContentsMapper.insertContents */
+ 		INSERT INTO CONTENTS_MNG (
+					  CONTENTS_SEQ
+					, CNTS_TYPE
+					, TITLE
+					, CNTS
+					, FILE_01_ID
+					, FILE_01_ID2
+					, MENU_NO
+					, USE_YN
+					, REGDATE
+					, REGUSER
+					, MODDATE
+					, MODUSER
+			   ) VALUES (
+					#{contentsSeq}
+					, #{cntsType}
+					, #{title}
+					, #{cnts}
+					, #{fileId}
+					, #{fileId2}
+					, #{menuNo}
+				    , #{useYn}
+			        , SYSDATE()
+			        , #{reguser}
+			        , SYSDATE()
+			        , #{reguser}
+			   )
+
+ 	</insert>
+
+	<!-- 컨텐츠를 삭제한다 -->
+ 	<delete id="deleteContents" >
+ 		/* com.hisco.admin.contents.mapper.ContentsMapper.deleteContents */
+ 		DELETE FROM CONTENTS_MNG WHERE CONTENTS_SEQ = #{contentsSeq}
+ 	</delete>
+
+	<!-- 컨텐츠를 수정한다-->
+ 	<update id="updateContents">
+ 		/* com.hisco.admin.contents.mapper.ContentsMapper.updateContents */
+ 		UPDATE CONTENTS_MNG
+ 		  SET
+			 CNTS_TYPE   = #{cntsType}
+			, TITLE = #{title}
+			, CNTS    = #{cnts}
+			, FILE_01_ID = #{fileId}
+			, FILE_01_ID2 = #{fileId2}
+			, USE_YN     = #{useYn}
+			, MODDATE    = SYSDATE()
+			, MODUSER    = #{moduser}
+ 		 WHERE CONTENTS_SEQ = #{contentsSeq}
+
+ 	</update>
+
+ 	<!-- 컨텐츠를 파일 아이디를 수정한다-->
+ 	<update id="updateContentsFileId2">
+ 		/* com.hisco.admin.contents.mapper.ContentsMapper.updateContentsFileId2 */
+ 		UPDATE CONTENTS_MNG
+ 		SET
+			FILE_01_ID2 = #{fileId2}
+			, MODDATE    = SYSDATE()
+			, MODUSER    = #{moduser}
+ 		 WHERE CONTENTS_SEQ = #{contentsSeq}
+
+ 	</update>
+
+
+ 	<!-- 연결된 메뉴의 URL 을 수정한다-->
+ 	<update id="updateContentsUrl">
+ 		/* com.hisco.admin.contents.mapper.ContentsMapper.updateContentsUrl */
+ 		UPDATE COMTNMENUINFO
+ 		  SET
+			 MENU_URL   = #{menuUrl}
+			, MENU_DC = #{menuDc}
+ 		 WHERE MENU_NO = #{menuNo}
+			AND length(MENU_URL) =0 or MENU_URL is null
+ 	</update>
+
+ 	<select id="selectMenuTitle" resultType="com.hisco.admin.contents.vo.ContentsVO">
+ 		/* com.hisco.admin.contents.mapper.ContentsMapper.selectMenuTitle */
+ 		SELECT
+ 				MENU_NM
+				, MENU_URL
+ 		FROM
+ 			COMTNMENUINFO
+ 		 WHERE MENU_NO = #{menuNo}
+ 	</select>
+
+
+</mapper>
+
+

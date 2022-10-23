@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 운영사업자 정보 관리
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2021.10.26   	진수진          최초 작성
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.admin.orginfo.mapper.ComInfoMapper">
+
+
+ 	<select id="selectComInfoList" parameterType="com.hisco.admin.orginfo.vo.ComInfoVO" resultType="com.hisco.admin.orginfo.vo.ComInfoVO">
+            SELECT
+            	 *
+			FROM
+				COMINFO
+ 	</select>
+
+ 	<select id="selectComInfoDetail" resultType="com.hisco.admin.orginfo.vo.ComInfoVO">
+		SELECT
+            	 A.*
+            	 , B.SMS_USEYN
+				, B.SMS_PROVIDER
+				, B.LMS_SERVICEYN
+				, B.MMS_SERVICEYN
+				, B.SMS_ID
+				, B.SMS_PW
+				, B.MAIL_SERVER
+				, B.PCOMPANY
+				, B.ONLINE_PAYMENTCORP
+				, B.MB_PWDCYCLE
+				, B.MB_PWDCYCLE_VALUE
+			FROM
+				COMINFO A
+				LEFT OUTER JOIN OPT B ON A.COMCD = B.COMCD
+		WHERE
+			A.COMCD = #{comcd}
+ 	</select>
+
+ 	<select id="selectComOptDetail"  resultType="com.hisco.admin.orginfo.vo.ComInfoVO">
+		SELECT
+            	 *
+			FROM
+				OPT
+		WHERE
+			COMCD = #{comcd}
+ 	</select>
+
+
+ 	<insert id="insertComInfo" parameterType="com.hisco.admin.orginfo.vo.ComInfoVO">
+ 		INSERT INTO COMINFO (
+			COMCD
+			, COMNM
+			, TEL1
+			, TEL2
+			, FAX
+			, ADDR
+			, EMAIL
+			, BOSS_NM
+			, BIZ_NO
+			, CHARGER
+			, CHARGER_TEL
+			, SORT_ORDER
+			, REGDATE
+			, REGUSER
+			, MODDATE
+			, MODUSER
+		)
+		VALUES (
+			#{comcd}
+			, #{comnm}
+			, #{tel1}
+			, #{tel2}
+			, #{fax}
+			, #{addr}
+			, #{email}
+			, #{bossNm}
+			, #{bizNo}
+			, #{charger}
+			, #{chargertel}
+			, #{sortOrder}
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{reguser}
+		)
+ 	</insert>
+
+
+ 	<update id="updateComInfo" parameterType="com.hisco.admin.orginfo.vo.ComInfoVO">
+		UPDATE
+			COMINFO
+		SET
+			COMCD = #{comcd}
+			, COMNM = #{comnm}
+			, TEL1 = #{tel1}
+			, TEL2 = #{tel2}
+			, FAX = #{fax}
+			, ADDR = #{addr}
+			, EMAIL = #{email}
+			, BOSS_NM = #{bossNm}
+			, BIZ_NO = #{bizNo}
+			, CHARGER = #{charger}
+			, CHARGER_TEL = #{chargertel}
+			, SORT_ORDER = #{sortOrder}
+			, MODDATE = SYSDATE()
+			, MODUSER = #{moduser}
+		WHERE
+			COMCD = #{comcd} 
+ 	</update>
+
+
+ 	<delete id="deleteComInfo" parameterType="com.hisco.admin.orginfo.vo.ComInfoVO">
+		DELETE
+		FROM
+			COMINFO
+		WHERE
+			COMCD = #{comcd}
+ 	</delete>
+
+	<insert id="insertComOpt" parameterType="com.hisco.admin.orginfo.vo.ComInfoVO">
+			INSERT INTO OPT (
+				COMCD
+				, SMS_USEYN
+				, SMS_PROVIDER
+				, LMS_SERVICEYN
+				, MMS_SERVICEYN
+				, SMS_ID
+				, SMS_PW
+				, MAIL_SERVER
+				, PCOMPANY
+				, Online_PaymentCorp
+				, MB_PWDCYCLE
+				, MB_PWDCYCLE_VALUE
+				, REGDATE
+				, REGUSER
+				, MODDATE
+				, MODUSER
+			)
+			VALUES (
+				#{comcd}
+				, #{smsUseyn}
+				, #{smsProvider}
+				, #{lmsServiceyn}
+				, #{mmsServiceyn}
+				, #{smsId}
+				, #{smsPw}
+				, #{mailServer}
+				, #{pcompany}
+				, #{onlinePaymentcorp}
+				, #{mbPwdcycle}
+				, #{mbPwdcycleValue}
+				, SYSDATE()
+				, #{reguser}
+				, SYSDATE()
+				, #{reguser}
+			)
+	</insert>
+
+	<update id="updateComOpt" parameterType="com.hisco.admin.orginfo.vo.ComInfoVO">
+		UPDATE
+			OPT
+		SET
+			SMS_USEYN = #{smsUseyn}
+			, SMS_PROVIDER = #{smsProvider}
+			, LMS_SERVICEYN = #{lmsServiceyn}
+			, MMS_SERVICEYN = #{mmsServiceyn}
+			, SMS_ID = #{smsId}
+			, SMS_PW = #{smsPw}
+			, MAIL_SERVER = #{mailServer}
+			, PCOMPANY = #{pcompany}
+			, Online_PaymentCorp = #{onlinePaymentcorp}
+			, MB_PWDCYCLE = #{mbPwdcycle}
+			, MB_PWDCYCLE_VALUE = #{mbPwdcycleValue}
+			, MODDATE = SYSDATE()
+			, MODUSER = #{moduser}
+		WHERE
+			COMCD = #{comcd}
+ 	</update>
+
+ 	<delete id="deleteComOpt" parameterType="com.hisco.admin.orginfo.vo.ComInfoVO">
+		DELETE
+		FROM
+			OPT
+		WHERE
+			COMCD = #{comcd}
+ 	</delete>
+
+</mapper>

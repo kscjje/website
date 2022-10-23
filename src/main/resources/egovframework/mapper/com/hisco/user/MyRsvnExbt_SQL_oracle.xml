@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2020.9.14   	진수진     	 	마이페이지 - 관람 예약 정보
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="MyRsvnExbtDAO">
+
+	<select id="selectReserveCountData" resultType="cMap">
+			SELECT
+				NVL(SUM(CASE WHEN EXBT_APPTYPE='11' THEN 1 ELSE 0 END),0) WAITING_CNT,
+				NVL(SUM(CASE WHEN EXBT_APPTYPE='20' THEN 1 ELSE 0 END),0) COMP_CNT,
+				NVL(SUM(CASE WHEN EXBT_APPTYPE='12' OR EXBT_APPTYPE='31' OR EXBT_APPTYPE='32'  THEN 1 ELSE 0 END),0) CANCEL_CNT
+			FROM EXBT_RSVN_MST
+			WHERE
+				COMCD=#{comcd}
+				<choose>
+					<when test="hpcertno !=null and hpcertno !=''">AND EXBT_HPCERTNO=#{hpcertno}</when>
+					<when test="uniqId !=null and uniqId !=''">AND EXBT_RSVN_MEMNO=#{uniqId}</when>
+					<otherwise>AND EXBT_RSVN_MEMNO='-'</otherwise>
+				</choose>
+	</select>
+
+
+	<select id="selectExbtMasterList" resultType="com.hisco.user.exbtrsvn.service.RsvnMasterVO">
+			SELECT
+			(SELECT PART_NM FROM PART_CD WHERE COMCD=M.COMCD AND PART_CD=M.EXBT_PARTCD) AS partNm,
+			M.EXBT_RSVN_IDX AS rsvnIdx,
+			M.COMCD AS comcd,
+			M.EXBT_SEQ AS exbtSeq,
+			M.EXBT_PARTCD AS exbtPartcd ,
+			M.EXBT_APPDATE AS appDate,
+			M.EXBT_RSVN_NO AS rsvnNo,
+			M.EXBT_RSVN_MEMTYPE AS memType ,
+			M.EXBT_RSVN_MEMNO AS memNo,
+			M.EXBT_RSVN_WEBID AS webId ,
+			M.EXBT_RSVN_CUSTNM AS custNm,
+			M.EXBT_PERSN_GBN AS target,
+			M.EXBT_GRPNM AS grpnm,
+			M.EXBT_VIEINGDATE AS ymd,
+			M.EXBT_VISTNMPR AS visitnum,
+			M.EXBT_HPCERTNO AS hpcertno,
+			M.EXBT_APPTYPE AS apptype,
+			(SELECT CD_NM FROM COT_GRPCD GRP WHERE GRP.GRP_CD = 'SM_RSVN_STAT' AND CD = EXBT_APPTYPE) AS EXBT_APPTYPE_NM,
+			M.EXBT_SALEAMT AS saleamt,
+			M.EXBT_PAYAMT AS payamt,
+			M.EXBT_RETYN AS retyn,
+			M.EXBT_TRMNL_TYPE  AS terminalType,
+			M.EXBT_PAYWAIT_ENDDT AS paywaitEnddt,
+			M.EXBT_VISITCUSNM AS visitcustNm,
+			M.EXBT_ONOFFPYNTYPE AS onoffPaytype,
+			M.REGDATE AS regdate,
+			M.REGUSER AS reguser,
+			M.MODDATE AS moddate,
+			<if test="dbEncKey !=null and dbEncKey !=''">
+			CRYPTO.DEcrypt_ARIA( M.EXBT_HP , #{dbEncKey}) AS exbtHp,
+			CRYPTO.DEcrypt_ARIA(M.EXBT_EMAIL , #{dbEncKey}) AS exbtEmail,
+			</if>
+			T.EXBT_STIME AS exbtStime,
+			T.EXBT_ETIME AS exbtEtime,
+			R.EXBT_TYPE AS exbtType,
+			(SELECT B.CD_NM  FROM COT_GRPCD B WHERE B.GRP_CD='SM_EXBT_TYPE' AND B.CD=R.EXBT_TYPE) AS exbtTypeNm,
+			R.EXBT_NAME AS exbtName,
+			R.EXBT_GUIDE_TELNO AS guideTelno,
+			CASE WHEN TO_DATE(M.EXBT_VIEINGDATE || T.EXBT_STIME, 'YYYYMMDDHH24MI') > SYSDATE THEN 'Y' ELSE 'N' END AS editYn
+<if test='mode == "complete"'>
+			,(SELECT COUNT(*)
+				FROM
+					EXBT_TICKET_INFO F, EXBT_TICKET_CHKININFO H
+				WHERE
+					F.EXBT_RSVN_IDX=M.EXBT_RSVN_IDX AND F.EXBT_TICKETSTATS='1000'
+					AND H.COMCD=R.COMCD AND H.EXBT_PARTCD=R.EXBT_PARTCD AND H.EXBT_TICKET_NO=F.EXBT_TICKET_NO
+		) ticketChkCnt
+</if>
+		FROM
+			EXBT_RSVN_MST M
+			, EXBT_RSVN_TIME T
+			, EXBT_BASERULE R
+		WHERE
+			M.COMCD=#{comcd}
+			AND M.EXBT_RSVN_IDX = T.EXBT_RSVN_IDX
+			AND M.COMCD=R.COMCD AND M.EXBT_SEQ = R.EXBT_SEQ
+			<choose>
+				<when test='mode == "waiting"'>
+					AND EXBT_APPTYPE='11'
+					<choose>
+						<when test="hpcertno !=null and hpcertno !=''">AND M.EXBT_HPCERTNO=#{hpcertno}</when>
+						<when test="uniqId !=null and uniqId !=''">AND M.EXBT_RSVN_MEMNO=#{uniqId}</when>
+						<otherwise>AND M.EXBT_RSVN_MEMNO='-'</otherwise>
+					</choose>
+				</when>
+				<when test='mode == "pay"'>
+					AND EXBT_APPTYPE='11'
+					<choose>
+						<when test="hpcertno !=null and hpcertno !=''">AND M.EXBT_HPCERTNO=#{hpcertno}</when>
+						<when test="uniqId !=null and uniqId !=''">AND M.EXBT_RSVN_MEMNO=#{uniqId}</when>
+						<otherwise>AND M.EXBT_RSVN_MEMNO='-'</otherwise>
+					</choose>
+					AND M.EXBT_RSVN_IDX IN
+					<foreach collection="rsvnIdx" item="item"  open="(" close=")" separator=",">
+						#{item}
+					</foreach>
+				</when>
+				<when test='mode == "complete"'>
+					<choose>
+						<when test="hpcertno !=null and hpcertno !=''">AND M.EXBT_HPCERTNO=#{hpcertno}</when>
+						<when test="uniqId !=null and uniqId !=''">AND M.EXBT_RSVN_MEMNO=#{uniqId}</when>
+						<otherwise>AND M.EXBT_RSVN_MEMNO='-'</otherwise>
+					</choose>
+					AND M.EXBT_RSVN_NO IN (SELECT OID_RSVN_NO FROM PG_ORD_DET WHERE COMCD=M.COMCD AND OID=#{orderId})
+					<if test="rsvnIdx != null">
+						AND M.EXBT_RSVN_IDX IN
+						<foreach collection="rsvnIdx" item="item"  open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+				</when>
+				<when test='mode == "save"'>
+					AND M.EXBT_APPTYPE='11'
+					AND M.EXBT_RSVN_NO IN (SELECT OID_RSVN_NO FROM PG_ORD_DET WHERE COMCD=M.COMCD AND OID=#{LGD_OID})
+				</when>
+				<when test="rsvnIdxOne != null and rsvnIdxOne != ''">
+					AND M.EXBT_RSVN_IDX=#{rsvnIdxOne}
+				</when>
+				<otherwise>
+					<choose>
+						<when test="hpcertno !=null and hpcertno !=''">AND M.EXBT_HPCERTNO=#{hpcertno}</when>
+						<when test="uniqId !=null and uniqId !=''">AND M.EXBT_RSVN_MEMNO=#{uniqId}</when>
+						<otherwise>AND M.EXBT_RSVN_MEMNO='-'</otherwise>
+					</choose>
+				</otherwise>
+			</choose>
+		ORDER BY M.EXBT_RSVN_IDX DESC
+	</select>
+
+
+	<update id="updateExbtMasterCancel" >
+		UPDATE EXBT_RSVN_MST
+			SET EXBT_APPTYPE = '12' , MODDATE=SYSDATE, MODUSER=#{reguser}
+		WHERE
+			EXBT_RSVN_IDX = #{rsvnIdxOne}
+			AND COMCD=#{comcd}
+			<choose>
+				<when test="hpcertno !=null and hpcertno !=''">AND EXBT_HPCERTNO=#{hpcertno}</when>
+				<when test="uniqId !=null and uniqId !=''">AND EXBT_RSVN_MEMNO=#{uniqId}</when>
+				<otherwise>AND EXBT_RSVN_MEMNO='-'</otherwise>
+			</choose>
+			AND EXBT_APPTYPE IN ('11','20')
+	</update>
+
+	<update id="updateExbtCouponCancel">
+ 		UPDATE CPN_PYMNT_INFO SET CPN_USEYN='N'
+ 		WHERE
+			CPN_UID IN  (SELECT EXBT_DCCPNNO FROM EXBT_RSVN_ITEM T, EXBT_RSVN_MST M
+			WHERE T.EXBT_RSVN_IDX =#{rsvnIdxOne}
+ 			AND M.COMCD=#{comcd}
+ 			AND M.EXBT_RSVN_IDX = T.EXBT_RSVN_IDX
+ 			<choose>
+				<when test="hpcertno !=null and hpcertno !=''">AND M.EXBT_HPCERTNO=#{hpcertno}</when>
+				<when test="uniqId !=null and uniqId !=''">AND M.EXBT_RSVN_MEMNO=#{uniqId}</when>
+				<otherwise>AND M.EXBT_RSVN_MEMNO='-'</otherwise>
+			</choose>
+			AND M.EXBT_APPTYPE IN ('11','20'))
+ 	</update>
+
+
+	<select id="selectExbtMasterPagingList" resultType="com.hisco.user.exbtrsvn.service.RsvnMasterVO">
+		<![CDATA[
+		SELECT /* MyRsvnExbtDAO.selectExbtMasterList */
+		  	T2.REGDATE AS regdate,
+		  	T2.MODDATE AS moddate,
+		  	NVL(T2.PAYREGDATE,T2.REGDATE) AS payregdate,
+			T2.OID AS oid,
+			T2.EXBT_RSVN_NO AS rsvnNo,
+			T2.EXBT_SEQ AS exbtSeq,
+		 	T2.EXBT_PARTCD AS exbtPartcd,
+		 	T2.EXBT_APPDATE AS appDate,
+		 	T2.EXBT_RSVN_MEMTYPE AS memType,
+		 	T2.EXBT_PERSN_GBN AS target,
+		 	T2.EXBT_GRPNM AS grpnm,
+		 	T2.EXBT_VIEINGDATE AS ymd,
+		 	T2.EXBT_VISTNMPR AS visitnum,
+		 	T2.EXBT_APPTYPE AS apptype,
+		 	(SELECT CD_NM FROM COT_GRPCD GRP WHERE GRP.GRP_CD = 'SM_RSVN_STAT' AND CD = T2.EXBT_APPTYPE) AS exbtApptypeNm,
+		 	T2.EXBT_SALEAMT AS saleamt,
+		 	T2.EXBT_PAYAMT AS payamt,
+		 	T2.EXBT_RETYN AS retyn,
+			T2.EXBT_RSVN_IDX AS rsvnIdx,
+			T.EXBT_STIME AS exbtStime,
+			T.EXBT_ETIME AS exbtEtime,
+			R.EXBT_TYPE AS exbtType,
+			R.EXBT_TICKET_CHKYN AS ticketChkyn,
+			(SELECT B.CD_NM  FROM COT_GRPCD B WHERE B.GRP_CD='SM_EXBT_TYPE' AND B.CD=R.EXBT_TYPE) AS exbtTypeNm,
+			(SELECT PART_NM FROM PART_CD WHERE COMCD=T2.COMCD AND PART_CD=T2.EXBT_PARTCD) AS partNm,
+			(SELECT
+				COUNT(*)
+				FROM REFUN_STDMNG
+				WHERE COMCD=T2.COMCD AND PART_CD=T2.EXBT_PARTCD AND RFND_NOFDAY <=  DIFF  AND
+					( DIFF > RFND_NOFDAY
+						 OR (DIFF=0 AND  T.EXBT_STIME> TO_CHAR(SYSDATE,'HH24MI') )
+						 OR (DIFF=RFND_NOFDAY AND NVL(RFND_ETIME,'2400') > TO_CHAR(SYSDATE,'HH24MI'))
+					)
+			) AS rfndSeq,
+			(CASE WHEN
+				(SELECT COUNT(*) FROM REFUN_STDMNG WHERE  COMCD=T2.COMCD AND PART_CD=T2.EXBT_PARTCD)=0 AND
+				(DIFF >0 OR (DIFF=0 AND T.EXBT_STIME> TO_CHAR(SYSDATE,'HH24MI'))) THEN 'Y' ELSE 'N' END) AS cancelAbleYn,
+			CASE WHEN TO_DATE(T2.EXBT_VIEINGDATE || T.EXBT_STIME, 'YYYYMMDDHH24MI') > SYSDATE THEN 'Y' ELSE 'N' END AS editYn,
+			R.EXBT_NAME AS exbtName,
+			TOT_COUNT AS totCount]]>
+		FROM (
+			SELECT
+			  	ROW_NUMBER()OVER(ORDER BY NVL(PAYREGDATE,REGDATE) DESC) RNUM,
+			  	COUNT(*) OVER() TOT_COUNT,
+			 	REGDATE,
+			 	NVL(MODDATE,REGDATE) MODDATE,
+			 	PAYREGDATE,
+			 	OID,
+			 	COMCD,
+			 	EXBT_RSVN_NO,
+			 	EXBT_SEQ,
+			 	EXBT_PARTCD,
+			 	EXBT_APPDATE,
+			 	EXBT_RSVN_MEMTYPE,
+			 	EXBT_PERSN_GBN,
+			 	EXBT_GRPNM,
+			 	EXBT_VIEINGDATE,
+			 	EXBT_VISTNMPR,
+			 	EXBT_APPTYPE,
+			 	EXBT_SALEAMT,
+			 	EXBT_PAYAMT,
+			 	EXBT_RETYN,
+			 	EXBT_RSVN_IDX,
+			 	TO_DATE(EXBT_VIEINGDATE , 'YYYYMMDD') - TO_DATE( TO_CHAR(SYSDATE,'YYYYMMDD') , 'YYYYMMDD')  DIFF
+			FROM (
+				SELECT
+					MAX(M.REGDATE) REGDATE ,
+					MAX(M.MODDATE) MODDATE ,
+					MAX(S.REGDATE) PAYREGDATE ,
+					MAX(S.OID)  OID ,
+				    MAX(M.EXBT_RSVN_NO)  EXBT_RSVN_NO,
+				    MAX(M.EXBT_SEQ) EXBT_SEQ,
+					MAX(M.EXBT_PARTCD ) EXBT_PARTCD,
+					MAX(M.EXBT_APPDATE) EXBT_APPDATE,
+					MAX(M.EXBT_RSVN_MEMTYPE) EXBT_RSVN_MEMTYPE,
+					MAX(M.EXBT_PERSN_GBN) EXBT_PERSN_GBN,
+					MAX(M.EXBT_GRPNM) EXBT_GRPNM,
+					MAX(M.EXBT_VIEINGDATE) EXBT_VIEINGDATE,
+					MAX(M.EXBT_VISTNMPR ) EXBT_VISTNMPR,
+					MAX(M.EXBT_APPTYPE ) EXBT_APPTYPE,
+					MAX(M.EXBT_SALEAMT) EXBT_SALEAMT,
+					MAX(M.EXBT_PAYAMT) EXBT_PAYAMT,
+					MAX(M.EXBT_RETYN ) EXBT_RETYN,
+					MAX(M.COMCD) COMCD,
+				    M.EXBT_RSVN_IDX
+				FROM
+					EXBT_RSVN_MST M , EXBT_RSVN_ITEM R
+						LEFT OUTER JOIN  SELNG_INFO S ON R.SELNG_ID = S.SELNG_ID AND S.COMCD=#{comcd}
+				WHERE
+					M.COMCD=#{comcd}
+					 AND M.EXBT_RSVN_IDX=R.EXBT_RSVN_IDX
+					 <choose>
+						<when test='appStatus !=null and appStatus =="20"'>AND M.EXBT_APPTYPE = '20'</when>
+						<otherwise>AND (M.EXBT_APPTYPE LIKE '3%' OR M.EXBT_APPTYPE='12')</otherwise>
+					</choose>
+					<choose>
+						<when test="hpcertno !=null and hpcertno !=''">AND M.EXBT_HPCERTNO=#{hpcertno}</when>
+						<when test="uniqId !=null and uniqId !=''">AND M.EXBT_RSVN_MEMNO=#{uniqId}</when>
+						<otherwise>AND M.EXBT_RSVN_MEMNO='-'</otherwise>
+					</choose>
+				GROUP BY
+					M.EXBT_RSVN_IDX
+			) T1
+		) T2 , EXBT_RSVN_TIME T
+			, EXBT_BASERULE R
+		WHERE
+			 T2.EXBT_RSVN_IDX = T.EXBT_RSVN_IDX
+			AND T2.COMCD=R.COMCD AND T2.EXBT_SEQ = R.EXBT_SEQ
+			AND T2.RNUM BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+			ORDER BY RNUM
+	</select>
+
+
+	<select id="selectExbtCancelInfo" resultType="cMap">
+		SELECT
+			SUM(CASE WHEN EXBT_RSVN_IDX IN <foreach collection="rsvnIdx" item="item"  open="(" close=")" separator=",">#{item}</foreach> THEN M.EXBT_PAYAMT ELSE 0 END) AS PAY_AMT,
+			COUNT(*) TOT_CNT,
+			SUM(CASE WHEN EXBT_APPTYPE LIKE '3%' OR EXBT_RSVN_IDX IN <foreach collection="rsvnIdx" item="item"  open="(" close=")" separator=",">#{item}</foreach> THEN 1 ELSE 0 END) AS CANCEL_CNT,
+			(SELECT CARD_RATE
+				FROM
+					PAY_COM_RATE R
+				WHERE
+					R.P_COMCD=#{pComcd} AND R.P_TYPE=#{pType} AND R.METHOD_CD=#{cardCd}
+			) AS CARD_RATE
+		FROM
+			EXBT_RSVN_MST M
+		WHERE
+			M.COMCD=#{comcd}
+			AND M.EXBT_ONOFFINTYPE='10'
+			<choose>
+				<when test="hpcertno !=null and hpcertno !=''">AND M.EXBT_HPCERTNO=#{hpcertno}</when>
+				<when test="uniqId !=null and uniqId !=''">AND M.EXBT_RSVN_MEMNO=#{uniqId}</when>
+				<otherwise>AND M.EXBT_RSVN_MEMNO='-'</otherwise>
+			</choose>
+			AND M.EXBT_RSVN_NO IN (SELECT OID_RSVN_NO FROM PG_ORD_DET WHERE COMCD=M.COMCD AND OID=#{orderId})
+	</select>
+
+
+	<select id="selectExbtDetailData" resultType="com.hisco.user.exbtrsvn.service.RsvnMasterVO">
+			SELECT
+				M.EXBT_APPTYPE AS apptype,
+				M.EXBT_SALEAMT AS saleamt,
+				M.EXBT_PAYAMT AS payamt,
+				M.EXBT_RSVN_IDX AS rsvnIdx,
+				M.EXBT_PARTCD AS exbtPartcd,
+				M.EXBT_RSVN_NO AS rsvnNo,
+				M.REGDATE,
+				(SELECT MAX(OID) FROM PG_ORD_DET WHERE OID_RSVN_NO=M.EXBT_RSVN_NO) AS oid
+			FROM
+				EXBT_RSVN_MST M
+			WHERE
+				M.COMCD=#{comcd}
+				AND M.EXBT_RSVN_IDX = #{rsvnIdxOne}
+	</select>
+
+
+</mapper>

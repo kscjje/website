@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 공통 코드 조회
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2020.08.20   	진수진          최초 작성
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.cmm.mapper.CodeMapper">
+
+	<resultMap id="codeDetail" type="com.hisco.cmm.vo.CodeVO">
+		<result property="grpCd" column="GRP_CD"/>
+		<result property="cd" column="CD"/>
+		<result property="cdNm" column="CD_NM"/>
+		<result property="sortOrder" column="SORT_ORDER"/>
+		<result property="remark" column="REMARK"/>
+		<result property="item1" column="ITEM1"/>
+		<result property="item2" column="ITEM2"/>
+		<result property="item3" column="ITEM3"/>
+		<result property="item4" column="ITEM4"/>
+		<result property="sortOrder" column="SORT_ORDER"/>
+	</resultMap>
+
+
+ 	<select id="selectCodeList" resultMap="codeDetail">
+			SELECT
+				*
+			FROM
+				COT_GRPCD
+			WHERE
+				COMCD = #{comcd}
+			AND
+				GRP_CD = #{grpCd}
+			AND
+				USE_YN = 'Y'
+			ORDER BY SORT_ORDER , CD
+ 	</select>
+
+
+ 	<select id="selectCodeDetail"  resultMap="codeDetail">
+			SELECT
+				*
+			FROM
+				COT_GRPCD
+			WHERE
+				COMCD = #{comcd}
+			AND
+				GRP_CD = #{grpCd}
+			AND
+				CD = #{cd}
+ 	</select>
+
+
+	<!-- [Next 시퀀스를 가져온다 .][2021-03-27][전영석] -->
+	<select id="selectNextSeq" resultType="Integer">
+		/* com.hisco.cmm.service.mapper.CodeMapper.selectNextSeq */
+		SELECT  NVL(MAX(NEXT_ID), 0) + 1 AS NEXT_ID FROM COMTECOPSEQ WHERE table_name = #{tableName}
+	</select>
+
+	<!-- [시퀀스 update ][2021-03-27][전영석] -->
+	<update id="updateNextSeq" >
+		/* com.hisco.cmm.service.mapper.CodeMapper.updateNextSeq */
+		UPDATE COMTECOPSEQ SET NEXT_ID = #{nextId} WHERE table_name =#{tableName}
+	</update>
+
+	<!-- [시퀀스 update ][2021-03-27][전영석] -->
+	<insert id="insertNextSeq" >
+		/* com.hisco.cmm.service.mapper.CodeMapper.insertNextSeq */
+		INSERT INTO COMTECOPSEQ (NEXT_ID, TABLE_NAME) VALUES( #{nextId} , #{tableName})
+	</insert>
+
+</mapper>

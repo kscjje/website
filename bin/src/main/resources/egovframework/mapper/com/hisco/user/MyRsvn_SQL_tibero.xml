@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2020.9.14   	진수진     	 	마이페이지 예약 정보
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="MyRsvnDAO">
+
+	<select id="selectPartSystem" resultType="com.hisco.user.mypage.service.MyRsvnVO">
+           SELECT
+                  	P.WEBPAYMENTID as paymentId,
+                  	P.WEBPAYMENTPW paymentPw
+             FROM Partcd_SystemPref P
+             WHERE
+             	COMCD=#{comcd} AND PART_CD=#{partCd}
+ 	</select>
+
+
+ 	<select id="selectCardAppHistData" resultType="cMap">
+           SELECT
+           	T.*,
+           	(SELECT COUNT(*) FROM PG_ORD_DET A WHERE A.COMCD=T.COMCD AND A.OID=T.OID AND OID_PCANCEL_NO=T.PCANCEL_NO) PCANCEL_CNT,
+            L.APP_DATE AS CANCEL_DATE,
+           	NVL(L.APP_NO , T.APP_NO) CANCEL_APPNO,
+            (SELECT NVL(SUM(A.APP_AMT),0)*(-1) FROM CARD_APP_HIST A WHERE A.COMCD=T.COMCD AND A.OID=T.OID AND PARTIAL_CNLYN='Y' AND NVL(T.PCANCEL_NO,T.PCANCEL_NO_MAX)  > A.PCANCEL_NO)  AS CANCEL_AMT2
+           FROM (
+           	SELECT
+                        APP_DATE
+                       , APP_NO
+                       , MEM_NO
+                       , COMCD
+                       , APP_GBN
+                       , CNL_DATE
+                       , CARD_NO1
+                       , CARD_NO2
+                       , CARD_NO3
+                       , CARD_NO4
+                       , P_COMCD
+                       , P_TYPE
+                       , CARD_SEC
+                       , BANK_CD
+                       , CARD_CD
+                       , HALBU_CNT
+                       , APP_AMT
+                       , CASH_USER_INFO
+                       , CASH_APP_GBN
+                       , Card_Sale_No
+                       , STORE_NO
+                       , PAY_LIST_YN
+                       , FORCE_YN
+                       , PG_VAN
+                       , KEYIN_TYPE
+                       , IN_DATE
+                       , CHECK_GBN
+                       , CARDANDBANK_RATE_AMT
+                       , CARDANDBANK_RATE
+                       , REMARK
+                       , MID
+                       , OID
+                       , TID
+                       , REGDATE
+                       , MODDATE
+                       , (SELECT LPAD(NVL(MAX(TO_NUMBER(OID_PCANCEL_NO)) ,0) + 1 , 3 , '0')  FROM PG_ORD_DET A WHERE A.COMCD=H.COMCD AND A.OID=#{orderId}) AS PCANCEL_NO_MAX
+<choose>
+	<when test="rsvnNoList != null">
+	                       , (SELECT MAX(OID_PCANCEL_NO) FROM PG_ORD_DET A WHERE  A.COMCD=H.COMCD AND A.OID=#{orderId} AND OID_RSVN_NO IN
+	                       		<foreach collection="rsvnNoList" item="item"  open="(" close=")" separator=",">#{item}</foreach>
+	                        ) AS PCANCEL_NO
+	</when>
+	<when test="oidSeq != null and oidSeq !='' ">
+	                       , (SELECT OID_PCANCEL_NO FROM PG_ORD_DET A WHERE  A.COMCD=H.COMCD AND A.OID=#{orderId} AND OID_SEQ=#{oidSeq}) AS PCANCEL_NO
+	</when>
+	<otherwise>
+					, '' AS PCANCEL_NO
+	</otherwise>
+</choose>
+
+ <choose>
+ 	<when test='gubun == "EXBT"'>
+ 						,(SELECT NVL(SUM(D.RETURN_AMT),0) FROM PG_ORD_DET A ,EXBT_RSVN_MST B , EXBT_RSVN_ITEM C,  CANCEL D
+ 								WHERE A.OID=#{orderId} AND A.COMCD=B.COMCD AND A.OID_RSVN_NO=B.EXBT_RSVN_NO  AND B.EXBT_RSVN_IDX=C.EXBT_RSVN_IDX AND C.SELNG_ID=D.SALE_SEQ
+ 						) CANCEL_AMT
+ 						,(SELECT NVL(SUM(D.BREAK_AMT),0) FROM PG_ORD_DET A ,EXBT_RSVN_MST B , EXBT_RSVN_ITEM C,  CANCEL D
+ 								WHERE A.OID=#{orderId} AND A.COMCD=B.COMCD AND A.OID_RSVN_NO=B.EXBT_RSVN_NO  AND B.EXBT_RSVN_IDX=C.EXBT_RSVN_IDX AND C.SELNG_ID=D.SALE_SEQ
+ 						) BREAK_AMT
+  	</when>
+  	<when test='gubun == "EVT"'>
+ 						,(SELECT NVL(SUM(D.RETURN_AMT),0) FROM PG_ORD_DET A ,EVT_RSVN_MST B , EVT_RSVN_ITEM C,  CANCEL D
+ 								WHERE A.OID=#{orderId} AND A.COMCD=B.COMCD AND A.OID_RSVN_NO=B.EVT_RSVNNO  AND B.EVT_RSVN_IDX=C.EVT_RSVN_IDX AND C.SELNG_ID=D.SALE_SEQ
+ 						) CANCEL_AMT
+ 						,(SELECT NVL(SUM(D.BREAK_AMT),0) FROM PG_ORD_DET A ,EVT_RSVN_MST B , EVT_RSVN_ITEM C,  CANCEL D
+ 								WHERE A.OID=#{orderId} AND A.COMCD=B.COMCD AND A.OID_RSVN_NO=B.EVT_RSVNNO  AND B.EVT_RSVN_IDX=C.EVT_RSVN_IDX AND C.SELNG_ID=D.SALE_SEQ
+ 						) BREAK_AMT
+  	</when>
+  	<when test='gubun == "EDC"'>
+ 						,(SELECT NVL(SUM(D.RETURN_AMT),0) FROM PG_ORD_DET A ,EDC_RSVN_INFO B ,   CANCEL D
+ 								WHERE A.OID=#{orderId} AND A.COMCD=B.COMCD AND A.OID_RSVN_NO=B.EDC_RSVN_NO  AND B.RET_SELNG_ID=D.SALE_SEQ
+ 						) CANCEL_AMT
+ 						,(SELECT NVL(SUM(D.BREAK_AMT),0) FROM PG_ORD_DET A ,EDC_RSVN_INFO B , CANCEL D
+ 								WHERE A.OID=#{orderId} AND A.COMCD=B.COMCD AND A.OID_RSVN_NO=B.EDC_RSVN_NO  AND B.RET_SELNG_ID=D.SALE_SEQ
+ 						) BREAK_AMT
+  	</when>
+ </choose>
+                       , (SELECT COUNT(UNIQUE OID_RSVN_NO) FROM PG_ORD_DET WHERE COMCD=#{comcd} AND OID=#{orderId}) DET_CNT
+                       , (SELECT METHOD_NM FROM PAY_METHOD WHERE  P_COMCD=H.P_COMCD  AND P_TYPE=H.P_TYPE AND METHOD_CD=DECODE(H.P_TYPE,'CARD',H.CARD_CD,H.BANK_CD)) METHOD_NM
+             FROM CARD_APP_HIST H
+             WHERE
+             	OID=#{orderId} AND NVL(PAY_LIST_YN,'Y')='Y' AND NVL(PARTIAL_CNLYN,'N')='N'
+             ) T
+              LEFT OUTER  JOIN  CARD_APP_HIST L ON  L.COMCD=T.COMCD AND L.OID=T.OID AND L.PARTIAL_CNLYN='Y' AND L.PCANCEL_NO=T.PCANCEL_NO
+ 	</select>
+
+
+ 	<!-- 오늘 이후 교육 일정 확인 -->
+ 	<select id="selectEdcReserveCnt" resultType="Integer">
+           SELECT
+                  	COUNT(*)
+             FROM EDC_RSVN_INFO
+             WHERE COMCD=#{comcd}
+             	AND EDC_MEM_NO=#{uniqId}
+             	AND EDC_REQ_EDATE>= TO_CHAR(SYSDATE,'YYYYMMDD')
+             	AND EDC_STAT IN ('11','20')
+ 	</select>
+
+
+ 	<!-- 환불 정책 확인 -->
+ 	<select id="selectRefundRuleData" resultType="cMap">
+ 	<![CDATA[
+ 		SELECT
+			*
+		FROM (
+			SELECT
+				M.*,
+				(CASE WHEN
+					(SELECT COUNT(*) FROM REFUN_STDMNG WHERE  COMCD=M.COMCD AND PART_CD=M.PART_CD)=0 AND
+					(DIFF >0 OR (DIFF=0 AND M.STIME> TO_CHAR(SYSDATE,'HH24MI'))) THEN 'Y' ELSE 'N' END) AS CANCEL_ABLE_YN	,
+					CASE WHEN RFND_NOFDAY<= DIFF
+									AND
+									( DIFF > RFND_NOFDAY
+										 OR (DIFF=0 AND STIME > TO_CHAR(SYSDATE,'HH24MI') )
+										 OR (DIFF=RFND_NOFDAY AND NVL(RFND_ETIME,'2400') > TO_CHAR(SYSDATE,'HH24MI'))
+									) THEN 'Y' ELSE 'N' END VALID_YN,
+				R.RFND_SEQ,
+				R.RFND_NOFDAY,
+				R.RFND_RATE,
+			    R.RFND_ETIME
+	]]>
+			FROM (
+<choose>
+	<when test='gubun == "EXBT"'>
+				SELECT
+						M.EXBT_VIEINGDATE YMD ,
+						M.COMCD,
+						M.EXBT_PARTCD AS PART_CD,
+						T.EXBT_STIME STIME,
+						M.EXBT_PAYAMT TOT_AMT,
+						TO_DATE(EXBT_VIEINGDATE , 'YYYYMMDD') - TO_DATE( TO_CHAR(SYSDATE,'YYYYMMDD') , 'YYYYMMDD')  DIFF
+					FROM EXBT_RSVN_MST M, EXBT_RSVN_TIME T
+					WHERE
+						M.EXBT_RSVN_IDX = #{rsvnIdxOne}
+						AND M.EXBT_RSVN_IDX = T.EXBT_RSVN_IDX
+	</when>
+	<when test='gubun == "EVT"'>
+				SELECT
+					M.EVT_VEINGDATE YMD ,
+					M.COMCD,
+					M.EVT_PARTCD AS PART_CD,
+					T.EVT_STIME STIME,
+					M.EVT_RSVN_PAYAMT TOT_AMT,
+					TO_DATE(EVT_VEINGDATE , 'YYYYMMDD') - TO_DATE( TO_CHAR(SYSDATE,'YYYYMMDD') , 'YYYYMMDD')  DIFF
+				FROM EVT_RSVN_MST M, EVT_RSVN_TIME T
+				WHERE
+					M.EVT_RSVN_IDX = #{rsvnIdxOne}
+					AND M.EVT_RSVN_IDX = T.EVT_RSVN_IDX
+	</when>
+	<when test='gubun == "EDC"'>
+				SELECT
+					M.EDC_REQ_SDATE YMD ,
+					M.COMCD,
+					P.EDC_PART_CD AS PART_CD,
+					M.EDC_REQ_STIME STIME,
+					M.EDC_TOTAMT TOT_AMT,
+					TO_DATE(EDC_REQ_SDATE , 'YYYYMMDD') - TO_DATE( TO_CHAR(SYSDATE,'YYYYMMDD') , 'YYYYMMDD')  DIFF
+				FROM EDC_RSVN_INFO M ,EDC_PROGRAM P
+				WHERE
+					M.COMCD=#{comcd} AND M.EDC_RSVN_REQID=#{rsvnIdxOne} AND M.COMCD=P.COMCD AND M.EDC_PRGMID = P.EDC_PRGMID
+	</when>
+</choose>
+			) M LEFT OUTER JOIN
+							REFUN_STDMNG R ON M.COMCD=R.COMCD AND M.PART_CD=R.PART_CD
+			ORDER BY VALID_YN DESC, DECODE(VALID_YN,'Y' , 1000-RFND_NOFDAY , RFND_NOFDAY)
+	) WHERE ROWNUM=1
+ 	</select>
+
+ 	<!-- 취소 내역 -->
+	<insert id="insertCancelTemp" parameterType="Map">
+		INSERT INTO /* MyRsvnDAO.insertCancelTemp */
+		CANCEL_TEMP
+		(CANCEL_LOGSEQ,COMCD,SALE_SEQ,RET_REGDATE,MEM_NO,CANCEL_CD,CANCEL_DATE,RETURN_AMT,VAT_AMT,BREAK_AMT,USE_AMT,RATE_AMT,REMARK,UPDOWN_AMT_UNIT,UPDOWN_AMT_GBN,REGDATE,REGUSER,MODDATE,MODUSER)
+		VALUES
+		(SEQ_CANCELLOG.NEXTVAL,#{comcd},#{saleSeq},TO_CHAR(SYSDATE,'YYYYMMDD'),#{memNo},#{cancelCd},TO_CHAR(SYSDATE,'YYYYMMDD')
+		,#{returnAmt},#{vatAmt},#{breakAmt},#{useAmt},NVL(#{rateAmt},0),#{remark},#{updownAmtUnit},#{updownAmtGbn},SYSDATE,#{reguser},SYSDATE,#{reguser})
+	</insert>
+
+	<delete id="deleteCancelTemp" parameterType="Map">
+		DELETE FROM /* MyRsvnDAO.deleteCancelTemp */
+		CANCEL_TEMP
+		WHERE COMCD=#{comcd} AND SALE_SEQ=#{saleSeq}
+	</delete>
+
+</mapper>

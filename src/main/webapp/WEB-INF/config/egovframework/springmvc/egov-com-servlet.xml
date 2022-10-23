@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd
+		http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.0.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.0.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-4.0.xsd">
+	
+<!-- 	<mvc:resources location="/webadm/resources/" mapping="#{dynamicConfig.adminRoot}/resources/**"  /> -->
+	<mvc:resources location="/webadm/resources/" mapping="#{dynamicConfig.adminRoot}/resources/**"  />
+	<mvc:resources location="/webadm/resources/" mapping="#{dynamicConfig.managerRoot}/resources/**"  />
+	<mvc:resources location="/web/resources/" 	 mapping="/web/resources/**"/>
+	<mvc:resources location="/nowhere/" 	 mapping="/*/resources/**"/>
+	
+	<context:component-scan base-package="egovframework,com.hisco">
+		<context:include-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+		<context:exclude-filter type="annotation" expression="org.springframework.stereotype.Service"/>
+		<context:exclude-filter type="annotation" expression="org.springframework.stereotype.Repository"/>
+	</context:component-scan>
+
+	<!-- For Pagination Tag -->
+	<bean id="imageRenderer" class="egovframework.com.cmm.ImagePaginationRenderer"/>
+
+	<bean id="paginationManager" class="egovframework.rte.ptl.mvc.tags.ui.pagination.DefaultPaginationManager">
+		<property name="rendererType">
+			<map>
+				<entry key="image" value-ref="imageRenderer"/>
+			</map>
+		</property>
+	</bean>
+
+	<bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter">
+		<property name="webBindingInitializer">
+			<bean class="egovframework.com.cmm.web.EgovBindingInitializer"/>
+		</property>
+		<property name="customArgumentResolvers">
+			<list>
+				<bean class="com.hisco.cmm.resolver.CommandMapArgumentResolver" />
+			</list>
+		</property>
+        <property name="messageConverters">
+            <list>
+                <bean class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter"/>
+            </list>
+        </property>
+	</bean>
+
+	<!-- setting Locale Locale Interceptor 설정하기  -->
+	<bean id="localeChangeInterceptor" class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor" p:paramName="lang" />
+
+	<bean id="localeResolver" class="org.springframework.web.servlet.i18n.SessionLocaleResolver" />
+
+	<bean id="egovWebLogInterceptor" class="egovframework.com.sym.log.wlg.web.EgovWebLogInterceptor" />
+
+	<bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping">
+		<property name="interceptors">
+			<list>
+				<ref bean="localeChangeInterceptor"/>
+				<ref bean="egovWebLogInterceptor"/>
+			</list>
+		</property>
+	</bean>
+
+	<!-- <bean class="org.springframework.web.servlet.view.BeanNameViewResolver" p:order="2"/>
+
+	<bean class="org.springframework.web.servlet.view.UrlBasedViewResolver" p:order="3"
+			p:viewClass="org.springframework.web.servlet.view.JstlView"
+			p:prefix="/WEB-INF/jsp/" p:suffix=".jsp"/> -->
+
+	<bean id="jsonView" class="org.springframework.web.servlet.view.json.MappingJackson2JsonView">
+		<property name="contentType" value="text/html;charset=UTF-8"/>
+	</bean>
+	
+	<!-- set view resolver -->
+    <bean class="org.springframework.web.servlet.view.ContentNegotiatingViewResolver">
+        <property name="contentNegotiationManager" ref="cnManager" />
+        <property name="viewResolvers">
+        	<list>
+				<bean class="org.springframework.web.servlet.view.BeanNameViewResolver"/>
+				<bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+					<property name="prefix" value="/WEB-INF/jsp/"/>
+					<property name="suffix" value=".jsp"/>
+				</bean>
+                <bean id="jsonViewResolver" class="com.hisco.cmm.resolver.JSONViewResolver"/>
+        	</list>
+        </property>
+    </bean>
+    
+    <bean id="cnManager" class="org.springframework.web.accept.ContentNegotiationManagerFactoryBean">
+        <property name="ignoreAcceptHeader" value="true" />
+        <property name="defaultContentType" value="text/html" />
+        <property name="mediaTypes">  
+            <map>
+                <entry key="html" value="text/html" />
+                <entry key="json" value="application/json" />
+            </map>
+        </property>
+	</bean>
+
+	<mvc:interceptors>
+		<mvc:interceptor>
+			<mvc:mapping path="/*"/>
+			<mvc:exclude-mapping path="/*/resources/**" />
+			<mvc:exclude-mapping path="/*/validator" />
+			<bean class="org.springframework.mobile.device.DeviceResolverHandlerInterceptor"/>
+		</mvc:interceptor>
+	</mvc:interceptors>
+
+	<!-- Facebook 설정 -->
+	<mvc:default-servlet-handler />
+
+	<!--Controller 에 대한 AOP 는 여기서 설정한다  -->
+	<bean id="adminLogAop" class="com.hisco.cmm.aspect.AdminLogAop" />
+	<bean id="requestParamsLoggingAop" class="com.hisco.cmm.aspect.RequestParamsLoggingAop" />
+
+	<aop:config>
+	    <aop:aspect ref="adminLogAop">
+	        <aop:pointcut id="hisco.serviceMethod" expression="execution(* com.hisco.admin..*Controller.*(..)) and @annotation(infoAnnotation)"/>
+	        <aop:around pointcut-ref="hisco.serviceMethod" arg-names="infoAnnotation" method="loggerAop"/>
+	    </aop:aspect>	
+	    <aop:aspect ref="requestParamsLoggingAop">
+	        <aop:pointcut id="hisco.controller" expression="execution(* com.hisco..*Controller.*(..))" />	        
+	        <aop:around pointcut-ref="hisco.controller" method="loggingParams"/>	        
+	    </aop:aspect>	    
+	</aop:config>
+</beans>

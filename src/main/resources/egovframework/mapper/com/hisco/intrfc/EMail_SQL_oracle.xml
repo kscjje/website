@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	수정일         수정자     수정내용
+    =========      =======    =================================================
+    2020.09.08     전영석     E-Mail Tibero Mapper 
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="EMailDAO">
+
+	<resultMap id="egovMapIfOnly" type="egovframework.rte.psl.dataaccess.util.EgovMap"></resultMap>
+
+ 	<select id="selectSeokLogMyBatis" parameterType="Map" resultType="cMap">
+
+		SELECT /* EMailDAO.selectSeokLogMyBatis */ 
+	           LOG_CODE
+	         , LOG_MSG     
+		 FROM SEOK_LOG_MSG A   
+ 
+ 	</select>
+ 	
+ 	<insert id="insertSeokLogMyBatis1" parameterType="Map">
+
+		INSERT INTO /* EMailDAO.insertSeokLogMyBatis1 */
+		            SEOK_LOG_MSG (
+		                         	LOG_CODE
+		                          , LOG_MSG 
+		                          , LOG_DATETIME
+		                         ) VALUES (
+		                          (SELECT NVL(MAX(LOG_CODE), 1) + 1 FROM SEOK_LOG_MSG) 
+		                          , #{LOG_MSG}  
+		                          , SYSDATE 
+		                         ) 
+ 	</insert> 	
+ 	
+ 	<insert id="insertSeokLogMyBatis2" parameterType="Map">
+
+		INSERT INTO /* EMailDAO.insertSeokLogMyBatis2 */
+		            SEOK_LOG_MSG (
+		                         	LOG_CODE1
+		                          , LOG_MSG
+		                          , LOG_DATETIME 
+		                         ) VALUES (
+		                          (SELECT NVL(MAX(LOG_CODE), 1) + 1 FROM SEOK_LOG_MSG) 
+		                          , #{LOG_MSG}  
+		                          , SYSDATE 
+		                         ) 
+ 	</insert> 	
+ 	
+ 	<select id="selectCallReferProc" parameterType="Map" statementType="CALLABLE">
+    	{ call SP_SEOK_LOG_SELECT (#{RETURN_CD, mode=OUT, jdbcType=VARCHAR, javaType=String}, #{RETURN_MSG, mode=OUT, jdbcType=VARCHAR, javaType=String}, #{RETURN_OBJ, mode=OUT, jdbcType=CURSOR, javaType=ResultSet, resultMap=egovMapIfOnly}, '1', '2', '3') }
+    </select>
+
+ 	<select id="selectCallReferProc2" parameterType="Map" statementType="CALLABLE">
+    	{ call SCR.SP_CREATE_OID (#{RETURN_CD, mode=OUT, jdbcType=VARCHAR, javaType=String}, #{RETURN_MSG, mode=OUT, jdbcType=VARCHAR, javaType=String}, #{RETURN_OBJ, mode=OUT, jdbcType=CURSOR, javaType=ResultSet, resultMap=egovMapIfOnly}, #{RETURN_OID, mode=OUT, jdbcType=VARCHAR, javaType=String}, 'NOWONGU01', '1001', 'ADMIN', '12,13') }
+    </select>
+
+</mapper>

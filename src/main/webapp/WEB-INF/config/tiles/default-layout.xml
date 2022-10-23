@@ -1,0 +1,233 @@
+<!DOCTYPE tiles-definitions PUBLIC "-//Apache Software Foundation//DTD Tiles Configuration 3.0//EN" "http://tiles.apache.org/dtds/tiles-config_3_0.dtd">
+
+<tiles-definitions>
+
+    <definition name="userTemplate" template="/WEB-INF/templates/web/base/layout.jsp">
+        <put-attribute name="header" value="/WEB-INF/templates/web/base/header.jsp" />
+        <put-attribute name="top" value="/WEB-INF/templates/web/base/top.jsp" />
+        <put-attribute name="subMenu" value="/WEB-INF/templates/web/base/subMenu.jsp" />
+        <put-attribute name="body" value="" />
+        <put-attribute name="footer" value="/WEB-INF/templates/web/base/footer.jsp" />
+    </definition>
+
+    <definition name="/web/main" template="/WEB-INF/templates/web/base/mainLayout.jsp">
+        <put-attribute name="header" value="/WEB-INF/templates/web/base/header.jsp" />
+        <put-attribute name="top" value="/WEB-INF/templates/web/base/top.jsp" />
+        <put-attribute name="body" value="/WEB-INF/jsp/web/main/main.jsp" />
+        <put-attribute name="footer" value="/WEB-INF/templates/web/base/footer.jsp" />
+    </definition>
+        
+    <definition name="adminTemplate" template="/WEB-INF/templates/webadm/base/layout.jsp">
+        <put-attribute name="title" value="" />
+        <put-attribute name="header" value="/WEB-INF/templates/webadm/base/header.jsp" />
+        <put-attribute name="left" value="/WEB-INF/templates/webadm/base/left.jsp" />
+        <put-attribute name="body" value="" />
+        <put-attribute name="footer" value="/WEB-INF/templates/webadm/base/footer.jsp" />
+    </definition>
+
+     <definition name="/webadm/accessDenied" extends="adminTemplate">
+        <put-attribute name="body" value="/WEB-INF/jsp/webadm/accessDenied.jsp" />
+    </definition>
+
+     <definition name="/webadm/*" template="/WEB-INF/templates/webadm/empty/layout.jsp">
+        <put-attribute name="body" value="/WEB-INF/jsp/webadm/{1}.jsp" />
+    </definition>
+
+    <definition name="/webadm/upload/*" template="/WEB-INF/templates/webadm/empty/layout.jsp">
+        <put-attribute name="body" value="/WEB-INF/jsp/webadm/upload/{1}.jsp" />
+    </definition>
+
+     <definition name="/webadm/*/*Pop" template="/WEB-INF/templates/webadm/base/pop_layout.jsp">
+     	<put-attribute name="header" value="/WEB-INF/templates/webadm/base/pop_header.jsp" />
+        <put-attribute name="body" value="/WEB-INF/jsp/webadm/{1}/{2}Pop.jsp" />
+    </definition>
+
+    <definition name="/webadm/*/*Ajax" template="/WEB-INF/templates/webadm/empty/body.jsp">
+        <put-attribute name="body" value="/WEB-INF/jsp/webadm/{1}/{2}Ajax.jsp" />
+    </definition>
+
+     <definition name="/webadm/*/*" extends="adminTemplate">
+        <put-attribute name="body" value="/WEB-INF/jsp/webadm/{1}/{2}.jsp" />
+    </definition>
+
+	<!-- 
+    <definition name="/exception/system/errorPage" template="/WEB-INF/templates/web/empty/err_layout.jsp">
+    	<put-attribute name="header" value="/WEB-INF/templates/web/base/header.jsp" />
+        <put-attribute name="body" value="/WEB-INF/jsp/exception/system/errorPage.jsp" />
+    </definition>
+    -->
+
+
+	<definition name="/web/guide/policy/policy*" template="/WEB-INF/templates/web/empty/body.jsp">
+         <put-attribute name="body" value="/WEB-INF/jsp/web/guide/policy/policy{1}.jsp" />
+    </definition>
+
+    <definition name="/web/guide/promo" template="/WEB-INF/templates/web/empty/body.jsp">
+         <put-attribute name="body" value="/WEB-INF/jsp/web/guide/promo.jsp" />
+    </definition>
+
+     <definition name="/web/sitemap" extends="userTemplate">
+         <put-attribute name="body" value="/WEB-INF/jsp/web/guide/sitemap.jsp" />
+    </definition>
+
+	<definition name="/web/copyright" extends="userTemplate">
+         <put-attribute name="body" value="/WEB-INF/jsp/web/guide/copyright.jsp" />
+    </definition>
+
+     <definition name="/web/*" template="/WEB-INF/templates/web/empty/layout.jsp">
+        <put-attribute name="body" value="/WEB-INF/jsp/web/{1}.jsp" />
+    </definition>
+
+     <definition name="/web/*/*Pop" template="/WEB-INF/templates/web/base/pop_layout.jsp">
+     	<put-attribute name="header" value="/WEB-INF/templates/web/base/header.jsp" />
+        <put-attribute name="body" value="/WEB-INF/jsp/web/{1}/{2}Pop.jsp" />
+    </definition>
+
+    <definition name="/web/mypage/myRsvn/EXBT/exbtPop" template="/WEB-INF/templates/web/base/pop_layout.jsp">
+     	<put-attribute name="header" value="/WEB-INF/templates/web/base/pop_header.jsp" />
+        <put-attribute name="body" value="/WEB-INF/jsp/web/mypage/myRsvn/EXBT/exbtPop.jsp" />
+    </definition>
+
+	<definition name="/web/mypage/myRsvn/EDC/edcPop" template="/WEB-INF/templates/web/base/pop_layout.jsp">
+     	<put-attribute name="header" value="/WEB-INF/templates/web/base/pop_header.jsp" />
+        <put-attribute name="body" value="/WEB-INF/jsp/web/mypage/myRsvn/EDC/edcPop.jsp" />
+    </definition>
+
+    <definition name="/web/mypage/myRsvn/EDC/compPop" template="/WEB-INF/templates/web/base/pop_layout.jsp">
+     	<put-attribute name="header" value="/WEB-INF/templates/web/base/pop_header.jsp" />
+        <put-attribute name="body" value="/WEB-INF/jsp/web/mypage/myRsvn/EDC/compPop.jsp" />
+    </definition>
+
+     <definition name="/web/*/*/*Pop" template="/WEB-INF/templates/web/base/pop_layout.jsp">
+     	<put-attribute name="header" value="/WEB-INF/templates/web/base/pop_header.jsp" />
+        <put-attribute name="body" value="/WEB-INF/jsp/web/{1}/{2}/{3}Pop.jsp" />
+    </definition>
+
+    <definition name="/web/common/*/*Pop" template="/WEB-INF/templates/web/base/pop_layout.jsp">
+     	<put-attribute name="header" value="/WEB-INF/templates/web/base/header.jsp" />
+        <put-attribute name="body" value="/WEB-INF/jsp/common/{1}/{2}Pop.jsp" />
+    </definition>
+
+    <definition name="/web/common/*/*" template="/WEB-INF/templates/web/empty/body.jsp">
+        <put-attribute name="body" value="/WEB-INF/jsp/common/{1}/{2}.jsp" />
+    </definition>
+
+    <definition name="/web/mypage/myRsvn/*/inc*"  template="/WEB-INF/templates/web/empty/body.jsp">
+        <put-attribute name="body" value="/WEB-INF/jsp/web/mypage/myRsvn/{1}/inc{2}.jsp" />
+    </definition>
+
+    <definition name="/web/*/*Ajax" template="/WEB-INF/templates/web/empty/body.jsp">
+        <put-attribute name="body" value="/WEB-INF/jsp/web/{1}/{2}Ajax.jsp" />
+    </definition>
+
+    <definition name="/web/*/*/*Ajax" template="/WEB-INF/templates/web/empty/body.jsp">
+        <put-attribute name="body" value="/WEB-INF/jsp/web/{1}/{2}/{3}Ajax.jsp" />
+    </definition>
+
+    <definition name="/web/*/*/*Save" template="/WEB-INF/templates/web/empty/body.jsp">
+        <put-attribute name="body" value="/WEB-INF/jsp/web/{1}/{2}/{3}Save.jsp" />
+    </definition>
+
+	<definition name="/web/survey/*" template="/WEB-INF/templates/web/empty/surv_layout.jsp">
+        <put-attribute name="header" value="/WEB-INF/templates/web/base/srv_header.jsp" />
+        <put-attribute name="body" value="/WEB-INF/jsp/web/survey/{1}.jsp" />
+    </definition>
+
+	 <definition name="/statBoard/*" template="/WEB-INF/templates/web/empty/body.jsp">
+        <put-attribute name="body" value="/WEB-INF/jsp/intrfc/statBoard/{1}.jsp" />
+    </definition>
+
+
+    <definition name="/web/*/*" extends="userTemplate">
+        <put-attribute name="body" value="/WEB-INF/jsp/web/{1}/{2}.jsp" />
+    </definition>
+
+    <definition name="/web/*/*/*Ajax" template="/WEB-INF/templates/web/empty/body.jsp">
+        <put-attribute name="body" value="/WEB-INF/jsp/web/{1}/{2}/{3}Ajax.jsp" />
+    </definition>
+
+    <definition name="/web/exception/*/*" template="/WEB-INF/templates/web/empty/layout.jsp">
+    	<put-attribute name="header" value="/WEB-INF/templates/web/base/header.jsp" />
+        <put-attribute name="body" value="/WEB-INF/jsp/web/exception/{1}/{2}.jsp" />
+    </definition>
+
+	<definition name="/web/*/*/*" extends="userTemplate">
+        <put-attribute name="body" value="/WEB-INF/jsp/web/{1}/{2}/{3}.jsp" />
+    </definition>
+    
+	<definition name="/web/*/*/*/*Ajax" template="/WEB-INF/templates/web/empty/body.jsp">
+        <put-attribute name="body" value="/WEB-INF/jsp/web/{1}/{2}/{3}/{4}Ajax.jsp" />
+    </definition>
+
+    <definition name="/web/*/*/*/*" extends="userTemplate">
+        <put-attribute name="body" value="/WEB-INF/jsp/web/{1}/{2}/{3}/{4}.jsp" />
+    </definition>
+
+
+    <definition name="/intrfc/*/open*">
+        <put-attribute name="body" value="" />
+    </definition>
+
+    <definition name="/intrfc/*/result*">
+        <put-attribute name="body" value="" />
+    </definition>
+
+
+	<definition name="/intrfc/*/ticketPop" template="/WEB-INF/templates/web/base/pop_layout.jsp">
+     	<put-attribute name="header" value="/WEB-INF/templates/web/base/pop_header.jsp" />
+        <put-attribute name="body" value="/WEB-INF/jsp/intrfc/{1}/ticketPop.jsp" />
+    </definition>
+
+     <definition name="/intrfc/*/*Pop" template="/WEB-INF/templates/web/base/pop_layout.jsp">
+     	<put-attribute name="header" value="/WEB-INF/templates/web/base/header.jsp" />
+        <put-attribute name="body" value="/WEB-INF/jsp/web/{1}/{2}Pop.jsp" />
+    </definition>
+
+	<definition name="/web/mypage/myRsvn/WEB/mathPop" template="/WEB-INF/templates/web/base/pop_layout.jsp">
+     	<put-attribute name="header" value="/WEB-INF/templates/web/base/pop_header.jsp" />
+        <put-attribute name="body" value="/WEB-INF/jsp/web/mypage/myRsvn/WEB/mathPop.jsp" />
+    </definition>
+   
+
+
+	<!-- 2021.05.06 JYS -->
+	<!-- /WEB-INF/views/module:/modules_fmcs_member/skin/default/namefact.jsp -->	   
+	<definition name="module:/*/*/*/*" extends="userTemplate">
+		<put-attribute name="body" expression="/WEB-INF/jsp/web/{1}/{2}/{3}/{4}.jsp" />
+	</definition>
+	   
+	<!-- 2021.05.06 JYS (팝업) -->
+	<definition name="single" template="/WEB-INF/templates/web/single/single.jsp">
+		<put-attribute name="body" expression="/WEB-INF/templates/web/single/empty.jsp" />
+	</definition>
+		   
+	<!-- 팝업 -->
+	<definition name="popup:/*/*/*/*/*/*/*" extends="single">
+		<put-attribute name="body" expression="/WEB-INF/modules/{1}/{2}/{3}/{4}/{5}/{6}/{7}.jsp" />
+	</definition>
+	<definition name="popup:/*/*/*/*/*/*" extends="single">
+		<put-attribute name="body" expression="/WEB-INF/modules/{1}/{2}/{3}/{4}/{5}/{6}.jsp" />
+	</definition>
+	<definition name="popup:/*/*/*/*/*" extends="single">
+		<put-attribute name="body" expression="/WEB-INF/modules/{1}/{2}/{3}/{4}/{5}.jsp" />
+	</definition>
+	<definition name="popup:/*/*/*/*" extends="single">
+		<put-attribute name="body" expression="/WEB-INF/modules/{1}/{2}/{3}/{4}.jsp" />
+	</definition>
+	
+
+	<definition name="popup:/*/*/*" extends="single">
+		<put-attribute name="body" expression="/WEB-INF/modules/{1}/{2}/{3}.jsp" />
+	</definition>
+
+	<!-- popup:/namefact// form  -->
+	<!--        1          2     -->		
+	<definition name="popup:/*/*" extends="single">
+		<put-attribute name="body" expression="/WEB-INF/modules/{1}/{2}.jsp" />
+	</definition>
+	<definition name="popup:/*" extends="single">
+		<put-attribute name="body" expression="/WEB-INF/modules/{1}.jsp" />
+	</definition>		   
+	   
+</tiles-definitions>
+

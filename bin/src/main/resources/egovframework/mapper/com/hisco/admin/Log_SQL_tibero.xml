@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 관리자 작업 로그
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2020.07.17   	진수진          최초 작성
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="LogDAO">
+
+ 	<resultMap id="adminLog" type="com.hisco.admin.log.service.AdminLogVO">
+		<result property="comcd" column="COMCD"/>
+		<result property="logSeq" column="LOG_SEQ"/>
+		<result property="connctAppgbn" column="CONNCT_APPGBN"/>
+		<result property="conectId" column="CONECT_ID"/>
+		<result property="conectIp" column="CONECT_IP"/>
+		<result property="menuid" column="MENUID"/>
+		<result property="erroryn" column="ERRORYN"/>
+		<result property="errorcode" column="ERRORCODE"/>
+		<result property="errormsg" column="ERRORMSG"/>
+		<result property="methodGubun" column="METHOD_GUBUN"/>
+		<result property="userName" column="KOR_NAME"/>
+		<result property="menuNm" column="MENU_NM"/>
+		<result property="targetUrl" column="CONNECT_URL"/>
+	</resultMap>
+
+	<sql id="where_list">
+		<where>
+			CONNCT_APPGBN = '2002'
+			<if test="searchCondition == 1">AND
+               CONNECT_URL LIKE '%'||#{searchKeyword}||'%'
+           </if>
+           <if test="searchCondition == 2">AND
+               USER_NO LIKE '%'||#{searchKeyword}||'%'
+           </if>
+           <if test="searchCondition == 3">AND
+               KOR_NAME LIKE '%'||#{searchKeyword}||'%'
+           </if>
+           <if test="methodGubun != null and methodGubun != ''">AND
+               METHOD_GUBUN = #{methodGubun}
+           </if>
+          </where>
+	</sql>
+
+ 	<select id="selectLogList" parameterType="com.hisco.admin.log.service.AdminLogVO" resultMap="adminLog">
+			SELECT  *
+              FROM  (
+            	SELECT ROWNUM RNUM, ALL_LIST.*
+                FROM  (
+            		SELECT
+	                   	A.CONECT_ID,
+	                   	A.MENUID ,
+	                   	A.REGDATE,
+	                   	A.CONECT_ID,
+	                   	A.CONECT_IP,
+	                   	A.METHOD_GUBUN,
+	                   	A.CONNECT_URL,
+	                   	M.KOR_NAME,
+	                   	F.MENU_NM
+	              FROM SYSTEM_CNNTLOG A
+	              	LEFT OUTER JOIN MNGR_ACNTMNG M ON M.COMCD = #{comcd} AND A.CONECT_ID = M.USER_ID
+	              	LEFT OUTER JOIN COMTNMENUINFO F ON A.MENUID = F.MENU_NO
+             		<include refid="where_list"/>
+            <![CDATA[
+            		ORDER BY LOG_SEQ DESC
+                ) ALL_LIST
+			)
+             WHERE  RNUM  > #{firstIndex}
+               AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+               ]]>
+ 	</select>
+
+ 	<select id="selectLogCount" parameterType="com.hisco.admin.log.service.AdminLogVO" resultType="java.lang.Integer">
+    	SELECT
+            COUNT(*)
+       	FROM SYSTEM_CNNTLOG A
+       		LEFT OUTER JOIN MNGR_ACNTMNG M ON M.COMCD = #{comcd} AND A.CONECT_ID = M.USER_ID
+     		<include refid="where_list"/>
+ 	</select>
+
+
+ 	<!-- 로그인 로그 등록 -->
+	<insert id="logInsertLoginLog" parameterType="com.hisco.admin.log.service.AdminLogVO">
+		<![CDATA[
+			INSERT INTO SYSTEM_CNNTLOG
+				( LOG_SEQ
+				  , COMCD
+				  , CONNCT_APPGBN
+				  , CONECT_ID
+				  , CONECT_IP
+				  , MENUID
+				  , ERRORYN
+				  , ERRORCODE
+				  , ERRORMSG
+				  , METHOD_GUBUN
+				  , CONNECT_URL
+				  , REGDATE )
+			VALUES ( SEQ_SYSTEM_LOG.NEXTVAL
+				  , #{comcd}
+			      , '2002'
+				  , #{conectId}
+				  , #{conectIp}
+				  , #{menuid}
+				  , NVL(#{erroryn},'N')
+				  , #{errorcode}
+				  , #{errormsg}
+				  , #{methodGubun}
+				  , #{targetUrl}
+				  , sysdate)
+				  ]]>
+
+	</insert>
+
+
+	<select id="selectWebLogList"  resultType="cMap">
+			<![CDATA[
+    	SELECT
+			URL , TO_CHAR(OCCRRNC_DE, 'YYYYMMDD') YMD , COUNT(*) CNT
+		FROM
+			 COMTNWEBLOG
+		WHERE
+			 OCCRRNC_DE >= TO_DATE(#{startYmd} , 'YYYY-MM-DD') AND  OCCRRNC_DE < TO_DATE(#{endYmd} , 'YYYY-MM-DD')+1
+		GROUP BY
+			URL , TO_CHAR(OCCRRNC_DE, 'YYYYMMDD')
+		ORDER BY
+			TO_CHAR(OCCRRNC_DE, 'YYYYMMDD')
+			]]>
+ 	</select>
+
+
+ 	<select id="selectDateList"  resultType="cMap">
+			<![CDATA[
+    	SELECT TO_CHAR( TO_DATE(#{startYmd} , 'YYYY-MM-DD')+ LEVEL - 1, 'YYYYMMDD') AS YMD
+			FROM DUAL
+		CONNECT BY LEVEL <= ( TO_DATE(#{endYmd} , 'YYYY-MM-DD') - TO_DATE(#{startYmd} , 'YYYY-MM-DD') )+1
+			]]>
+ 	</select>
+
+
+</mapper>

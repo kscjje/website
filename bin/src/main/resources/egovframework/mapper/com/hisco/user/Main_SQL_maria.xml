@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	수정일               수정자            수정내용
+  =========     =======    =================================================
+  2021.04.20   	 전영석     	 	Main 
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="MainDAO">
+
+	<!-- 팝업 목록 -->
+	<select id="selectMainPopup" resultType="cMap">
+	
+			/* MainDAO.selectMainPopup */
+			SELECT
+					A.POPUP_ID,
+					A.POPUP_TITLE,
+					A.FILE_URL,
+					A.POPUP_VRTICL_LC AS POPUP_HLC,
+					A.POPUP_WIDTH_LC AS POPUP_WLC,
+					A.POPUP_VRTICL_SIZE AS POPUP_HSIZE,
+					A.POPUP_WIDTH_SIZE AS POPUP_WSIZE,
+					A.STOPVEW_SETUP_AT,
+					A.LINK_TARGET,
+					F.FILE_PATH,
+                    F.FILE_NAME AS POPUP_IMAGE,
+                    F.ORGIN_FILE_NAME AS IMAGE_FILE_NAME 
+			FROM	COMTNPOPUPMANAGE A
+				LEFT OUTER JOIN ATCH_FILE_LIST F ON A.IMAGE_FILE_ID = F.FILE_GRPINNB AND F.FILE_SN=0
+		WHERE <![CDATA[
+             ( NTCE_BGNDE IS NULL OR NTCE_BGNDE <= SYSDATE())
+             AND (NTCE_ENDDE IS NULL OR SYSDATE() < NTCE_ENDDE)
+               ]]>
+		     AND A.NTCE_AT = 'Y' 
+		
+		order by NVL(A.SORT_ORDER, 0)  
+       		
+	</select>
+
+	<!-- 관람 선택 1개 -->
+	<select id="selectDspyPartCd" resultType="String">
+			SELECT /* MainDAO.selectDspyPartCd */
+				PART_CD
+				FROM (
+					SELECT
+					    P.PART_CD
+					    , ROW_NUMBER( )OVER( ORDER BY SORT_ORDER) RNUM
+					  FROM PART_CD P
+					 WHERE
+						P.COMCD ='NOWONGU01' AND PART_GBN='1001' AND USE_YN='Y'
+			) MAIN WHERE MAIN.RNUM=1
+			
+	</select>
+
+
+
+
+	<!--메인 검색 목록 -->
+	<select id="selectMainSearch" resultType="com.hisco.user.main.service.MainSearchVO">
+		SELECT *
+		FROM
+		(SELECT
+				/* rownum AS RNUM, */
+				ROW_NUMBER() OVER () AS RNUM,
+		 		IDX,
+				TITLE,
+				CTGR,
+				DATEINFO,
+				TIMEINFO,
+				FEETYPE,
+				PARTCD,
+				REGDATE
+			FROM
+			 (SELECT
+					IDX,
+					TITLE,
+					CTGR,
+					DATEINFO,
+					TIMEINFO,
+					FEETYPE,
+					PARTCD,
+					REGDATE
+			       FROM
+				 (SELECT A.EVT_NO AS IDX ,
+			      		 A.EVT_NAME AS TITLE,
+			      		 'EVT' AS CTGR,
+			      		 DATE_FORMAT(CONCAT(A.EVT_USE_SDATE,'%Y.%m.%d'), '~', DATE_FORMAT(A.EVT_USE_EDATE,'%Y.%m.%d')) AS DATEINFO,
+			      		 A.EVT_TIMEINFO AS TIMEINFO,
+			      		 A.EVT_FEE_TYPE AS FEETYPE,
+			      		 A.EVT_PARTCD AS PARTCD,
+			      		 A.REGDATE AS REGDATE
+			      FROM EVENT_PROGRAM A
+			      WHERE A.USE_YN = 'Y'  AND A.OPENYN = 'Y'
+			      		AND A.EVT_NAME LIKE CONCAT('%', #{title}, '%') 
+			       UNION ALL
+			     SELECT B.EXBT_SEQ AS IDX,
+			     		B.EXBT_NAME AS TITLE,
+			     		'EXBT' AS CTGR,
+			     		'' AS DATEINFO,
+			     		'' AS TIMEINFO,
+			     		B.FEE_TYPE AS FEETYPE,
+			     		B.EXBT_PARTCD AS PARTCD,
+			     		B.REGDATE AS REGDATE
+			     FROM EXBT_BASERULE B
+			     WHERE B.USE_YN = 'Y' AND B.OPENYN='Y'
+			     	AND B.EXBT_NAME LIKE CONCAT('%', #{title}, '%') 
+			      UNION ALL
+			      SELECT C.EDC_PRGMID AS IDX,
+			      		 C.EDC_PRGMNM AS TITLE,
+			      		 'EDC' AS CTGR,
+			      		  CONCAT(DATE_FORMAT(C.EDC_SDATE,'%Y.%m.%d'), '~', DATE_FORMAT(C.EDC_EDATE,'%Y.%m.%d')) AS DATEINFO,
+			      		  CONCAT(SUBSTR(C.EDC_STIME,0,2), ':', SUBSTR(C.EDC_STIME,3,2), '~', SUBSTR(C.EDC_ETIME,0,2), ':', SUBSTR(C.EDC_ETIME,3,2)) AS TIMEINFO,
+			      		 '' AS FEETYPE,
+			      		 C.EDC_PART_CD AS PARTCD,
+			      		 C.REGDATE AS REGDATE
+			      FROM EDC_PROGRAM C
+			      WHERE C.USE_YN = 'Y'  AND C.EDC_OPENYN = 'Y'
+			      			AND C.EDC_PRGMNM LIKE CONCAT('%', #{title}, '%')
+			    	) A
+			    <choose>
+                   <when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(orderType,'des')">
+                     ORDER BY REGDATE DESC
+                   </when>
+				  <when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(orderType,'asc')">
+                    ORDER BY REGDATE ASC
+                  </when>
+                  <otherwise>
+                    ORDER BY REGDATE DESC
+                  </otherwise>
+                </choose>
+			     ) AA ) AAA
+		    where AAA.RNUM BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+			<!-- ORDER BY RN -->
+
+	</select>
+
+	<!--메인 검색 목록 -->
+	<select id="countMainSearch" resultType="java.lang.Integer">
+		SELECT
+	       COUNT(*)
+	       FROM
+		(SELECT A.EVT_NO AS IDX ,
+			      		 A.EVT_NAME AS TITLE,
+			      		 'EVT' AS CTGR,
+			      		 CONCAT(DATE_FORMAT(A.EVT_USE_SDATE,'%Y.%m.%d'), '~', DATE_FORMAT(A.EVT_USE_EDATE,'%Y.%m.%d')) AS DATEINFO,
+			      		 A.EVT_TIMEINFO AS TIMEINFO,
+			      		 A.EVT_FEE_TYPE AS FEETYPE,
+			      		 A.EVT_PARTCD AS PARTCD,
+			      		 A.REGDATE AS REGDATE
+			      FROM EVENT_PROGRAM A
+			      WHERE A.USE_YN = 'Y' AND A.OPENYN = 'Y'
+			      		AND A.EVT_NAME LIKE CONCAT('%', #{title}, '%') 
+			       UNION ALL
+			     SELECT B.EXBT_SEQ AS IDX,
+			     		B.EXBT_NAME AS TITLE,
+			     		'EXBT' AS CTGR,
+			     		'' AS DATEINFO,
+			     		'' AS TIMEINFO,
+			     		B.FEE_TYPE AS FEETYPE,
+			     		B.EXBT_PARTCD AS PARTCD,
+			     		B.REGDATE AS REGDATE
+			     FROM EXBT_BASERULE B
+			     WHERE B.USE_YN = 'Y'  AND B.OPENYN='Y'
+			     	AND B.EXBT_NAME LIKE CONCAT('%', #{title}, '%') 
+			      UNION ALL
+			      SELECT C.EDC_PRGMID AS IDX,
+			      		 C.EDC_PRGMNM AS TITLE,
+			      		 'EDC' AS CTGR,
+			      		  CONCAT(DATE_FORMAT(C.EDC_SDATE,'%Y.%m.%d'), '~', DATE_FORMAT(C.EDC_EDATE,'%Y.%m.%d')) AS DATEINFO,
+			      		  CONCAT(SUBSTR(C.EDC_STIME,0,2), ':', SUBSTR(C.EDC_STIME,3,2), '~', SUBSTR(C.EDC_ETIME,0,2), ':', SUBSTR(C.EDC_ETIME,3,2)) AS TIMEINFO,
+			      		 '' AS FEETYPE,
+			      		 C.EDC_PART_CD AS PARTCD,
+			      		 C.REGDATE AS REGDATE
+			      FROM EDC_PROGRAM C
+			      WHERE C.USE_YN = 'Y' AND C.EDC_OPENYN = 'Y'
+			      	AND C.EDC_PRGMNM LIKE CONCAT('%', #{title}, '%') 
+	     )
+	</select>
+
+	<!--메인 검색 목록(게시판)-->
+	<select id="selectMainBoardSearch" resultType="com.hisco.user.main.service.MainSearchVO">
+			SELECT *
+			FROM
+			(SELECT
+				
+				ROW_NUMBER() OVER () AS RNUM,
+		 		IDX,
+				TITLE,
+				CN,
+				CTGR,
+				CTG_ID,
+				PRNNO,
+				REGDATE
+			FROM
+			 (SELECT
+					IDX,
+					TITLE,
+					CN,
+					CTGR,
+					CTG_ID,
+					PRNNO,
+					REGDATE
+			       FROM
+				 (SELECT NTT_ID AS IDX ,
+			      		 NTT_SJ AS TITLE,
+			      		 NTT_CN AS CN,
+			      		 BBS_ID AS CTGR,
+			      		 CTG_ID AS CTG_ID,
+			      		 PARNTSCTT_NO AS PRNNO,
+			      		 FRST_REGIST_PNTTM AS REGDATE
+			      FROM COMTNBBS
+			      WHERE (SECRET_AT  = 'N' OR SECRET_AT IS NULL)
+			      		AND USE_AT = 'Y'
+			      		AND ( NTT_SJ LIKE CONCAT('%', #{title}, '%')
+			     				OR NTT_CN LIKE CONCAT('%', #{title}, '%') 
+			     			)
+			    	) A
+			     <choose>
+                   <when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(orderType,'des')">
+                     ORDER BY REGDATE DESC
+                   </when>
+				  <when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(orderType,'asc')">
+                    ORDER BY REGDATE ASC
+                  </when>
+                  <otherwise>
+                    ORDER BY REGDATE DESC
+                  </otherwise>
+                </choose>
+			     ) AA ) AAA
+		    where AAA.RNUM BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+
+	</select>
+
+	<!--메인 검색 목록 -->
+	<select id="countMainBoardSearch" resultType="java.lang.Integer">
+			SELECT COUNT(*)
+	      FROM COMTNBBS
+	      WHERE (SECRET_AT  = 'N' OR SECRET_AT IS NULL)
+	      		AND USE_AT = 'Y'
+	      		AND ( NTT_SJ LIKE CONCAT('%', #{title}, '%')
+	     				OR NTT_CN LIKE CONCAT('%', #{title}, '%') 
+	     			)
+	</select>
+
+	<select id="selectTodayTicketList" resultType="cMap">
+		SELECT
+		*
+		FROM (
+			SELECT /* MainDAO.selectTodayTicketList */
+				T.*,
+				CASE WHEN GUBUN='EVT' THEN (SELECT COUNT(*) FROM EVT_TICKET_CHKININFO H WHERE H.COMCD=#{comcd} AND H.EVT_PARTCD=T.PART_CD AND H.EVT_TICKET_NO=T.TICKET_NO)
+					 WHEN GUBUN='EXBT' THEN (SELECT COUNT(*) FROM EXBT_TICKET_CHKININFO H WHERE H.COMCD=#{comcd} AND H.EXBT_PARTCD=T.PART_CD AND H.EXBT_TICKET_NO=T.TICKET_NO)
+					END AS CHK_CNT,
+				(SELECT TICKET_PRN_NOTICE FROM Partcd_SystemPref WHERE COMCD=#{comcd} AND PART_CD=T.PART_CD) AS TICKET_DESC
+			FROM (
+					SELECT
+						'EXBT' AS GUBUN,
+						M.EXBT_RSVN_IDX AS RSVN_IDX,
+						M.EXBT_RSVN_NO AS RSVN_NO,
+						M.EXBT_VISTNMPR AS VISIT_NUM,
+						R.EXBT_STIME AS S_TIME,
+						R.EXBT_ETIME AS E_TIME,
+						CASE WHEN B.EXBT_TYPE='1001' THEN
+							 (SELECT C.CD_NM  FROM COT_GRPCD C WHERE C.GRP_CD='SM_EXBT_TYPE' AND C.CD=B.EXBT_TYPE) ELSE B.EXBT_NAME  END AS TITLE,
+						B.EXBT_TICKET_NOTICE AS NOTICE_TXT,
+						B.EXBT_PARTCD AS PART_CD,
+						B.EXBT_TYPE AS TYPE_CD,
+						(SELECT PART_NM FROM PART_CD WHERE COMCD=B.COMCD AND PART_CD=B.EXBT_PARTCD) AS PART_NM,
+						(SELECT MAX(EXBT_TICKET_NO) FROM EXBT_TICKET_INFO WHERE EXBT_RSVN_IDX=M.EXBT_RSVN_IDX AND EXBT_TICKETSTATS='1000') AS TICKET_NO
+					FROM
+						EXBT_RSVN_MST M , EXBT_RSVN_TIME R , EXBT_BASERULE B
+					WHERE
+						M.COMCD=#{comcd}
+						AND M.EXBT_RSVN_IDX=R.EXBT_RSVN_IDX
+						AND M.EXBT_APPTYPE = '20'
+						<choose>
+							<when test="hpcertno !=null and hpcertno !=''">AND M.EXBT_HPCERTNO=#{hpcertno}</when>
+							<when test="uniqId !=null and uniqId !=''">AND M.EXBT_RSVN_MEMNO=#{uniqId}</when>
+							<otherwise>AND M.EXBT_RSVN_MEMNO='-'</otherwise>
+						</choose>
+						AND M.EXBT_RSVN_IDX = R.EXBT_RSVN_IDX
+						AND M.EXBT_SEQ = B.EXBT_SEQ
+						AND M.EXBT_VIEINGDATE = DATE_FORMAT(SYSDATE(),'%Y%m%d')
+					UNION ALL
+					SELECT
+						'EVT' AS GUBUN,
+						M.EVT_RSVN_IDX AS RSVN_IDX,
+						M.EVT_RSVNNO AS RSVN_NO,
+						M.EVT_VEINGNMPR AS VISIT_NUM,
+						R.EVT_STIME AS S_TIME,
+						R.EVT_ETIME AS E_TIME,
+						B.EVT_NAME  AS TITLE,
+						B.EVT_TICKET_NOTICE AS NOTICE_TXT,
+						B.EVT_PARTCD AS PART_CD,
+						'' AS TYPE_CD,
+						(SELECT PART_NM FROM PART_CD WHERE COMCD=B.COMCD AND PART_CD=B.EVT_PARTCD) AS PART_NM,
+						(SELECT MAX(EVT_TICKET_NO) FROM EVT_TICKET_INFO WHERE EVT_RSVN_IDX=M.EVT_RSVN_IDX AND TICKET_STATUS='1000') AS TICKET_NO
+					FROM
+						EVT_RSVN_MST M , EVT_RSVN_TIME R , EVENT_PROGRAM B
+					WHERE
+						M.COMCD=#{comcd}
+						AND M.EVT_RSVN_IDX=R.EVT_RSVN_IDX
+						AND M.EVT_RSVN_APPTYPE = '20'
+						<choose>
+							<when test="hpcertno !=null and hpcertno !=''">AND M.EVT_NONMEMB_CERTNO=#{hpcertno}</when>
+							<when test="uniqId !=null and uniqId !=''">AND M.EVT_RSVN_MEMNO=#{uniqId}</when>
+							<otherwise>AND M.EVT_RSVN_MEMNO='-'</otherwise>
+						</choose>
+						AND M.EVT_RSVN_IDX = R.EVT_RSVN_IDX
+						AND M.EVT_NO = B.EVT_NO
+						AND M.EVT_VEINGDATE = DATE_FORMAT(SYSDATE(),'%Y%m%d')
+			) T
+		) MAIN 
+		ORDER BY CHK_CNT ,(CASE WHEN DATE_FORMAT(SYSDATE(),'%H%m') > S_TIME THEN 1 ELSE 0 END), S_TIME
+	</select>
+
+	<select id="selectBBSList" resultType="cMap">
+	
+		/* MainDAO.selectBBSList */
+		<foreach collection="bbsIds" item="item" index="index">
+		
+			<if test="index == 0">
+				select 
+			</if>
+			<if test="index >= 1">
+				union select 
+			</if>		
+			 
+	        MAIN.* 
+			FROM (select  
+			       A.NTT_ID
+			     , A.BBS_ID
+			     , A.ANSWER_NO
+			     , A.NTT_NO 
+			     , A.NTT_SJ
+			     , A.NTT_CN 
+			     , A.REGDATE
+			     , B.CTG_NM  
+			     , ROW_NUMBER() OVER (ORDER BY A.NTT_ID DESC) AS RNUM 
+			  from comtnbbs A 
+			  left join COMTNBBSCTG B on 
+			            A.CTG_ID = B.CTG_ID  
+			  where A.USE_YN = 'Y'
+		  	    and A.BBS_ID = #{item} 
+		  	    
+		  	    
+		  	    <if test="item == 'qna'">
+		  	    	and A.ANSWER_AT = 'N'
+		  	    </if> 
+		  	     
+		  	      ) MAIN 
+		  	       
+		  	    where MAIN.RNUM BETWEEN  0 and 4 
+		  	  
+		</foreach>
+
+	</select>
+	
+</mapper>

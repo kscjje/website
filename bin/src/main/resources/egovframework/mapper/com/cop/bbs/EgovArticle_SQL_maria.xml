@@ -1,0 +1,1209 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2011.09.07   	서준식     	 	NTCE_BGNDE, NTCE_ENDDE 컬럼 빈공간에 의한 비교 오류 때문에 Rtrim() 추가
+  2011.09.21    서준식              selectMaxNttId문에 COMMIT 될때까지 LOCK설정
+  2011.09.21    서준식              NTT_ID를 IDGENT서비스를 사용해서 생성하므로 selectMaxNttId문은 실제 사용하지 않음
+  2020.07.24        진수진	   카테고리 추가
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="BBSArticle">
+
+	<resultMap id="boardList" type="egovframework.com.cop.bbs.service.BoardVO">
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="nttId" column="NTT_ID"/>
+		<result property="nttSj" column="NTT_TITLE"/>
+		<result property="frstRegisterId" column="REGUSER"/>
+		<result property="frstRegisterNm" column="FRST_REGISTER_NM"/>
+		<result property="frstRegisterPnttm" column="REGDATE"/>
+		<result property="inqireCo" column="RDCNT"/>
+		<result property="parnts" column="PARNTSCTT_NO"/>
+		<result property="replyAt" column="ANSWER_YN"/>
+		<result property="replyLc" column="ANSWER_LC"/>
+		<result property="useAt" column="USE_YN"/>
+		<result property="atchFileId" column="ATCH_FILE_ID"/>
+		<result property="ntceBgnde" column="NTCE_BGNDE"/>
+		<result property="ntceEndde" column="NTCE_ENDDE"/>
+		<result property="sjBoldAt" column="SJ_BOLD_YN"/>
+		<result property="noticeAt" column="NOTICE_YN"/>
+		<result property="secretAt" column="SECRET_YN"/>
+		<result property="commentCo" column="COMMENT_CO"/>
+		<result property="fileCnt" column="FILE_CNT"/>
+		<result property="ctgNm" column="CTG_NM"/>
+		<result property="ctgSort" column="SORT_ORDER"/>
+		<result property="anonymousAt" column="ANONYMOUS_YN"/>
+		<result property="nttCn" column="NTT_CNTS"/>
+		<result property="answerCnt" column="ANSWER_CNT"/>
+		<result property="newAt" column="NEW_YN"/>
+		<result property="linkUrl" column="LINK_URL"/>
+	</resultMap>
+
+	<resultMap id="boardDetail" type="egovframework.com.cop.bbs.service.BoardVO">
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="nttId" column="NTT_ID"/>
+		<result property="nttSj" column="NTT_TITLE"/>
+		<result property="ntcrId" column="NTCR_ID"/>
+		<result property="ntcrNm" column="NTCR_NM"/>
+		<result property="nttNo" column="NTT_NO"/>
+		<result property="nttCn" column="NTT_CNTS" jdbcType="CLOB"/>
+		<result property="password" column="PASSWORD"/>
+		<result property="frstRegisterId" column="REGUSER"/>
+		<result property="frstRegisterNm" column="FRST_REGISTER_NM"/>
+		<result property="frstRegisterPnttm" column="REGDATE"/>
+		<result property="lastUpdtPnttm" column="MODDATE"/>
+		<result property="lastUpdusrId" column="MODUSER"/>
+		<result property="ntceBgnde" column="NTCE_BGNDE"/>
+		<result property="ntceEndde" column="NTCE_ENDDE"/>
+		<result property="inqireCo" column="RDCNT"/>
+		<result property="useAt" column="USE_YN"/>
+		<result property="atchFileId" column="ATCH_FILE_ID"/>
+		<result property="parnts" column="PARNTSCTT_NO"/>
+		<result property="replyAt" column="ANSWER_YN"/>
+		<result property="replyLc" column="ANSWER_LC"/>
+		<result property="sortOrdr" column="SORT_ORDR"/>
+		<result property="bbsTyCode" column="BBS_TY_CODE"/>
+		<result property="replyPosblAt" column="REPLY_POSBL_YN"/>
+		<result property="fileAtchPosblAt" column="FILE_ATCH_POSBL_YN"/>
+		<result property="posblAtchFileNumber" column="ATCH_POSBL_FILE_NUMBER"/>
+		<result property="bbsNm" column="BBS_NM"/>
+		<result property="sjBoldAt" column="SJ_BOLD_YN"/>
+		<result property="noticeAt" column="NOTICE_YN"/>
+		<result property="secretAt" column="SECRET_YN"/>
+		<result property="ctgId" column="CTG_ID"/>
+		<result property="anonymousAt" column="ANONYMOUS_YN"/>
+		<result property="managerDept" column="MANAGER_DEPT"/>
+		<result property="managerTel" column="MANAGER_TEL"/>
+		<result property="newAt" column="NEW_YN"/>
+		<result property="linkUrl" column="LINK_URL"/>
+	</resultMap>
+
+	<resultMap id="sortList" type="egovframework.com.cop.bbs.service.BoardVO">
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="nttId" column="NTT_ID"/>
+		<result property="sortOrdr" column="SORT_ORDR"/>
+		<result property="parnts" column="PARNTSCTT_NO"/>
+		<result property="nttNo" column="NTT_NO"/>
+		<result property="replyLc" column="ANSWER_LC"/>
+	</resultMap>
+
+	<resultMap id="guestList" type="egovframework.com.cop.bbs.service.BoardVO">
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="nttId" column="NTT_ID"/>
+		<result property="nttSj" column="NTT_TITLE"/>
+		<result property="frstRegisterPnttm" column="REGDATE"/>
+		<result property="nttCn" column="NTT_CNTS"/>
+		<result property="useAt" column="USE_YN"/>
+		<result property="frstRegisterNm" column="FRST_REGISTER_NM"/>
+		<result property="frstRegisterId" column="REGUSER"/>
+	</resultMap>
+
+	<resultMap id="detailCn" type="egovframework.com.cop.bbs.service.BoardVO">
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="nttId" column="NTT_ID"/>
+		<result property="nttSj" column="NTT_TITLE"/>
+		<result property="ntcrId" column="NTCR_ID"/>
+		<result property="ntcrNm" column="NTCR_NM"/>
+		<result property="nttNo" column="NTT_NO"/>
+		<result property="nttCn" column="NTT_CNTS"/>
+		<result property="password" column="PASSWORD"/>
+		<result property="frstRegisterId" column="REGUSER"/>
+		<result property="frstRegisterNm" column="FRST_REGISTER_NM"/>
+		<result property="frstRegisterPnttm" column="REGDATE"/>
+		<result property="ntceBgnde" column="NTCE_BGNDE"/>
+		<result property="ntceEndde" column="NTCE_ENDDE"/>
+		<result property="inqireCo" column="RDCNT"/>
+		<result property="useAt" column="USE_YN"/>
+		<result property="atchFileId" column="ATCH_FILE_ID"/>
+		<result property="parnts" column="PARNTSCTT_NO"/>
+		<result property="replyAt" column="ANSWER_YN"/>
+		<result property="replyLc" column="ANSWER_LC"/>
+		<result property="sortOrdr" column="SORT_ORDR"/>
+		<result property="bbsTyCode" column="BBS_TY_CODE"/>
+		<result property="replyPosblAt" column="REPLY_POSBL_YN"/>
+		<result property="fileAtchPosblAt" column="FILE_ATCH_POSBL_YN"/>
+		<result property="posblAtchFileNumber" column="ATCH_POSBL_FILE_NUMBER"/>
+		<result property="bbsNm" column="BBS_NM"/>
+		<result property="sjBoldAt" column="SJ_BOLD_YN"/>
+		<result property="noticeAt" column="NOTICE_YN"/>
+		<result property="secretAt" column="SECRET_YN"/>
+		<result property="commentCo" column="COMMENT_CO"/>
+		<result property="newAt" column="NEW_YN"/>
+	</resultMap>
+
+	<resultMap id="boardCnOne" type="egovframework.com.cop.bbs.service.BoardVO">
+		<result property="nttCn" column="NTT_CNTS"/>
+	</resultMap>
+
+	<resultMap id="boardMasterList" type="egovframework.com.cop.bbs.service.BoardMasterVO">
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="bbsNm" column="BBS_NM"/>
+	</resultMap>
+
+	<resultMap id="boardBlogManager" type="egovframework.com.cop.bbs.service.BoardMasterVO">
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="bbsNm" column="BBS_NM"/>
+		<result property="useAt" column="USE_YN"/>
+		<result property="frstRegisterNm" column="FRST_REGISTER_NM"/>
+		<result property="frstRegisterPnttm" column="REGDATE"/>
+	</resultMap>
+
+	<resultMap id="boardSubJectList" type="egovframework.com.cop.bbs.service.BoardVO">
+		<result property="bbsId" column="BBS_ID"/>
+		<result property="nttId" column="NTT_ID"/>
+		<result property="nttSj" column="NTT_TITLE"/>
+		<result property="frstRegisterId" column="REGUSER"/>
+		<result property="frstRegisterNm" column="FRST_REGISTER_NM"/>
+		<result property="frstRegisterPnttm" column="REGDATE"/>
+		<result property="inqireCo" column="RDCNT"/>
+		<result property="parnts" column="PARNTSCTT_NO"/>
+		<result property="replyAt" column="ANSWER_YN"/>
+		<result property="replyLc" column="ANSWER_LC"/>
+		<result property="useAt" column="USE_YN"/>
+		<result property="atchFileId" column="ATCH_FILE_ID"/>
+		<result property="ntceBgnde" column="NTCE_BGNDE"/>
+		<result property="ntceEndde" column="NTCE_ENDDE"/>
+		<result property="sjBoldAt" column="SJ_BOLD_YN"/>
+		<result property="noticeAt" column="NOTICE_YN"/>
+		<result property="secretAt" column="SECRET_YN"/>
+		<result property="commentCo" column="COMMENT_CO"/>
+		<result property="replyPosblAt" column="REPLY_POSBL_YN"/>
+		<result property="blogId" column="BLOG_ID"/>
+		<result property="newAt" column="NEW_YN"/>
+	</resultMap>
+
+ 	<select id="selectMaxNttId" resultType="java.lang.Long">
+
+			SELECT /* BBSArticle.selectMaxNttId */ NVL(MAX(NTT_ID), 0)+1 AS NTT_ID FROM COMTNBBS
+
+ 	</select>
+
+	<insert id="insertArticle" parameterType="egovframework.com.cop.bbs.service.BoardVO">
+		<selectKey keyProperty="nttNo" resultType="java.lang.Long" order="BEFORE">
+			SELECT NVL(MAX(SORT_ORDR),0)+1 AS NTT_NO FROM COMTNBBS
+		</selectKey>
+
+			INSERT INTO COMTNBBS  /* BBSArticle.insertArticle */
+			(NTT_ID, BBS_ID, NTT_TITLE, NTT_CNTS, SORT_ORDR,
+			 NTCR_ID, NTCR_NM, PASSWORD, RDCNT,
+			 NTCE_BGNDE, NTCE_ENDDE, ANSWER_YN,
+			 PARNTSCTT_NO, NTT_NO, ANSWER_LC, ATCH_FILE_ID,
+			 REGUSER, REGDATE, USE_YN,
+			 SJ_BOLD_YN, NOTICE_YN, SECRET_YN, BLOG_ID , MANAGER_DEPT , MANAGER_TEL, LINK_URL
+			 <if test="ctgId != null and ctgId!='' ">
+			 , CTG_ID
+			 </if>
+			 <if test="ntceStat != null and ntceStat!='' ">
+			 , NTCE_STAT
+			 </if>
+			 )
+			VALUES
+			(  /* (SELECT NVL(MAX(NTT_ID), 0) + 1 FROM COMTNBBS ALIAS_FOR_SUBQUERY) → nttId 로 변경 (추가 정보 입력시 nttId가 필요 ) */
+			  #{nttId}, #{bbsId}, #{nttSj}, #{nttCn}, #{nttId},
+			  #{ntcrId}, #{ntcrNm}, #{password}, #{inqireCo},
+			  #{ntceBgnde}, #{ntceEndde}, #{replyAt},
+			  #{parnts}, 1, #{replyLc}, #{atchFileId},
+			  #{frstRegisterId}, SYSDATE(), 'Y',
+			  #{sjBoldAt},  NVL(#{noticeAt},'N'), #{secretAt}, #{blogId} , #{managerDept} , #{managerTel} , #{linkUrl}
+			  <if test="ctgId != null and ctgId!='' ">
+			  , #{ctgId}
+			  </if>
+			  <if test="ntceStat != null and ntceStat!='' ">
+			  , #{ntceStat}
+			  </if>
+			 )
+
+	</insert>
+
+	<insert id="replyArticle" parameterType="egovframework.com.cop.bbs.service.BoardVO">
+		<selectKey keyProperty="nttNo" resultType="java.lang.Long" order="BEFORE">
+			SELECT NTT_NO + 1 AS NTT_NO  FROM COMTNBBS
+			WHERE BBS_ID = #{bbsId} AND NTT_ID = #{parnts}
+		</selectKey>
+			INSERT INTO COMTNBBS
+			(NTT_ID, BBS_ID, NTT_TITLE, NTT_CNTS, SORT_ORDR,
+			 NTCR_ID, NTCR_NM, PASSWORD, RDCNT,
+			 NTCE_BGNDE, NTCE_ENDDE, ANSWER_YN,
+			 PARNTSCTT_NO, NTT_NO, ANSWER_LC, ATCH_FILE_ID,
+			 REGUSER, REGDATE, USE_YN,
+			 SJ_BOLD_YN, NOTICE_YN, SECRET_YN , MANAGER_DEPT , MANAGER_TEL, LINK_URL
+			 )
+			VALUES
+			( #{nttId}, #{bbsId}, #{nttSj}, #{nttCn}, #{sortOrdr},
+			  #{ntcrId}, #{ntcrNm}, #{password}, #{inqireCo},
+			  #{ntceBgnde}, #{ntceEndde}, #{replyAt},
+			  #{parnts}, #{nttNo}, #{replyLc}, #{atchFileId},
+			  #{frstRegisterId}, SYSDATE(), 'Y',
+			  #{sjBoldAt}, NVL(#{noticeAt},'N'), #{secretAt} , #{managerDept} , #{managerTel} , #{linkUrl}
+			 )
+
+	</insert>
+
+
+	<update id="replyArticleUpdate" parameterType="egovframework.com.cop.bbs.service.BoardVO">
+			UPDATE COMTNBBS SET NTT_NO = NTT_NO + 1
+			WHERE SORT_ORDR=#{sortOrdr} AND NTT_NO <![CDATA[>=]]> #{nttNo}
+	</update>
+
+	<sql id="where_list">
+		<if test='useAt == "Y" '>
+
+			AND a.USE_YN = 'Y'
+
+			<if test="bbsId == 'notice' and searchCnd != -1">
+
+				 AND ( a.NTCE_BGNDE IS NULL OR a.NTCE_BGNDE='' OR DATE_FORMAT(SYSDATE(),'%Y-%m-%d') >= rtrim(a.NTCE_BGNDE) )
+				 AND ( a.NTCE_ENDDE IS NULL OR a.NTCE_ENDDE='' OR rtrim(a.NTCE_ENDDE) >= DATE_FORMAT(SYSDATE(),'%Y-%m-%d'))
+
+			</if>
+
+		</if>
+		<if test="searchCnd == 0">AND
+				a.NTT_TITLE LIKE CONCAT('%', #{searchWrd}, '%')
+		</if>
+		<if test="searchCnd == 1">AND
+				a.NTT_CNTS LIKE CONCAT('%', #{searchWrd}, '%')
+		</if>
+		<if test="searchCnd == 2">AND
+				a.NTCR_NM LIKE CONCAT('%', #{searchWrd}, '%')
+		</if>
+		<if test="searchCnd == 3">AND
+				(a.NTT_TITLE LIKE CONCAT('%', #{searchWrd}, '%') OR a.NTT_CNTS LIKE CONCAT('%', #{searchWrd}, '%'))
+		</if>
+		<if test="searchCtg != null and searchCtg != ''">AND
+				a.CTG_ID = #{searchCtg}
+		</if>
+		<if test='bbsTyCode == "B004"'>AND
+				a.ANSWER_LC = 0
+		</if>
+		<if test='searchStatus == "Y"'>AND
+				EXISTS (SELECT NTT_ID FROM COMTNBBS WHERE BBS_ID = a.BBS_ID AND PARNTSCTT_NO=a.NTT_ID AND USE_YN = 'Y')
+		</if>
+		<if test='searchStatus == "N"'>AND
+				NOT EXISTS (SELECT NTT_ID FROM COMTNBBS WHERE BBS_ID = a.BBS_ID AND PARNTSCTT_NO=a.NTT_ID AND USE_YN = 'Y')
+		</if>
+	</sql>
+
+	<sql id="where_list_bbs">
+		<if test='useAt == "Y" '>
+			AND a.USE_YN = 'Y'
+		</if>
+		<if test="searchCnd == 0">AND
+				a.NTT_TITLE LIKE CONCAT('%', #{searchWrd}, '%')
+		</if>
+		<if test="searchCnd == 1">AND
+				a.NTT_CNTS LIKE CONCAT('%', #{searchWrd}, '%')
+		</if>
+		<if test="searchCnd == 2">AND
+				a.NTCR_NM LIKE CONCAT('%', #{searchWrd}, '%')
+		</if>
+		<if test="searchCnd == 3">AND
+				(a.NTT_TITLE LIKE CONCAT('%', #{searchWrd}, '%') OR a.NTT_CNTS LIKE CONCAT('%', #{searchWrd}, '%'))
+		</if>
+		<if test="searchCtg != null and searchCtg != ''">AND
+				a.CTG_ID = #{searchCtg}
+		</if>
+		<if test='bbsTyCode == "B004"'>AND
+				a.ANSWER_LC = 0
+		</if>
+		<if test='searchStatus == "Y"'>AND
+				EXISTS (SELECT NTT_ID FROM COMTNBBS WHERE BBS_ID = a.BBS_ID AND PARNTSCTT_NO=a.NTT_ID AND USE_YN = 'Y')
+		</if>
+		<if test='searchStatus == "N"'>AND
+				NOT EXISTS (SELECT NTT_ID FROM COMTNBBS WHERE BBS_ID = a.BBS_ID AND PARNTSCTT_NO=a.NTT_ID AND USE_YN = 'Y')
+		</if>
+	</sql>
+
+	<select id="selectArticleList" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="boardList">
+
+		SELECT /* BBSArticle.selectArticleList */  T.*
+			, (SELECT COUNT(*) FROM ATCH_FILE_LIST WHERE FILE_GRP_NO = T.ATCH_FILE_ID) FILE_CNT
+			, (SELECT CTG_NM FROM COMTNBBSCTG WHERE CTG_ID = T.CTG_ID) CTG_NM
+			, (SELECT SORT_ORDER FROM COMTNBBSCTG WHERE CTG_ID = T.CTG_ID) SORT_ORDER
+			<if test='bbsTyCode == "B004"'>,(SELECT COUNT(*) FROM COMTNBBS WHERE BBS_ID = #{bbsId} AND PARNTSCTT_NO=T.NTT_ID AND USE_YN = 'Y') ANSWER_CNT</if>
+		FROM (
+			SELECT TB.* FROM (
+				SELECT ROW_NUMBER() OVER (order by a.SORT_ORDR DESC, NTT_NO asc) AS rn,
+					a.NTT_ID, a.NTT_TITLE, a.NTCR_ID AS REGUSER,  a.NTCR_NM as FRST_REGISTER_NM,
+					a.REGDATE, a.CTG_ID, a.NTT_NO,
+					a.RDCNT, a.PARNTSCTT_NO, a.ANSWER_YN, a.ANSWER_LC, a.USE_YN, a.ATCH_FILE_ID,
+					a.BBS_ID, rtrim(a.NTCE_BGNDE) NTCE_BGNDE, rtrim(a.NTCE_ENDDE) NTCE_ENDDE, a.SJ_BOLD_YN, a.NOTICE_YN, a.SECRET_YN, c.COMMENT_CO
+					,#{bbsTyCode} AS bbsTyCode  <if test='bbsTyCode == "B005"'>,a.NTT_CNTS</if>
+					,case when  DATEDIFF(NOW() , a.REGDATE)&lt;=7 then 'Y' else 'N' end as NEW_YN
+				FROM
+					COMTNBBS a
+				LEFT OUTER JOIN
+					(SELECT NTT_ID, BBS_ID, COUNT(1) AS COMMENT_CO
+					   FROM COMTNCOMMENT
+					 WHERE USE_YN = 'Y'
+					 GROUP BY NTT_ID, BBS_ID) c
+				ON a.NTT_ID = c.NTT_ID
+				AND a.BBS_ID = c.BBS_ID
+				WHERE a.BBS_ID = #{bbsId} AND a.NOTICE_YN = 'N'
+
+				<include refid="where_list_bbs"/>
+
+				ORDER BY a.SORT_ORDR DESC, NTT_NO ASC
+
+				) TB
+			) T
+
+			WHERE rn BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+
+	</select>
+
+	<select id="selectArticleListCnt" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultType="java.lang.Integer">
+
+			/* BBSArticle.selectArticleListCnt */
+			SELECT
+				COUNT(a.NTT_ID)
+			FROM
+				COMTNBBS a
+			WHERE
+				a.BBS_ID = #{bbsId}  AND a.NOTICE_YN = 'N'
+			<include refid="where_list"/>
+	</select>
+
+	<select id="selectArticleDetail" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="boardDetail">
+
+			/* selectArticleDetail */
+			SELECT
+				a.NTT_TITLE, a.NTCR_ID, a.NTCR_NM, a.NTT_NO, a.NTT_CNTS,
+				a.PASSWORD, a.REGUSER, a.NTCR_NM as FRST_REGISTER_NM,
+				(case a.NTCR_ID when 'anonymous' then 'Y' else '' end) AS ANONYMOUS_YN,
+				DATE_FORMAT(a.REGDATE, '%Y-%m-%d %H:%i:%S') as REGDATE,
+				a.NTCE_BGNDE, a.NTCE_ENDDE, a.RDCNT,
+				a.USE_YN, a.ATCH_FILE_ID, a.BBS_ID, a.NTT_ID,
+				a.SJ_BOLD_YN, a.NOTICE_YN, a.SECRET_YN,
+				a.PARNTSCTT_NO, a.ANSWER_YN, a.ANSWER_LC, a.SORT_ORDR,
+				a.MANAGER_DEPT , a.MANAGER_TEL, a.LINK_URL,
+				c.BBS_TY_CODE, c.REPLY_POSBL_YN, a.CTG_ID,
+				c.FILE_ATCH_POSBL_YN, c.ATCH_POSBL_FILE_NUMBER, c.BBS_NM,
+				(SELECT CTG_NM FROM COMTNBBSCTG WHERE CTG_ID = a.CTG_ID) CTG_NM,
+				(SELECT SORT_ORDER FROM COMTNBBSCTG WHERE CTG_ID = a.CTG_ID) SORT_ORDER
+				,case when  DATEDIFF(NOW() , a.REGDATE)&lt;=7 then 'Y' else 'N' end as NEW_YN
+				,a.NTCE_STAT
+				,a.MODDATE , a.MODUSER
+			<if test='bbsId == "dongari" or bbsId == "teacherpr"'>
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0001'),'') as ITEM1
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0002'),'') as ITEM2
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0003'),'') as ITEM3
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0004'),'') as ITEM4
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0005'),'') as ITEM5
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0006'),'') as ITEM6
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0007'),'') as ITEM7
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0008'),'') as ITEM8
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0009'),'') as ITEM9
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0010'),'') as ITEM10
+			</if>
+				,  NVL((SELECT MIN(FILE_SEQ) FROM ATCH_FILE_LIST WHERE FILE_GRP_NO = a.ATCH_FILE_ID and UPPER(FILE_EXTSN) in ('PNG','JPG','GIF','BMP') ),'') as ATCH_IMG
+			FROM
+				COMTNBBS a
+			LEFT OUTER JOIN
+				COMTNBBSMASTER c
+			ON a.BBS_ID = c.BBS_ID
+			WHERE
+				a.BBS_ID = #{bbsId}
+			AND
+				a.NTT_ID = #{nttId}
+			<if test='useAt == "Y" '>
+					AND a.USE_YN = 'Y' AND c.USE_YN = 'Y'
+
+					<if test="bbsId == 'notice'">
+						AND (a.NTCE_BGNDE IS NULL  OR DATE_FORMAT(SYSDATE(),'%Y-%m-%d') >= rtrim(a.NTCE_BGNDE) )
+						AND (a.NTCE_ENDDE IS NULL  OR rtrim(a.NTCE_ENDDE) >= DATE_FORMAT(SYSDATE(),'%Y-%m-%d'))
+					</if>
+			</if>
+	</select>
+
+	<select id="selectArticleNext" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultType="hashmap">
+
+			/* selectArticleNext */
+
+			SELECT
+				NEXT_NTT_ID AS "nextNttId",
+				PREV_NTT_ID AS "prevNttId"
+			FROM (
+				SELECT
+					a.NTT_ID,
+					LEAD(NTT_ID,1) OVER(ORDER BY NTT_ID DESC) PREV_NTT_ID,
+					LAG(NTT_ID,1) OVER(ORDER BY NTT_ID DESC) NEXT_NTT_ID
+				FROM
+					COMTNBBS a
+				WHERE
+					a.BBS_ID = #{bbsId} AND a.NOTICE_YN = 'N' and a.ANSWER_LC = 0
+				<include refid="where_list"/>
+			) T
+			WHERE NTT_ID=#{nttId}
+	</select>
+
+	<select id="selectArticleDetailCn" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="detailCn">
+
+			/* selectArticleDetailCn */
+			SELECT
+				a.NTT_TITLE, a.NTCR_ID, a.NTCR_NM, a.NTT_NO, a.NTT_CNTS,
+				a.PASSWORD, a.REGUSER, a.NTCR_NM as FRST_REGISTER_NM,
+				a.REGDATE,
+				a.NTCE_BGNDE, a.NTCE_ENDDE, a.RDCNT,
+				a.USE_YN, a.ATCH_FILE_ID, a.BBS_ID, a.NTT_ID,
+				a.SJ_BOLD_YN, a.NOTICE_YN, a.SECRET_YN,
+				a.PARNTSCTT_NO, a.ANSWER_YN, a.ANSWER_LC, a.SORT_ORDR,
+				c.BBS_TY_CODE, c.REPLY_POSBL_YN,
+				c.FILE_ATCH_POSBL_YN, c.ATCH_POSBL_FILE_NUMBER, c.BBS_NM
+			FROM
+				COMTNBBS a
+			LEFT OUTER JOIN
+				COMTNBBSMASTER c
+			ON a.BBS_ID = c.BBS_ID
+			WHERE
+				a.BBS_ID = #{bbsId}
+			AND
+				a.NTT_ID = #{nttId}
+			AND
+				a.USE_YN = 'Y'
+
+	</select>
+
+	<select id="selectArticleDetailDefault" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="boardSubJectList">
+
+		/* selectArticleDetailDefault */
+		SELECT * FROM ( SELECT ROW_NUMBER() OVER () rn, TB.* FROM (
+			SELECT
+					a.NTT_ID, a.NTT_TITLE, a.NTT_CNTS, a.REGUSER, a.NTCR_NM as FRST_REGISTER_NM,
+					a.REGDATE,
+					a.RDCNT, a.PARNTSCTT_NO, a.ANSWER_YN, a.ANSWER_LC, a.USE_YN, a.ATCH_FILE_ID,
+					a.BBS_ID, a.NTCE_BGNDE, a.NTCE_ENDDE, a.SJ_BOLD_YN, a.NOTICE_YN, a.SECRET_YN, c.COMMENT_CO,
+					a.NTCR_ID, d.BLOG_ID, d.REPLY_POSBL_YN
+					,case when  DATEDIFF(NOW() , a.REGDATE)&lt;=7 then 'Y' else 'N' end as NEW_YN
+				FROM
+					COMTNBBS a
+				LEFT OUTER JOIN
+					(SELECT NTT_ID, BBS_ID, COUNT(1) AS COMMENT_CO
+					   FROM COMTNCOMMENT
+					 WHERE USE_YN = 'Y'
+					 GROUP BY NTT_ID, BBS_ID) c
+				ON a.NTT_ID = c.NTT_ID
+				LEFT OUTER JOIN
+					COMTNBBSMASTER d
+				ON a.BBS_ID = d.BBS_ID
+				WHERE
+					a.BBS_ID = #{bbsId}
+				AND a.USE_YN = 'Y'
+				ORDER BY a.SORT_ORDR DESC, NTT_NO ASC
+				<if test="searchCnd == 5">
+					) TB ) WHERE rn BETWEEN 1 AND 5
+				</if>
+				<if test="searchCnd == 10">
+					) TB ) WHERE rn BETWEEN 1 AND 10
+				</if>
+				<if test="searchCnd == 15">
+					) TB ) WHERE rn BETWEEN 1 AND 15
+				</if>
+				<if test="searchCnd == 20">
+					) TB ) WHERE rn BETWEEN 1 AND 20
+				</if>
+				<if test="searchCnd == 30">
+					) TB ) WHERE rn BETWEEN 1 AND 30
+				</if>
+
+	</select>
+
+ 	<update id="updateArticle" parameterType="egovframework.com.cop.bbs.service.BoardVO">
+
+			/* updateArticle */
+			UPDATE COMTNBBS
+
+			    SET
+
+				NTT_TITLE = #{nttSj},
+				NTT_CNTS = #{nttCn},
+				NTCE_BGNDE = #{ntceBgnde},
+				NTCE_ENDDE = #{ntceEndde},
+				<if test="ctgId != null and ctgId!='' ">
+				CTG_ID = #{ctgId},
+				</if>
+				MODUSER = #{lastUpdusrId},
+				ATCH_FILE_ID = #{atchFileId},
+				MODDATE = SYSDATE(),
+				SJ_BOLD_YN = #{sjBoldAt},
+				NOTICE_YN = NVL(#{noticeAt},'N'),
+				SECRET_YN = #{secretAt},
+
+				<if test="useAt != null and useAt != ''">
+					USE_YN = #{useAt},
+				</if>
+				 <if test="ntceStat != null and ntceStat!='' ">
+				 	NTCE_STAT = #{ntceStat},
+				 </if>
+
+				MANAGER_DEPT = #{managerDept},
+				MANAGER_TEL = #{managerTel},
+				LINK_URL = #{linkUrl}
+			WHERE BBS_ID = #{bbsId}
+			  AND NTT_ID = #{nttId}
+
+ 	</update>
+
+
+ 	<update id="updateStatArticle" parameterType="egovframework.com.cop.bbs.service.BoardVO">
+
+			/* updateStatArticle */
+			UPDATE COMTNBBS
+			    SET
+				 	NTCE_STAT = #{ntceStat},
+					MODUSER = #{lastUpdusrId},
+					MODDATE = SYSDATE()
+			WHERE BBS_ID = #{bbsId}
+			  AND NTT_ID = #{nttId}
+
+ 	</update>
+
+ 	<update id="deleteArticle" parameterType="egovframework.com.cop.bbs.service.BoardVO">
+
+			/* deleteArticle */
+			UPDATE COMTNBBS SET
+				USE_YN = 'N',
+				MODUSER = #{lastUpdusrId},
+				MODDATE = SYSDATE()
+			WHERE BBS_ID = #{bbsId}
+			AND NTT_ID = #{nttId}
+
+ 	</update>
+
+ 	 <delete id="deleteArticleComplete" parameterType="egovframework.com.cop.bbs.service.BoardVO">
+
+			/* deleteArticleComplete */
+			DELETE FROM COMTNBBS
+			WHERE BBS_ID = #{bbsId}
+			AND NTT_ID = #{nttId}
+
+ 	</delete>
+
+ 	<select id="selectMaxInqireCo" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultType="java.lang.Integer">
+
+			/* selectMaxInqireCo */
+			SELECT NVL(MAX(RDCNT),0)+1 AS RDCNT FROM COMTNBBS
+			WHERE BBS_ID = #{bbsId}
+			AND NTT_ID = #{nttId}
+
+ 	</select>
+
+
+ 	<update id="updateInqireCo" parameterType="egovframework.com.cop.bbs.service.BoardVO">
+
+			UPDATE COMTNBBS SET
+				RDCNT = RDCNT+1
+			WHERE BBS_ID = #{bbsId}
+			AND NTT_ID = #{nttId}
+
+ 	</update>
+
+ 	<select id="selectNoticeArticleList" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="boardList">
+
+		SELECT /* BBSArticle.selectNoticeArticleList */ T.*
+			, (SELECT COUNT(*) FROM ATCH_FILE_LIST WHERE FILE_GRP_NO = T.ATCH_FILE_ID) FILE_CNT
+			, (SELECT CTG_NM FROM COMTNBBSCTG WHERE CTG_ID = T.CTG_ID) CTG_NM
+			, (SELECT SORT_ORDER FROM COMTNBBSCTG WHERE CTG_ID = T.CTG_ID) SORT_ORDER
+		FROM ( SELECT ROW_NUMBER() OVER () rn, TB.* FROM (
+			SELECT
+				a.NTT_ID, a.NTT_TITLE, a.REGUSER, a.NTCR_NM as FRST_REGISTER_NM,
+				a.REGDATE,
+				a.SJ_BOLD_YN,
+				a.RDCNT, a.PARNTSCTT_NO, a.ANSWER_YN, a.ANSWER_LC, a.USE_YN, a.ATCH_FILE_ID, a.CTG_ID,
+				a.BBS_ID, rtrim(a.NTCE_BGNDE) NTCE_BGNDE, rtrim(a.NTCE_ENDDE) NTCE_ENDDE, c.COMMENT_CO
+				,case when  DATEDIFF(NOW() , a.REGDATE)&lt;=7 then 'Y' else 'N' end as NEW_YN
+			FROM
+				COMTNBBS a
+			LEFT OUTER JOIN
+				(SELECT NTT_ID, BBS_ID, COUNT(1) AS COMMENT_CO
+				   FROM COMTNCOMMENT
+				 WHERE USE_YN = 'Y'
+				 GROUP BY NTT_ID, BBS_ID) c
+			ON a.NTT_ID = c.NTT_ID
+			AND a.BBS_ID = c.BBS_ID
+			WHERE
+				a.BBS_ID = #{bbsId}
+				AND a.NOTICE_YN = 'Y'
+			<include refid="where_list"/>
+			ORDER BY a.SORT_ORDR DESC, NTT_NO ASC
+			) TB
+		) T
+	</select>
+
+	<select id="selectGuestArticleList" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="guestList">
+
+		SELECT * FROM ( SELECT ROW_NUMBER() OVER () rn, TB.* FROM (
+			SELECT
+				a.NTT_ID, a.NTT_TITLE,
+				a.REGDATE,
+				a.NTT_CNTS, a.USE_YN, a.BBS_ID, b.USER_NM as FRST_REGISTER_NM, a.REGUSER
+			FROM
+				COMTNBBS a, COMVNUSERMASTER b
+			WHERE
+				a.BBS_ID = #{bbsId}
+			AND
+				a.REGUSER = b.ESNTL_ID
+			AND
+				a.USE_YN = 'Y'
+			ORDER BY a.SORT_ORDR DESC, a.NTT_NO ASC
+		) TB ) WHERE rn BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+
+	</select>
+
+	<select id="selectGuestArticleListCnt" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultType="java.lang.Integer">
+
+			SELECT
+				COUNT(NTT_ID)
+			FROM
+				COMTNBBS
+			WHERE
+				BBS_ID = #{bbsId}
+			AND
+				USE_YN = 'Y'
+
+	</select>
+
+	<select id="selectArticleCnOne" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="boardCnOne">
+
+		SELECT * FROM ( SELECT ROW_NUMBER() OVER () rn, TB.* FROM (
+			SELECT
+				a.NTT_CNTS
+			FROM
+				COMTNBBS a
+			LEFT OUTER JOIN
+				COMTNBBSMASTER c
+			ON a.BBS_ID = c.BBS_ID
+			WHERE
+				a.BBS_ID = #{bbsId}
+			AND
+				a.USE_YN = 'Y'
+			ORDER BY a.SORT_ORDR DESC
+			) TB ) WHERE rn BETWEEN 1 AND 1
+
+	</select>
+
+	<select id="selectBlogNmList" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="boardMasterList">
+
+		SELECT * FROM ( SELECT ROW_NUMBER() OVER () rn, TB.* FROM (
+			SELECT
+				A.BBS_ID, A.BLOG_ID, A.BBS_NM
+			FROM
+	 			COMTNBBSMASTER A, COMTNBLOG B
+	 		WHERE A.BLOG_ID = B.BLOG_ID
+	 		AND B.BLOG_ID = #{blogId}
+	 		ORDER BY A.REGDATE DESC
+	 		) TB ) WHERE rn BETWEEN 1 AND 7
+
+	</select>
+
+	<select id="selectLoginUser" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultType="java.lang.Integer">
+
+			SELECT
+				COUNT(REGUSER)
+			FROM
+				COMTNBLOG
+			WHERE
+				REGUSER = #{frstRegisterId}
+			AND
+				BLOG_ID = #{blogId}
+
+	</select>
+
+	<select id="selectBlogListManager" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="boardBlogManager">
+
+			SELECT
+				A.BBS_ID, A.BLOG_ID, A.BBS_NM, C.USER_NM AS FRST_REGISTER_NM,
+				a.REGDATE,
+				A.USE_YN
+			FROM
+	 			COMTNBBSMASTER A
+			LEFT OUTER JOIN
+				COMTNBLOG B
+			ON A.BLOG_ID = B.BLOG_ID
+			LEFT OUTER JOIN
+			  (SELECT ESNTL_ID, USER_ID, USER_NM FROM COMVNUSERMASTER) C
+			ON A.REGUSER = C.ESNTL_ID
+			WHERE A.BLOG_ID = #{blogId}
+			<if test="searchCnd == 0">AND
+					A.BBS_NM LIKE CONCAT('%', #{searchWrd}, '%')
+			</if>
+			<if test="searchCnd == 1">AND
+					A.BBS_INTRCN LIKE CONCAT('%', #{searchWrd}, '%')
+			</if>
+	 		ORDER BY A.REGDATE DESC
+
+	</select>
+
+	<select id="selectBlogListManagerCnt" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultType="java.lang.Integer">
+
+			SELECT
+				COUNT(1)
+			FROM
+	 			COMTNBBSMASTER A, COMTNBLOG B
+	 		WHERE A.BLOG_ID = B.BLOG_ID
+	 		AND B.BLOG_ID = #{blogId}
+	 		<if test="searchCnd == 0">AND
+					A.BBS_NM LIKE CONCAT('%', #{searchWrd}, '%')
+			</if>
+			<if test="searchCnd == 1">AND
+					A.BBS_INTRCN LIKE CONCAT('%', #{searchWrd}, '%')
+			</if>
+	 		ORDER BY A.REGDATE DESC
+
+	</select>
+
+	<select id="selectArticleDetailDefaultCnt" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultType="java.lang.Integer">
+
+			SELECT
+					COUNT(*)
+				FROM
+					COMTNBBS a
+				LEFT OUTER JOIN
+					COMVNUSERMASTER b
+				ON a.REGUSER = b.ESNTL_ID
+				LEFT OUTER JOIN
+					(SELECT NTT_ID, BBS_ID, COUNT(1) AS COMMENT_CO
+					   FROM COMTNCOMMENT
+					 WHERE USE_YN = 'Y'
+					 GROUP BY NTT_ID, BBS_ID) c
+				ON a.NTT_ID = c.NTT_ID
+				LEFT OUTER JOIN
+					COMTNBBSMASTER d
+				ON a.BBS_ID = d.BBS_ID
+				WHERE
+					a.BBS_ID = #{bbsId}
+				AND a.USE_YN = 'Y'
+				ORDER BY a.SORT_ORDR DESC, NTT_NO ASC
+
+	</select>
+
+
+	<select id="selectArticleReplyDetail" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="boardDetail">
+
+			SELECT /* selectArticleReplyDetail */
+				a.NTT_TITLE, a.NTCR_ID, a.NTCR_NM, a.NTT_NO, a.NTT_CNTS,
+				a.PASSWORD, a.REGUSER, a.NTCR_NM as FRST_REGISTER_NM,
+				(case a.NTCR_ID when 'anonymous' then 'Y' else '' end) AS ANONYMOUS_YN,
+				a.REGDATE,
+				a.NTCE_BGNDE, a.NTCE_ENDDE, a.RDCNT,
+				a.USE_YN, a.ATCH_FILE_ID, a.BBS_ID, a.NTT_ID,
+				a.SJ_BOLD_YN, a.NOTICE_YN, a.SECRET_YN,
+				a.PARNTSCTT_NO, a.ANSWER_YN, a.ANSWER_LC, a.SORT_ORDR,
+				a.MANAGER_DEPT , a.MANAGER_TEL , a.LINK_URL
+				,a.MODDATE , a.MODUSER
+				,case when  DATEDIFF(NOW() , a.REGDATE)&lt;=7 then 'Y' else 'N' end as NEW_YN
+			FROM
+				COMTNBBS a
+			WHERE
+				a.BBS_ID = #{bbsId}
+			AND
+				a.PARNTSCTT_NO = #{nttId}
+				AND a.USE_YN = 'Y'
+				LIMIT 1
+	</select>
+
+ 	<select id="selectNoticeArticleMainList" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="boardList">
+
+		SELECT /* BBSArticle.selectNoticeArticleMainList */ T.*
+			, (SELECT COUNT(*) FROM ATCH_FILE_LIST WHERE FILE_GRP_NO = T.ATCH_FILE_ID) FILE_CNT
+			, (SELECT CTG_NM FROM COMTNBBSCTG WHERE CTG_ID = T.CTG_ID) CTG_NM
+			, (SELECT SORT_ORDER FROM COMTNBBSCTG WHERE CTG_ID = T.CTG_ID) SORT_ORDER
+		FROM ( SELECT ROW_NUMBER() OVER () rn, TB.* FROM (
+			SELECT
+				a.NTT_ID, a.NTT_TITLE, a.REGUSER, a.NTCR_NM as FRST_REGISTER_NM,
+				a.REGDATE, a.SJ_BOLD_YN,
+				a.RDCNT, a.PARNTSCTT_NO, a.ANSWER_YN, a.ANSWER_LC, a.USE_YN, a.ATCH_FILE_ID, a.CTG_ID,
+				a.NTT_CNTS,
+				a.BBS_ID, rtrim(a.NTCE_BGNDE) NTCE_BGNDE, rtrim(a.NTCE_ENDDE) NTCE_ENDDE, c.COMMENT_CO
+				,case when  DATEDIFF(NOW() , a.REGDATE)&lt;=7 then 'Y' else 'N' end as NEW_YN
+			FROM
+				COMTNBBS a
+			LEFT OUTER JOIN
+				(SELECT NTT_ID, BBS_ID, COUNT(1) AS COMMENT_CO
+				   FROM COMTNCOMMENT
+				 WHERE USE_YN = 'Y'
+				 GROUP BY NTT_ID, BBS_ID) c
+			ON a.NTT_ID = c.NTT_ID
+			AND a.BBS_ID = c.BBS_ID
+			WHERE
+				a.BBS_ID = #{bbsId}
+			<include refid="where_list"/>
+			) TB
+			ORDER BY TB.REGDATE DESC
+		) T
+	</select>
+
+	<select id="selectArticleListBBS" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="boardList">
+
+		SELECT /* BBSArticle.selectArticleListBBS */  T.*
+			, (SELECT COUNT(*) FROM ATCH_FILE_LIST WHERE FILE_GRP_NO = T.ATCH_FILE_ID) FILE_CNT
+			, (SELECT CTG_NM FROM COMTNBBSCTG WHERE CTG_ID = T.CTG_ID) CTG_NM
+			, (SELECT SORT_ORDER FROM COMTNBBSCTG WHERE CTG_ID = T.CTG_ID) SORT_ORDER
+			<if test='bbsTyCode == "B004"'>,(SELECT COUNT(*) FROM COMTNBBS WHERE BBS_ID = #{bbsId} AND PARNTSCTT_NO=T.NTT_ID AND USE_YN = 'Y') ANSWER_CNT</if>
+		FROM (
+			SELECT TB.* FROM (
+				SELECT ROW_NUMBER() OVER (order by a.SORT_ORDR DESC, NTT_NO asc) AS rn,
+					a.NTT_ID, a.NTT_TITLE, a.NTCR_ID AS REGUSER,  a.NTCR_NM as FRST_REGISTER_NM,
+					a.REGDATE, a.CTG_ID,
+					a.RDCNT, a.PARNTSCTT_NO, a.ANSWER_YN, a.ANSWER_LC, a.USE_YN, a.ATCH_FILE_ID,
+					a.BBS_ID, rtrim(a.NTCE_BGNDE) NTCE_BGNDE, rtrim(a.NTCE_ENDDE) NTCE_ENDDE, a.SJ_BOLD_YN, a.NOTICE_YN, a.SECRET_YN, c.COMMENT_CO
+					,#{bbsTyCode} AS bbsTyCode  <if test='bbsTyCode == "B005"'>,a.NTT_CNTS</if>
+					,case when  DATEDIFF(NOW() , a.REGDATE)&lt;=7 then 'Y' else 'N' end as NEW_YN
+				FROM
+					COMTNBBS a
+				LEFT OUTER JOIN
+					(SELECT NTT_ID, BBS_ID, COUNT(1) AS COMMENT_CO
+					   FROM COMTNCOMMENT
+					 WHERE USE_YN = 'Y'
+					 GROUP BY NTT_ID, BBS_ID) c
+				ON a.NTT_ID = c.NTT_ID
+				AND a.BBS_ID = c.BBS_ID
+				WHERE a.BBS_ID = #{bbsId} AND a.NOTICE_YN = 'N'
+
+				<include refid="where_list_bbs"/>
+
+				ORDER BY a.SORT_ORDR DESC, NTT_NO ASC
+
+				) TB
+			) T
+
+			WHERE rn BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+
+	</select>
+
+	<select id="selectArticleBBSDetail" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="boardDetail">
+
+			/* selectArticleBBSDetail */
+			SELECT
+				a.NTT_TITLE, a.NTCR_ID, a.NTCR_NM, a.NTT_NO, a.NTT_CNTS,
+				a.PASSWORD, a.REGUSER, a.NTCR_NM as FRST_REGISTER_NM,
+				(case a.NTCR_ID when 'anonymous' then 'Y' else '' end) AS ANONYMOUS_YN,
+				a.REGDATE,
+				a.NTCE_BGNDE, a.NTCE_ENDDE, a.RDCNT,
+				a.USE_YN, a.ATCH_FILE_ID, a.BBS_ID, a.NTT_ID,
+				a.SJ_BOLD_YN, a.NOTICE_YN, a.SECRET_YN,
+				a.PARNTSCTT_NO, a.ANSWER_YN, a.ANSWER_LC, a.SORT_ORDR,
+				a.MANAGER_DEPT , a.MANAGER_TEL, a.LINK_URL,
+				c.BBS_TY_CODE, c.REPLY_POSBL_YN, a.CTG_ID,
+				c.FILE_ATCH_POSBL_YN, c.ATCH_POSBL_FILE_NUMBER, c.BBS_NM,
+				(SELECT CTG_NM FROM COMTNBBSCTG WHERE CTG_ID = a.CTG_ID) CTG_NM
+				,case when  DATEDIFF(NOW() , a.REGDATE)&lt;=7 then 'Y' else 'N' end as NEW_YN
+				,a.NTCE_STAT,D.COMMENT_CO
+			<if test='bbsId == "dongari" or bbsId == "teacherpr" '>
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0001'),'') as ITEM1
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0002'),'') as ITEM2
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0003'),'') as ITEM3
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0004'),'') as ITEM4
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0005'),'') as ITEM5
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0006'),'') as ITEM6
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0007'),'') as ITEM7
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0008'),'') as ITEM8
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0009'),'') as ITEM9
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0010'),'') as ITEM10
+			</if>
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='SURVEY_NO'),'') as SURVEY_NO
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='URL_LINK'),'') as URL_LINK
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='TAG_0001'),'') as TAG_0001
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='TAG_0002'),'') as TAG_0002
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='TAG_0003'),'') as TAG_0003
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='TAG_0004'),'') as TAG_0004
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='TAG_0005'),'') as TAG_0005
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='EDC_PROGRAM'),'') as EDC_PROGRAM
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='SOURCE'),'') as SOURCE
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='MEDIA'),'') as MEDIA
+				,  NVL((SELECT MIN(FILE_SEQ) FROM ATCH_FILE_LIST WHERE FILE_GRP_NO = a.ATCH_FILE_ID and UPPER(FILE_EXTSN) in ('PNG','JPG','GIF','BMP') ),'') as ATCH_IMG
+			FROM
+				COMTNBBS a
+			LEFT OUTER JOIN
+				(SELECT NTT_ID, BBS_ID, COUNT(1) AS COMMENT_CO
+					FROM COMTNCOMMENT
+					WHERE USE_YN = 'Y'
+					GROUP BY NTT_ID, BBS_ID) D
+					 
+			ON a.NTT_ID = D.NTT_ID
+			AND a.BBS_ID = D.BBS_ID
+			LEFT OUTER JOIN
+				COMTNBBSMASTER c
+			ON a.BBS_ID = c.BBS_ID
+			WHERE
+				a.BBS_ID = #{bbsId}
+			AND
+				a.NTT_ID = #{nttId}
+			<if test='useAt == "Y" '>
+				AND a.USE_YN = 'Y' AND c.USE_YN = 'Y'
+			</if>
+	</select>
+
+	<select id="selectArticleNewList" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="boardList">
+
+		SELECT /* BBSArticle.selectArticleNewList */  T.*
+			, (SELECT COUNT(*) FROM ATCH_FILE_LIST WHERE FILE_GRP_NO = T.ATCH_FILE_ID) FILE_CNT
+			<!--  , (SELECT CTG_NM FROM COMTNBBSCTG WHERE CTG_ID = T.CTG_ID) CTG_NM  -->
+			<!-- , (SELECT SORT_ORDER FROM COMTNBBSCTG WHERE CTG_ID = T.CTG_ID) SORT_ORDER  -->
+			<if test='bbsTyCode == "B004"'>,(SELECT COUNT(*) FROM COMTNBBS WHERE BBS_ID = #{bbsId} AND PARNTSCTT_NO=T.NTT_ID AND USE_YN = 'Y') ANSWER_CNT</if>
+		FROM (
+			SELECT TB.* FROM (
+		<choose>
+			<when test='bbsId == "dongari"'>
+				<choose>
+					<when test='sortOrdr == "1"'>
+				SELECT ROW_NUMBER() OVER (order by a.SORT_ORDR DESC, NTT_NO asc) AS rn,
+					</when>
+					<otherwise>
+				SELECT ROW_NUMBER() OVER (order by SORT_ORDER, a.SORT_ORDR DESC, NTT_NO asc) AS rn,
+					</otherwise>
+				</choose>
+			</when>
+			<otherwise>
+				SELECT ROW_NUMBER() OVER (order by a.SORT_ORDR DESC, NTT_NO asc) AS rn,
+			</otherwise>
+		</choose>
+					a.NTT_ID, a.NTT_TITLE, a.NTCR_ID AS REGUSER,  a.NTCR_NM as FRST_REGISTER_NM,
+					DATE_FORMAT(a.REGDATE, '%Y-%m-%d %H:%i:%S') as REGDATE,
+					a.CTG_ID,
+					a.RDCNT, a.PARNTSCTT_NO, a.ANSWER_YN, a.ANSWER_LC, a.USE_YN, a.ATCH_FILE_ID,a.NTT_NO,
+					a.BBS_ID, rtrim(a.NTCE_BGNDE) NTCE_BGNDE, rtrim(a.NTCE_ENDDE) NTCE_ENDDE, a.SJ_BOLD_YN, a.NOTICE_YN, a.SECRET_YN, c.COMMENT_CO
+					,#{bbsTyCode} AS bbsTyCode  <if test='bbsTyCode == "B005" or bbsId == "faq"'>,a.NTT_CNTS</if>
+					,case when  DATEDIFF(NOW() , a.REGDATE)&lt;=7 then 'Y' else 'N' end as NEW_YN
+					,NVL(ct.CTG_NM,0)  as CTG_NM
+					,NVL(ct.SORT_ORDER,0)  as SORT_ORDER
+					,a.NTCE_STAT
+					<if test='bbsId == "dongari" or bbsId == "teacherpr"'>
+					, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0001'),'') as ITEM1
+					, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0002'),'') as ITEM2
+					, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0003'),'') as ITEM3
+					, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0004'),'') as ITEM4
+					, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0005'),'') as ITEM5
+					, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0006'),'') as ITEM6
+					, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0007'),'') as ITEM7
+					, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0008'),'') as ITEM8
+					, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0009'),'') as ITEM9
+					, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0010'),'') as ITEM10
+					</if>
+					,  NVL((SELECT MIN(FILE_SEQ) FROM ATCH_FILE_LIST WHERE FILE_GRP_NO = a.ATCH_FILE_ID and UPPER(FILE_EXTSN) in ('PNG','JPG','GIF','BMP') ),'') as ATCH_IMG
+				FROM
+					COMTNBBS a
+				LEFT OUTER JOIN COMTNBBSCTG ct on a.CTG_ID=ct.CTG_ID and a.BBS_ID=ct.BBS_ID
+				LEFT OUTER JOIN
+					(SELECT NTT_ID, BBS_ID, COUNT(1) AS COMMENT_CO
+					   FROM COMTNCOMMENT
+					 WHERE USE_YN = 'Y'
+					 GROUP BY NTT_ID, BBS_ID) c
+				ON a.NTT_ID = c.NTT_ID
+				AND a.BBS_ID = c.BBS_ID
+				WHERE a.BBS_ID = #{bbsId} AND a.NOTICE_YN = 'N'
+
+				<include refid="where_list_new"/>
+
+		<choose>
+			<when test='bbsId == "dongari"'>
+				<choose>
+					<when test='sortOrdr == "1"'>
+						ORDER BY SORT_ORDER, a.SORT_ORDR DESC, NTT_NO ASC
+					</when>
+					<when test='sortOrdr == "2"'>
+						ORDER BY a.NTT_TITLE, a.SORT_ORDR DESC, NTT_NO ASC
+					</when>
+					<otherwise>
+						ORDER BY a.SORT_ORDR DESC, NTT_NO ASC
+					</otherwise>
+				</choose>
+			</when>
+			<otherwise>
+				ORDER BY a.SORT_ORDR DESC, NTT_NO ASC
+			</otherwise>
+		</choose>
+
+				) TB
+			) T
+
+			WHERE rn BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+
+	</select>
+
+	<select id="selectArticleListNewCnt" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultType="java.lang.Integer">
+
+			/* BBSArticle.selectArticleListNewCnt */
+			SELECT
+				COUNT(a.NTT_ID)
+			FROM
+				COMTNBBS a
+			WHERE
+				a.BBS_ID = #{bbsId}  AND a.NOTICE_YN = 'N'
+				<include refid="where_list_new"/>
+	</select>
+
+ 	<select id="selectNoticeArticleNewList" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="boardList">
+
+		SELECT /* BBSArticle.selectNoticeArticleNewList */ T.*
+			, (SELECT COUNT(*) FROM ATCH_FILE_LIST WHERE FILE_GRP_NO = T.ATCH_FILE_ID) FILE_CNT
+			, (SELECT CTG_NM FROM COMTNBBSCTG WHERE CTG_ID = T.CTG_ID) CTG_NM
+			, (SELECT SORT_ORDER FROM COMTNBBSCTG WHERE CTG_ID = T.CTG_ID) SORT_ORDER
+		FROM ( SELECT ROW_NUMBER() OVER () rn, TB.* FROM (
+			SELECT
+				a.NTT_ID, a.NTT_TITLE, a.REGUSER, a.NTCR_NM as FRST_REGISTER_NM,
+				a.REGDATE, a.SJ_BOLD_YN,
+				a.RDCNT, a.PARNTSCTT_NO, a.ANSWER_YN, a.ANSWER_LC, a.USE_YN, a.ATCH_FILE_ID, a.CTG_ID,
+				a.BBS_ID, rtrim(a.NTCE_BGNDE) NTCE_BGNDE, rtrim(a.NTCE_ENDDE) NTCE_ENDDE, c.COMMENT_CO
+				,case when  DATEDIFF(NOW() , a.REGDATE)&lt;=7 then 'Y' else 'N' end as NEW_YN
+			FROM
+				COMTNBBS a
+			LEFT OUTER JOIN
+				(SELECT NTT_ID, BBS_ID, COUNT(1) AS COMMENT_CO
+				   FROM COMTNCOMMENT
+				 WHERE USE_YN = 'Y'
+				 GROUP BY NTT_ID, BBS_ID) c
+			ON a.NTT_ID = c.NTT_ID
+			AND a.BBS_ID = c.BBS_ID
+			WHERE
+				a.BBS_ID = #{bbsId}
+				AND a.NOTICE_YN = 'Y'
+			<include refid="where_list_new"/>
+			ORDER BY a.SORT_ORDR DESC, NTT_NO ASC
+			) TB
+		) T
+	</select>
+
+	<sql id="where_list_new">
+
+		<if test='useAt == "Y" '>
+
+			AND a.USE_YN = 'Y'
+
+		</if>
+		<if test="searchCnd == 0">AND
+				a.NTT_TITLE LIKE CONCAT('%', #{searchWrd}, '%')
+		</if>
+		<if test="searchCnd == 1">AND
+				a.NTT_CNTS LIKE CONCAT('%', #{searchWrd}, '%')
+		</if>
+		<if test="searchCnd == 2">AND
+				a.NTCR_NM LIKE CONCAT('%', #{searchWrd}, '%')
+		</if>
+		<if test="searchCnd == 3">AND
+				(a.NTT_TITLE LIKE CONCAT('%', #{searchWrd}, '%') OR a.NTT_CNTS LIKE CONCAT('%', #{searchWrd}, '%'))
+		</if>
+		<if test="searchCnd == 9">AND
+				(a.NTT_TITLE LIKE CONCAT('%', #{searchWrd}, '%') OR a.NTT_CNTS LIKE CONCAT('%', #{searchWrd}, '%'))
+		</if>
+		<if test="searchCtg != null and searchCtg != ''">AND
+				a.CTG_ID = #{searchCtg}
+		</if>
+		<if test='bbsTyCode == "B004"'>AND
+				a.ANSWER_LC = 0
+		</if>
+		<if test='searchStatus == "Y"'>AND
+				EXISTS (SELECT NTT_ID FROM COMTNBBS WHERE BBS_ID = a.BBS_ID AND PARNTSCTT_NO=a.NTT_ID AND USE_YN = 'Y')
+		</if>
+		<if test='searchStatus == "N"'>AND
+				NOT EXISTS (SELECT NTT_ID FROM COMTNBBS WHERE BBS_ID = a.BBS_ID AND PARNTSCTT_NO=a.NTT_ID AND USE_YN = 'Y')
+		</if>
+
+
+		<if test="ntceStat != null and ntceStat != ''">
+			AND INSTR(#{ntceStat},a.NTCE_STAT)
+		</if>
+
+		<if test="ntcrId != null and ntcrId != ''">
+			AND NTCR_ID = #{ntcrId}
+		</if>
+
+		<if test="searchBgnDe != null and searchBgnDe != ''">
+			AND date(a.REGDATE) &gt;= #{searchBgnDe}
+		</if>
+
+		<if test="searchEndDe != null and searchEndDe != ''">
+			AND date(a.REGDATE) &lt;= #{searchEndDe}
+		</if>
+
+	</sql>
+
+	<select id="selectArticleDetailOne" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultMap="boardDetail">
+
+			/* selectArticleDetailOne */
+			SELECT
+				a.NTT_TITLE, a.NTCR_ID, a.NTCR_NM, a.NTT_NO, a.NTT_CNTS,
+				a.PASSWORD, a.REGUSER, a.NTCR_NM as FRST_REGISTER_NM,
+				(case a.NTCR_ID when 'anonymous' then 'Y' else '' end) AS ANONYMOUS_YN,
+				a.REGDATE,
+				a.NTCE_BGNDE, a.NTCE_ENDDE, a.RDCNT,
+				a.USE_YN, a.ATCH_FILE_ID, a.BBS_ID, a.NTT_ID,
+				a.SJ_BOLD_YN, a.NOTICE_YN, a.SECRET_YN,
+				a.PARNTSCTT_NO, a.ANSWER_YN, a.ANSWER_LC, a.SORT_ORDR,
+				a.MANAGER_DEPT , a.MANAGER_TEL, a.LINK_URL,
+				c.BBS_TY_CODE, c.REPLY_POSBL_YN, a.CTG_ID,
+				c.FILE_ATCH_POSBL_YN, c.ATCH_POSBL_FILE_NUMBER, c.BBS_NM,
+				(SELECT CTG_NM FROM COMTNBBSCTG WHERE CTG_ID = a.CTG_ID) CTG_NM,
+				(SELECT SORT_ORDER FROM COMTNBBSCTG WHERE CTG_ID = a.CTG_ID) SORT_ORDER
+				,case when  DATEDIFF(NOW() , a.REGDATE)&lt;=7 then 'Y' else 'N' end as NEW_YN
+				,a.NTCE_STAT
+			<if test='bbsId == "dongari" or bbsId == "teacherpr"'>
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0001'),'') as ITEM1
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0002'),'') as ITEM2
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0003'),'') as ITEM3
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0004'),'') as ITEM4
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0005'),'') as ITEM5
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0006'),'') as ITEM6
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0007'),'') as ITEM7
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0008'),'') as ITEM8
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0009'),'') as ITEM9
+				, ifnull((select ii.BBS_ITEM_SVALUE from BBS_ETC_ITEM i left join BBS_ETC_ITEM_INFO ii on i.BBS_ID =ii.BBS_ID and i.BBS_ETC_SEQ =ii.BBS_ETC_SEQ where i.BBS_ID=a.BBS_ID and ii.NTT_ID=a.NTT_ID and i.BBS_ITEM_EN_ID='FIX_0010'),'') as ITEM10
+			</if>
+				,  NVL((SELECT MIN(FILE_SEQ) FROM ATCH_FILE_LIST WHERE FILE_GRP_NO = a.ATCH_FILE_ID and UPPER(FILE_EXTSN) in ('PNG','JPG','GIF','BMP') ),'') as ATCH_IMG
+			FROM
+				COMTNBBS a
+			LEFT OUTER JOIN
+				COMTNBBSMASTER c
+			ON a.BBS_ID = c.BBS_ID
+			WHERE a.BBS_ID = #{bbsId}
+			  AND a.NTT_ID = #{nttId}
+
+	</select>
+
+
+	<insert id="insertBbsItemInfo" parameterType="egovframework.com.cop.bbs.service.BoardItemVO">
+		/* BBSArticle.insertBbsItemInfo */
+		INSERT INTO BBS_ETC_ITEM_INFO (
+							BBS_ID
+							, NTT_ID
+							, BBS_ETC_SEQ
+							, BBS_ITEM_SVALUE
+							, BBS_ITEM_LVALUE
+				)
+				VALUES (
+							#{bbsId}
+							, #{nttId}
+							, #{bbsEtcseq}
+							, #{bbsItemSvalue}
+							, #{bbsItemLvalue}
+				)
+	</insert>
+
+	<delete id="deleteBbsItemInfoByNttId" parameterType="egovframework.com.cop.bbs.service.BoardItemVO">
+		/* deleteBbsItemInfoByNttId */
+		DELETE FROM BBS_ETC_ITEM_INFO
+		WHERE BBS_ID = #{bbsId}
+			AND NTT_ID = #{nttId}
+	</delete>
+
+
+	<select id="selectArticleDetailItemList" parameterType="egovframework.com.cop.bbs.service.BoardVO" resultType="egovframework.com.cop.bbs.service.BoardItemVO">
+		/* selectArticleDetailItemList */
+		select
+			a.BBS_ID
+			,a.BBS_ETC_SEQ
+			,a.BBS_ITEM_TYPE
+			,a.BBS_ITEM_EN_ID
+			,a.BBS_ITEM_NM
+			,a.SORT_ORDER
+			, case when a.BBS_ITEM_TYPE='2001' then b.BBS_ITEM_LVALUE else b.BBS_ITEM_SVALUE end as BBS_ITEM_LVALUE
+		from
+			BBS_ETC_ITEM a
+			left join BBS_ETC_ITEM_INFO b on a.BBS_ID = b.BBS_ID and a.BBS_ETC_SEQ =b.BBS_ETC_SEQ and b.NTT_ID=#{nttId}
+		where
+			a.BBS_ID=#{bbsId}
+		order by
+			a.SORT_ORDER
+	</select>
+
+</mapper>

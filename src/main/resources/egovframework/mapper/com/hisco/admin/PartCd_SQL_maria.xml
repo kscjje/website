@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 사업장 관리
+
+   수정일                  수정자           수정내용
+  =========     =======    =================================================
+  2021.03.19   	전영석            최초 작성
+  -->
+  
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hisco.admin.partcd.mapper.PartCdMapper">
+
+	<select id="selectCotGrpCdList" resultType="cMap">
+	
+		select /* PartCdDAO.selectCotGrpCdList */ 
+		       cd  
+		     , cd_nm
+		from cot_grpcd 
+		where grp_cd = #{grpCd} 
+		order by sort_order	
+				   
+	</select>
+
+	<select id="selectPartCdList" resultType="cMap">
+	
+			SELECT  /* PartCdDAO.selectPartCdList */  
+			        *
+              FROM  (
+				SELECT ROW_NUMBER() OVER (order by SORT_ORDER ASC) RNUM, ALL_LIST.* 
+                FROM  (
+						SELECT 
+							  COMCD
+							, PART_CD
+							, PART_NM
+							, PART_GBN
+							, USE_YN
+							, SORT_ORDER
+							, HP_NO
+							, TEL
+							, REGDATE
+							, REGUSER
+							, MODDATE
+							, MODUSER 
+							, COUNT(*) OVER() AS TB_ALL_COUNT  
+						  FROM PART_CD 
+						 WHERE COMCD = #{comcd}
+						 
+						 <if test="searchCondition == 1">
+						 	AND PART_NM LIKE CONCAT('%', #{searchKeyword}, '%')
+						 </if>
+			   
+	                ) ALL_LIST
+				) MAIN 
+				
+				<![CDATA[
+				
+		             WHERE  RNUM  > #{firstIndex}
+		               AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+	               
+	            ]]>			   
+			   
+	</select>
+
+	<select id="selectPartCdAllList" resultType="cMap">
+
+		SELECT /* PartCdDAO.selectPartCdAllList */ 
+			  COMCD
+			, PART_CD
+			, PART_NM
+			, PART_GBN
+			, USE_YN
+			, SORT_ORDER
+			, HP_NO
+			, TEL
+			, REGDATE
+			, REGUSER
+			, MODDATE
+			, MODUSER 
+			, COUNT(*) OVER() AS TB_ALL_COUNT  
+		  FROM PART_CD 
+		 WHERE COMCD = #{comcd} 
+		   AND USE_YN = 'Y' 
+		 ORDER BY PART_NM 			   
+	</select>
+
+	<select id="selectPartCdDetail" resultType="cMap">
+
+		SELECT /* PartCdDAO.selectPartCdDetail */
+			  COMCD
+			, PART_CD
+			, PART_NM
+			, PART_GBN
+			, USE_YN
+			, SORT_ORDER
+			, HP_NO
+			, TEL
+			, REGDATE
+			, REGUSER
+			, MODDATE
+			, MODUSER 
+			, COUNT(*) OVER() AS TB_ALL_COUNT  
+		  FROM PART_CD 
+		 WHERE COMCD = #{comcd}
+           AND PART_CD = #{partCd} 
+
+	</select>
+
+
+	<!-- [사업장 정보를 신규 저장한다][2021-03-19][전영석] -->
+ 	<insert id="insertPartCd" parameterType="Map">
+ 		
+ 		INSERT INTO PART_CD ( 
+				  COMCD
+				, PART_CD
+				, PART_NM
+				, PART_GBN
+				, USE_YN
+				, SORT_ORDER
+				, HP_NO
+				, TEL
+				, REGDATE
+				, REGUSER
+				, MODDATE
+				, MODUSER  		
+			) VALUES (
+				#{comcd}
+			  , (select LPAD(NVL(MAX(CAST(PART_CD as INTEGER)), 0) + 1, 4, '0') from PART_CD ALIAS_FOR_SUBQUERY)
+			  , #{partNm}
+			  , #{partGbn}
+			  , #{useYn}
+			  , #{sortOrder}
+			  , #{hpNo}
+			  , #{tel}
+			  , SYSDATE()
+			  , #{userId}
+			  , SYSDATE()
+			  , #{userId}
+			)
+
+ 	</insert>	
+
+	<!-- [사업장 정보를 영구 삭제한다][2021-03-19][전영석] -->
+ 	<delete id="deletePartCd" parameterType="Map">
+ 		/* PartCdDAO.deletePartCd */
+ 		DELETE FROM PART_CD WHERE PART_CD = #{partCd} 
+ 	</delete>	
+ 	
+	<!-- [사업장 정보를 수정한다][2021-03-19][전영석] -->
+ 	<update id="updatePartCd" parameterType="Map">
+ 		/* PartCdDAO.updatePartCd */
+ 		UPDATE PART_CD  
+ 		   SET PART_NM  = #{partNm}
+ 		     , PART_GBN = #{partGbn}
+			 , USE_YN   = #{useYn}
+			 , SORT_ORDER = #{sortOrder}
+			 , HP_NO    = #{hpNo}
+			 , TEL 	    = #{tel} 	     
+ 		 WHERE PART_CD = #{partCd}
+
+ 	</update>	 	
+ 	
+	<select id="selectPartCdAllListByParm" resultType="cMap">
+
+		SELECT /* PartCdDAO.selectPartCdAllListByParm */ 
+			  COMCD
+			, PART_CD
+			, PART_NM
+			, PART_GBN
+			, USE_YN
+			, SORT_ORDER
+			, HP_NO
+			, TEL
+			, REGDATE
+			, REGUSER
+			, MODDATE
+			, MODUSER 
+			, COUNT(*) OVER() AS TB_ALL_COUNT  
+		  FROM PART_CD 
+		 WHERE COMCD = #{comcd} 
+		   AND USE_YN = 'Y' 
+		   
+		   <if test="partGbn != null and partGbn != ''">
+				AND PART_GBN = #{partGbn}
+		   </if>
+		    
+		 ORDER BY SORT_ORDER  
+		   			   
+	</select>
+	
+	<select id="selectPartCdAllListRuleOut" resultType="cMap">
+				
+		SELECT /* PartCdDAO.selectPartCdAllListRuleOut */ 
+				       DISTINCT  T.COMCD
+				               , T.PART_CD 
+				               , T.PART_NM
+				               , T.PART_GBN
+				               , B.CD_NM as PART_GBN_NM
+		   		 FROM PART_CD T  
+		   		    inner join cot_grpcd B on b.grp_cd = 'SM_PART_GBN' 
+		   		        and t.PART_GBN = b.CD 
+				WHERE (T.COMCD, T.PART_CD) NOT IN 
+				                                    (SELECT B.COMCD, B.EVT_PARTCD 
+				                                      FROM EVT_RES_BASERULE B)
+
+	</select>	
+	 	
+</mapper>

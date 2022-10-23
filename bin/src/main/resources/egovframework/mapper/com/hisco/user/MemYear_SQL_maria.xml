@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2020.9.08   	진수진     	 	연간 회원 관련 쿼리
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="MemYearDAO">
+
+	<select id="selectProgramItemData" resultType="com.hisco.user.member.vo.MemberYearVO">
+           SELECT
+                  	T.ITEM_CD as itemCd,
+                  	T.COST_AMT as costAmt,
+                  	T.MONTH_CNT as monthCnt,
+                  	T.SALAMT as saleamt,
+                  	T.ITEM_NM as itemNm,
+                  	P.WEBPAYMENTID as paymentId,
+                  	P.WEBPAYMENTPW paymentPw,
+                  	C.PART_GBN as partGbn,
+                  	(SELECT ITEM4 FROM COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD='CM_REASON_DC' AND CD=#{DSC_CODE}) AS dscRate
+             FROM PROGRAM_ITEM T , PART_CD C , Partcd_SystemPref P
+             WHERE
+             	T.COMCD=#{comcd}
+             	AND T.ITEM_MTYPE='1051'
+             	AND T.USE_YN='Y'
+             	AND T.COMCD = C.COMCD
+             	AND T.PART_CD = C.PART_CD
+             	AND T.COMCD = P.COMCD
+             	AND T.PART_CD = P.PART_CD
+             	<if test="LGD_PRODUCTCODE !=null and LGD_PRODUCTCODE !=''">AND T.ITEM_CD=#{LGD_PRODUCTCODE}</if>
+ 	</select>
+
+ 	<select id="selectMemYearData" resultType="com.hisco.user.member.vo.MemberYearVO">
+ 		SELECT
+ 			START_YMD AS startYmd,
+ 			END_YMD AS endYmd,
+ 			CASE WHEN END_YMD >= DATE_FORMAT(SYSDATE(),'%Y%m%d')   THEN 'Y' END AS validYn,
+ 			DATE_FORMAT(DATE_FORMAT(END_YMD , '%Y%m%d') - 30 , '%Y%m%d') AS applyDate,
+ 			 DATE_FORMAT(END_YMD , '%Y%m%d') - DATE_FORMAT(DATE_FORMAT(SYSDATE(),'%Y%m%d'), '%Y%m%d')  AS remainDate,
+ 			 #{memNo}  AS memNo,
+ 			 #{comcd} AS comcd
+ 		FROM (
+ 			SELECT
+	 			MIN(ANLMB_SDATE) AS START_YMD,
+	 			MAX(ANLMB_EDATE)  AS END_YMD
+	 		 FROM ANULMEMB_HIST
+	             WHERE
+	             	MEM_NO =#{memNo} AND COMCD=#{comcd}
+	             	AND RET_YN='N'
+ 		)
+ 	</select>
+
+ 	<select id="selectMemYearResult" resultType="com.hisco.user.member.vo.MemberYearVO">
+ 		SELECT
+ 			ANLMB_SDATE AS startYmd,
+ 			ANLMB_EDATE AS endYmd,
+			B.MEM_NM AS memNm,
+			B.ID AS id
+ 		FROM (
+ 			SELECT
+	 			ANLMB_SDATE,
+	 			ANLMB_EDATE,
+	 			MEM_NO,
+	 			/* ROWNUM RNUM */
+				ROW_NUMBER() OVER () RNUM
+	 		 FROM ANULMEMB_HIST
+	             WHERE
+	             	MEM_NO =#{memNo} AND COMCD=#{comcd}
+	             	AND RET_YN='N'
+	         ORDER BY ANLMEMB_SEQ DESC
+ 		) T , MEMBER B
+ 		WHERE
+ 			T.MEM_NO = B.MEM_NO AND
+ 			T.RNUM=1
+			
+ 	</select>
+
+	<!-- 연간회원 이력 저장 -->
+	<insert id="insertMemYearHist" parameterType="com.hisco.user.member.vo.MemberYearVO">
+		<selectKey keyProperty="memYearSeq" resultType="int" order="BEFORE">
+		    SELECT NVL(MAX(ANLMEMB_SEQ),0)+1 FROM ANULMEMB_HIST WHERE MEM_NO=#{memNo} AND COMCD=#{comcd}
+		</selectKey>
+		INSERT INTO /* MemYearDAO.insertMemYearHist */
+           ANULMEMB_HIST (
+                      	MEM_NO
+                       , COMCD
+                       , ANLMEMB_SEQ
+                       , RGIST_GBN
+                       , ANLMB_REGDATE
+                       , ANLMB_ITEMCD
+                       , ANLMB_SDATE
+                       , ANLMB_EDATE
+                       , SELNG_ID
+                       , SLIP_NO
+                       , RET_YN
+                       , REGUSER
+                       , REGDATE
+                       , MODUSER
+                       , MODDATE
+                       , OLD_FAMILY_MEMB_ADDYN
+                       , OLD_FAMILY_MEMNO
+                      ) VALUES (
+                         #{memNo}
+                       , #{comcd}
+                       , #{memYearSeq}
+                       , #{rgistGbn}
+                       , DATE_FORMAT(SYSDATE(),'%Y%m%d')
+                       , #{itemCd}
+                       , #{startYmd}
+                       , #{endYmd}
+                       , #{selngId}
+                       , #{slipNo}
+                       , 'N'
+                       , #{reguser}
+                       , SYSDATE()
+                       , #{reguser}
+                       , SYSDATE()
+                       , NVL(#{familyAddYn},'N')
+                       , #{familyMemNo}
+                      )
+ 	</insert>
+
+ 	<select id="selectDiscountValue" resultType="cMap">
+          SELECT
+          	CD,
+          	ITEM4 AS PERCENT
+          FROM (
+	           SELECT
+	           			CD,
+	                  	ITEM4
+	             FROM COT_GRPCD
+	             WHERE
+	             	COMCD=#{comcd}
+	             	AND GRP_CD='CM_REASON_DC'
+	             	AND USE_YN='Y'
+					AND ITEM2 IN (SELECT CD FROM COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD='SM_DSCNTKIND_GRP' AND CD='8002')
+				ORDER BY CAST(ITEM4 AS INTEGER) DESC
+			/* ) WHERE ROWNUM=1 */
+			) MAIN LIMIT 1 
+ 	</select>
+
+
+ 	 <select id="selectToday" resultType="String">
+          SELECT DATE_FORMAT(SYSDATE(),'%Y%m%d') AS TODATE FROM DUAL
+ 	</select>
+
+
+ 	<select id="selectFamilyMember" resultType="cMap">
+			SELECT
+				 A.MEM_NO AS MEM_NO,
+				 A.OLD_MEM_FAMILYCNT,
+				 A.MEM_GBN,
+				 B.ANLMB_ITEMCD AS ITEM_CD,
+				 B.ANLMB_SDATE AS SDATE,
+				 B.ANLMB_EDATE AS EDATE,
+				 T.PART_CD,
+				 (SELECT COUNT(*) FROM ANULMEMB_HIST WHERE OLD_FAMILY_MEMNO = A.MEM_NO ) AS CNT
+			FROM MEMBER A
+				LEFT OUTER JOIN ANULMEMB_HIST B ON
+					A.MEM_NO = B.MEM_NO
+					AND B.ANLMB_EDATE > DATE_FORMAT(SYSDATE(),'%Y%m%d')
+					AND B.RET_YN='N'
+				LEFT OUTER JOIN PROGRAM_ITEM T  ON T.COMCD=#{comcd} AND T.ITEM_MTYPE='1051' AND T.USE_YN='Y'
+			WHERE
+				A.MEM_NM = #{memNm}
+				
+				<!-- for Tibero AND A.HP = CRYPTO.Encrypt_ARIA(#{hp},#{dbEncKey}) -->
+				AND A.HP = #{hp} 
+				 
+			 AND ( A.MEM_GBN = '2001' OR  LENGTH(B.ANLMB_SDATE) > 0)
+			 /* AND ROWNUM=1 */
+			 LIMIT 1 
+	 	</select>
+
+
+	 	<!-- 연간회원 이력 저장 -->
+	<update id="insertMemYearFamily" parameterType="com.hisco.user.member.vo.MemberYearVO">
+		<selectKey keyProperty="memYearSeq" resultType="int" order="BEFORE">
+		    SELECT NVL(MAX(ANLMEMB_SEQ),0)+1 FROM ANULMEMB_HIST WHERE MEM_NO=#{memNo} AND COMCD=#{comcd}
+		</selectKey>
+		INSERT INTO /* MemYearDAO.insertMemYearFamily */
+           ANULMEMB_HIST (
+                      	MEM_NO
+                       , COMCD
+                       , ANLMEMB_SEQ
+                       , RGIST_GBN
+                       , ANLMB_REGDATE
+                       , ANLMB_ITEMCD
+                       , ANLMB_SDATE
+                       , ANLMB_EDATE
+                       , RET_YN
+                       , REGUSER
+                       , REGDATE
+                       , MODUSER
+                       , MODDATE
+                       , OLD_FAMILY_MEMB_ADDYN
+                       , OLD_FAMILY_MEMNO
+          )
+        SELECT
+        	 #{memNo}
+        	,#{comcd}
+        	,#{memYearSeq}
+        	,'1001'
+        	,DATE_FORMAT(SYSDATE(),'%Y%m%d')
+        	,#{itemCd}
+        	, ANLMB_SDATE
+            , ANLMB_EDATE
+            , 'N'
+             , #{reguser}
+            , SYSDATE()
+            , #{reguser}
+            , SYSDATE()
+            , 'Y'
+            , #{familyMemNo}
+       FROM
+       	ANULMEMB_HIST
+       	WHERE
+       		MEM_NO=#{familyMemNo} AND COMCD=#{comcd} AND RET_YN='N' AND ANLMB_EDATE > DATE_FORMAT(SYSDATE(),'%Y%m%d') 
+			/* AND ROWNUM=1 */
+			LIMIT  1 
+ 	</update>
+
+
+</mapper>

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : SMS 템플릿 관리
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2021.12.02   	진수진          최초 작성
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.admin.sms.mapper.SmsTemplateMapper">
+
+
+ 	<select id="selectTemplateList" parameterType="com.hisco.admin.sms.vo.SmsTemplateVO" resultType="com.hisco.admin.sms.vo.SmsTemplateVO">
+            SELECT
+            	M.* , CASE WHEN M.MSG_SENDMETHOD ='1001' THEN '카카오' WHEN M.MSG_SENDMETHOD='2001'  THEN '문자' END  AS MSG_TYPENM
+			FROM
+				MESSAGE M
+			WHERE
+				COMCD = #{comcd}
+			ORDER BY
+				MSGNO
+ 	</select>
+
+
+
+ 	<select id="selectTemplateDetail" parameterType="com.hisco.admin.sms.vo.SmsTemplateVO" resultType="com.hisco.admin.sms.vo.SmsTemplateVO">
+		SELECT
+            	*
+			FROM
+				MESSAGE
+			WHERE
+				COMCD = #{comcd}
+				AND MSGNO = #{msgno}
+ 	</select>
+
+
+ 	<insert id="insertTemplate" parameterType="com.hisco.admin.sms.vo.SmsTemplateVO">
+		INSERT INTO MESSAGE (
+			COMCD
+			, MSGNO
+			, MSGCD
+			, MSG_NAME
+			, SENDMSG
+			, MSG_SENDMETHOD
+			, KKO_MESSAGE_TEMPLATE_ID
+			, SEND_TELNO
+			, REGDATE
+			, REGUSER
+			, MODDATE
+			, MODUSER
+		)
+		VALUES (
+			 #{comcd}
+			, <choose><when test="msgno!=null and msgno !=''">#{msgno}</when><otherwise>(SELECT NVL(MAX(MSGNO),0) + 1 FROM MESSAGE AS SUB_ALIAS WHERE COMCD = #{comcd})</otherwise></choose>
+			, #{msgcd}
+			, #{msgName}
+			, #{sendmsg}
+			, #{msgSendmethod}
+			, #{kkoMessageTemplateId}
+			, #{sendTelno}
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{reguser}
+		)
+ 	</insert>
+
+
+ 	<update id="updateTemplate" parameterType="com.hisco.admin.sms.vo.SmsTemplateVO">
+		UPDATE
+			MESSAGE
+		SET
+ 			MSG_NAME = #{msgName}
+			, SENDMSG = #{sendmsg}
+			, MSG_SENDMETHOD = #{msgSendmethod}
+			, KKO_MESSAGE_TEMPLATE_ID = #{kkoMessageTemplateId}
+			, SEND_TELNO = #{sendTelno}
+			, MODDATE = SYSDATE()
+			, MODUSER = #{reguser}
+			,  MSGNO = #{msgno}
+		WHERE
+			COMCD = #{comcd}
+			AND MSGNO = #{oldMsgno}
+ 	</update>
+
+
+ 	<delete id="deleteTemplate" parameterType="com.hisco.admin.sms.vo.SmsTemplateVO">
+		DELETE
+		FROM
+			MESSAGE
+		WHERE
+			COMCD = #{comcd} AND MSGNO = #{msgno}
+ 	</delete>
+
+
+ 	<insert id="insertTemplateGroup" parameterType="com.hisco.admin.sms.vo.SmsTemplateVO" useGeneratedKeys="true">
+ 		<selectKey keyProperty="msgcd" resultType="Integer" order="BEFORE">
+				SELECT NVL(MAX(MSGCD),0) + 1 FROM MESSAGECD WHERE COMCD = #{comcd}
+		</selectKey>
+		INSERT INTO MESSAGECD (
+			COMCD
+			, MSGCD
+			, MSGNM
+			, REGDATE
+			, REGUSER
+		)
+		VALUES (
+			 #{comcd}
+			, #{msgcd}
+			, #{msgnm}
+			, SYSDATE()
+			, #{reguser}
+		)
+ 	</insert>
+
+ 	<select id="selectTemplateGroup" parameterType="com.hisco.admin.sms.vo.SmsTemplateVO" resultType="com.hisco.admin.sms.vo.SmsTemplateVO">
+		SELECT
+            	*
+		FROM
+			MESSAGECD
+		WHERE
+			COMCD = #{comcd} AND MSGCD = #{msgcd}
+ 	</select>
+
+
+
+</mapper>

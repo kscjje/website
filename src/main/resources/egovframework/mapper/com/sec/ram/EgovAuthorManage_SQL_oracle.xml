@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="authorManageDAO">
+
+    <resultMap id="author" type="egovframework.com.sec.ram.service.AuthorManageVO">
+        <result property="authorCode" column="AUTHOR_CODE"/>
+        <result property="authorNm" column="AUTHOR_NM"/>
+        <result property="authorDc" column="AUTHOR_DC"/>
+        <result property="parentRole" column="PARNTS_ROLE"/>
+        <result property="authorCreatDe" column="AUTHOR_CREAT_DE"/>
+    </resultMap>
+
+    <select id="selectAuthorList" parameterType="egovframework.com.sec.ram.service.AuthorManageVO" resultMap="author">
+            SELECT
+                   AUTHOR_CODE, AUTHOR_NM, AUTHOR_DC, AUTHOR_CREAT_DE , H.PARNTS_ROLE
+              FROM COMTNAUTHORINFO A
+              LEFT OUTER JOIN COMTNROLES_HIERARCHY H ON A.AUTHOR_CODE = H.CHLDRN_ROLE
+             WHERE 1=1
+            <if test="searchCondition == 1">AND
+                AUTHOR_NM LIKE '%'||#{searchKeyword}||'%'
+            </if>
+            <if test="searchCondition == 2">AND
+               ( H.PARNTS_ROLE = 'ROLE_ADMIN' OR AUTHOR_CODE IN ('ROLE_ADMIN' , 'ROLE_ANONYMOUS'))
+            </if>
+            <if test="searchCondition == 3">AND
+                H.PARNTS_ROLE = 'ROLE_ADMIN'
+            </if>
+             ORDER BY
+             	 CASE WHEN AUTHOR_CODE='ROLE_ADMIN' THEN 1
+             	   WHEN PARNTS_ROLE='ROLE_ADMIN' THEN 2
+             	   WHEN AUTHOR_CODE='ROLE_USER' THEN 3
+             	   WHEN PARNTS_ROLE='ROLE_USER' THEN 4 ELSE 5 END
+    </select>
+
+    <select id="selectAuthorCodeCheck" parameterType="egovframework.com.sec.ram.service.AuthorManage" resultType="int">
+            SELECT COUNT(*)
+            FROM COMTNAUTHORINFO
+            WHERE AUTHOR_CODE=#{authorCode}
+    </select>
+
+    <insert id="insertAuthor" parameterType="egovframework.com.sec.ram.service.AuthorManage">
+
+            INSERT INTO COMTNAUTHORINFO
+                  ( AUTHOR_CODE
+                  , AUTHOR_NM
+                  , AUTHOR_DC
+                  , AUTHOR_CREAT_DE )
+           VALUES ( #{authorCode}
+                  , #{authorNm}
+                  , #{authorDc}
+                  , SYSDATE)
+
+    </insert>
+
+    <update id="updateAuthor" parameterType="egovframework.com.sec.ram.service.AuthorManage">
+
+            UPDATE COMTNAUTHORINFO
+               SET AUTHOR_NM=#{authorNm}
+                 , AUTHOR_DC=#{authorDc}
+             WHERE AUTHOR_CODE=#{authorCode}
+
+    </update>
+
+    <delete id="deleteAuthor">
+
+            DELETE FROM COMTNAUTHORINFO
+             WHERE AUTHOR_CODE=#{authorCode}
+
+    </delete>
+
+    <select id="selectAuthor" resultMap="author">
+
+            SELECT AUTHOR_CODE, AUTHOR_NM, AUTHOR_DC, AUTHOR_CREAT_DE , H.PARNTS_ROLE
+              FROM COMTNAUTHORINFO A
+               LEFT OUTER JOIN COMTNROLES_HIERARCHY H ON A.AUTHOR_CODE = H.CHLDRN_ROLE
+             WHERE AUTHOR_CODE=#{authorCode}
+
+    </select>
+
+    <select id="selectAuthorListTotCnt" parameterType="egovframework.com.sec.ram.service.AuthorManageVO" resultType="int">
+            SELECT COUNT(*) totcnt
+            FROM COMTNAUTHORINFO
+            WHERE 1=1
+            <if test="searchCondition == 1">AND
+                AUTHOR_NM LIKE '%'||#{searchKeyword}||'%'
+            </if>
+    </select>
+
+    <select id="selectAuthorAllList" parameterType="egovframework.com.sec.ram.service.AuthorManageVO" resultMap="author">
+            SELECT
+                   AUTHOR_CODE, AUTHOR_NM, AUTHOR_DC, AUTHOR_CREAT_DE
+              FROM COMTNAUTHORINFO
+    </select>
+
+    <select id="selectAuthorRoleCount" parameterType="egovframework.com.sec.ram.service.AuthorManageVO" resultType="int">
+            SELECT COUNT(*) totcnt
+            FROM COMTNROLES_HIERARCHY
+            WHERE
+            	CHLDRN_ROLE=#{authorCode}
+    </select>
+
+    <insert id="insertAuthorRole" parameterType="egovframework.com.sec.ram.service.AuthorManage">
+
+            INSERT INTO COMTNROLES_HIERARCHY
+                  ( PARNTS_ROLE
+                  , CHLDRN_ROLE )
+           VALUES ( #{parentRole}
+                  , #{authorCode})
+
+    </insert>
+
+</mapper>

@@ -1,0 +1,1346 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	수정일                 수정자             수정내용
+  =========      =======    =======================
+  2021.6.28   	  전영석     	  교육 기본 정보
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="EvtEdcrsvnSMainDAO">
+
+	<!-- 프로그램 정보 -->
+	<select id="selectProgramData" resultType="cMap">
+			/* EvtEdcrsvnSMainDAO.selectProgramData */ 
+			SELECT 
+			    EVT_NO AS UNIQUE_ID
+			    , EVT_NAME AS TITLE
+			    , EVT_POSTR_IMG_FINNB
+			    , EVT_THMB_IMG_FINNB
+			    , EVT_INTRIMG_FINNB
+			    , EVT_PLAN_FINNB
+			  FROM GRP_PROGRAM
+			 WHERE
+				COMCD = #{comcd}
+			   AND EVT_NO = #{uniqueId}
+	</select>
+
+		<!-- 파일 아이디 수정 -->
+	<update id="updateProgramData" parameterType="map" >
+		/* EvtEdcrsvnSMainDAO.updateProgramData */
+		UPDATE GRP_PROGRAM
+		SET
+		<choose>
+			<when test='uploadField == "EVT_PLAN_FINNB"'> EVT_PLAN_FINNB = #{fileId}</when>
+			<when test='uploadField == "EVT_THMB_IMG_FINNB"'> EVT_THMB_IMG_FINNB = #{fileId}</when>
+			<when test='uploadField == "EVT_POSTR_IMG_FINNB"'> EVT_POSTR_IMG_FINNB = #{fileId}</when>
+			<when test='uploadField == "EVT_INTRIMG_FINNB"'> EVT_INTRIMG_FINNB = #{fileId}</when>
+		</choose>
+		WHERE
+			COMCD = #{comcd}
+			   AND EVT_NO = #{uniqueId}
+	</update>
+
+
+	<select id="selectEvtEdcTermsList" parameterType="com.hisco.admin.terms.vo.TermsVO" resultType="com.hisco.admin.terms.vo.TermsVO">
+			/* EvtEdcrsvnSMainDAO.selectEvtEdcTermsList */
+           	SELECT
+                  	STPLAT_ID,
+                    STPLAT_NAME,
+                  	STPLAT_CN,
+                  	USE_YN
+             FROM CM_STPLAT_INFO
+             WHERE STPLAT_ID LIKE '40%'
+             	OR STPLAT_ID = '1001'
+          		ORDER BY STPLAT_ID
+ 	</select>
+
+	<!-- 단체 교육 카테고리 정보 -->
+	<select id="selectCtgrList" resultType="com.hisco.user.evtedcrsvn.service.ComCtgrVO">
+			/* EvtEdcrsvnSMainDAO.selectCtgrList */
+			SELECT
+			    COM_CTGCD,
+				COM_CTGNM,
+				COM_CTGDESC,
+				COM_CTGLVL,
+				COM_PRNCTGCD,
+				COM_TOPCTGCD,
+				COM_TOPPARTGBN,
+				COM_PARTCD,
+				COM_CTGSRTORD,
+				COM_USE_YN,
+				REGDATE,
+				REGUSER
+			  FROM COM_CTGR
+			 WHERE
+				1=1
+				AND COM_TOPPARTGBN = '2001'
+				<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(comCtglvl)">
+					AND COM_CTGLVL = #{comCtglvl}
+				</if>
+				<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(CtgCd)">
+					AND COM_CTGCD = #{CtgCd}
+				</if>
+				<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(comPrnctgcd)">
+					AND COM_PRNCTGCD = #{comPrnctgcd}
+				</if>
+	</select>
+
+	<!-- 단체 교육 리스트 -->
+	<select id="selectEventProgram" resultType="cMap">
+	
+		/* EvtEdcrsvnSMainDAO.selectEventProgram */
+		SELECT
+			PRG.*,
+			(SELECT COM_CTGNM FROM COM_CTGR WHERE COM_CTGCD = PRG.COM_PRNCTGCD ) AS COM_PRNCTGCDNM,
+			(SELECT COM_CTGNM FROM COM_CTGR WHERE COM_CTGCD = PRG.COM_TOPCTGCD ) AS COM_TOPCTGCDNM,
+			(SELECT NVL(MAX(ITEM_PRICE),0) FROM GRP_ITEM_AMOUNT WHERE EVT_NO = PRG.EVT_NO) AS ITEM_PRICE
+		 FROM (
+		 	SELECT
+		 		T.*,
+				ROW_NUMBER() OVER () RN
+		 	FROM (
+		 		SELECT
+		 			A.COMCD , A.EVT_NO , A.EVT_PARTCD , B.PART_NM  AS EVT_PARTNM ,
+		 			A.COM_CTGCD , C.COM_CTGNM , C.COM_PRNCTGCD, C.COM_CTGLVL, C.COM_TOPCTGCD,
+                    A.EVT_NAME ,A.EVT_PLACENM ,A.EVT_APP_PERIOD_GBN ,
+                    A.OPENYN , 
+                    A.USE_YN , 
+                    A.EVT_TIMEINFO , 
+                    A.EVT_RUNING_TIME , 
+                    A.EVT_TARGETAGE ,
+                    A.EVT_USE_SDATE , 
+                    A.EVT_USE_EDATE ,
+                    A.EVT_REQ_SDATE ,
+                     
+                    A.EVT_REQ_STIME ,
+                    SUBSTRING(A.EVT_REQ_STIME, 1, 2) AS EVT_REQ_STIME_HH ,
+                    SUBSTRING(A.EVT_REQ_STIME, 3, 4) AS EVT_REQ_STIME_MM , 
+                    
+                    A.EVT_REQ_EDATE ,
+                    
+                    A.EVT_REQ_ETIME ,
+                    SUBSTRING(A.EVT_REQ_ETIME, 1, 2) AS EVT_REQ_ETIME_HH ,
+                    SUBSTRING(A.EVT_REQ_ETIME, 3, 4) AS EVT_REQ_ETIME_MM ,                    
+                    
+                    A.EVT_OPENDATE  ,
+        				
+        			SUBSTRING(A.EVT_OPENTIME, 1, 2) AS EVT_OPENTIME_HH ,
+        			SUBSTRING(A.EVT_OPENTIME, 3, 4) AS EVT_OPENTIME_MM ,
+        				
+                    CASE
+                    	WHEN
+							A.EVT_APP_PERIOD_GBN='1001' AND A.EVT_PRIOR_STIMEYN='Y' THEN concat((case when #{memberType} = 'S' then A.EVT_SPECMEMB_STIME when 'U' then A.EVT_ANUALMEMB_STIME else A.EVT_GEMEMBER_STIME end), '00') 
+							
+        				WHEN
+        					A.EVT_APP_PERIOD_GBN='1001' THEN  A.EVT_OPENTIME 
+        				WHEN
+							A.EVT_APP_PERIOD_GBN='2001' AND A.EVT_PRIOR_STIMEYN='Y' THEN concat((case when #{memberType} = 'S' then A.EVT_SPECMEMB_STIME when 'U' then A.EVT_ANUALMEMB_STIME else A.EVT_GEMEMBER_STIME end), '00')
+        				ELSE
+        					A.EVT_REQ_STIME 
+        				END AS EVT_OPENTIME,	
+        				
+                    A.EVT_ANUALMEMBYN , A.EVT_SPECLMEMBYN , A.EVT_STDMEMBYN ,
+                    A.EVT_NONMEBYN , NVL(A.EVT_ORG_MINCNT,0 ) AS EVT_ORG_MINCNT, NVL(A.EVT_ORG_MAXCNT,0) AS EVT_ORG_MAXCNT ,
+                    A.EVT_FEE_TYPE ,  F.CD_NM AS EVT_FEE_TYPENM ,  A.EVT_ONLINE_RSVYN , A.EVT_PAYWAIT_GBN ,
+                    NVL(A.EVT_MAXTIME_CNT,0) AS  EVT_MAXTIME_CNT , A.EVT_GUIDE_TELNO ,
+					
+                    DATEDIFF(DATE_FORMAT((case when A.EVT_APP_PERIOD_GBN = '1001' then A.EVT_OPENDATE else A.EVT_REQ_SDATE end), '%Y%m%d'), DATE_FORMAT(SYSDATE(), '%Y%m%d')) RMN_YMD,
+					
+					(case when A.EVT_APP_PERIOD_GBN = '1001' then CONCAT(A.EVT_OPENDATE, NVL((CASE WHEN A.EVT_PRIOR_STIMEYN = 'Y' THEN A.EVT_GEMEMBER_STIME ELSE A.EVT_OPENTIME END) ,'0000')) else CONCAT(A.EVT_REQ_SDATE, (CASE WHEN A.EVT_PRIOR_STIMEYN='Y' THEN A.EVT_GEMEMBER_STIME ELSE A.EVT_REQ_STIME END)) end) AS REQ_YMD,
+					
+                    A.EVT_PRIOR_STIMEYN,
+        			A.EVT_ANUALMEMB_STIME,
+        			A.EVT_SPECMEMB_STIME,
+        			A.EVT_GEMEMBER_STIME,
+
+					(CASE WHEN
+			        	A.EVT_APP_PERIOD_GBN='1001'
+							AND CONCAT(A.EVT_OPENDATE,(CASE WHEN A.EVT_PRIOR_STIMEYN='Y' THEN CONCAT((case when #{memberType} = 'S' then A.EVT_SPECMEMB_STIME when 'U' then EVT_ANUALMEMB_STIME else EVT_GEMEMBER_STIME end), '00') ELSE EVT_OPENTIME END)) <![CDATA[>]]> DATE_FORMAT(SYSDATE(),'%Y%m%d%H%i%S') THEN 'W'
+			        	WHEN
+							 EVT_APP_PERIOD_GBN='1001' AND CONCAT(EVT_OPENDATE, (CASE WHEN EVT_PRIOR_STIMEYN='Y' THEN CONCAT((case when #{memberType} = 'S' then EVT_SPECMEMB_STIME when 'U' then EVT_ANUALMEMB_STIME else EVT_GEMEMBER_STIME end),'00') ELSE EVT_OPENTIME END)) <![CDATA[<=]]> DATE_FORMAT(SYSDATE(),'%Y%m%d%H%i%S') THEN 'Y'
+			        	WHEN
+			        		EVT_APP_PERIOD_GBN='2001'
+							AND CONCAT(EVT_REQ_SDATE,(CASE WHEN EVT_PRIOR_STIMEYN='Y' THEN CONCAT((case when #{memberType} = 'S' then EVT_SPECMEMB_STIME when 'U' then EVT_ANUALMEMB_STIME else EVT_GEMEMBER_STIME end),'00') ELSE EVT_REQ_STIME END)) <![CDATA[<=]]> DATE_FORMAT(SYSDATE(),'%Y%m%d%H%i%S')
+							AND	CONCAT(EVT_REQ_EDATE, EVT_REQ_ETIME) <![CDATA[>]]> DATE_FORMAT(SYSDATE(),'%Y%m%d%H%i%S') THEN 'Y'
+						WHEN
+						
+							EVT_APP_PERIOD_GBN='2001'  AND CONCAT(EVT_REQ_SDATE,(CASE WHEN EVT_PRIOR_STIMEYN = 'Y' THEN CONCAT((case when #{memberType} = 'S' then EVT_SPECMEMB_STIME when 'U' then EVT_ANUALMEMB_STIME else EVT_GEMEMBER_STIME end),'00') ELSE EVT_REQ_STIME END)) <![CDATA[>]]> DATE_FORMAT(SYSDATE(),'%Y%m%d%H%i%S') THEN 'W'
+							
+						ELSE 'N' end 
+						
+			        ) AS RSV_ABLE_YN,
+			        
+			        A.EVT_GBN,
+			        
+					(select ORGIN_FILE_NAME from atch_file_list where FILE_GRPINNB = A.EVT_INTRIMG_FINNB) as evtIntrimgFinnbOrginFileName,
+					(select FILE_PATH from atch_file_list where FILE_GRPINNB = A.EVT_INTRIMG_FINNB)  as evtIntrimgFinnbFilePath,
+					(select FILE_NAME from atch_file_list where FILE_GRPINNB = A.EVT_INTRIMG_FINNB)  as evtIntrimgFinnbFileName,
+					(select FILE_EXTSN from atch_file_list where FILE_GRPINNB = A.EVT_INTRIMG_FINNB) as evtIntrimgFinnbOnlyOrginExtrn,
+
+					COUNT(*) OVER() AS TB_ALL_COUNT,
+								        
+			        G.CD_NM  AS EVT_GBN_NM  
+
+                    FROM GRP_PROGRAM A
+	                    LEFT JOIN PART_CD B
+	                           ON A.COMCD = B.COMCD
+	                          AND A.EVT_PARTCD = B.PART_CD
+	                          AND B.PART_GBN   = '2001'
+	                    LEFT JOIN COM_CTGR C
+	                           ON A.COM_CTGCD = C.COM_CTGCD
+	                    LEFT JOIN COT_GRPCD F
+                           		ON A.COMCD = F.COMCD
+                          		AND A.EVT_FEE_TYPE = F.CD
+                          		AND F.GRP_CD       = 'SM_PRICE_TYPE'
+	                    LEFT JOIN COT_GRPCD G
+                           		ON A.COMCD = G.COMCD
+                          		AND A.EVT_GBN = G.CD
+                          		AND G.GRP_CD  = 'SM_EVENT_GUBUN'                          		
+					     WHERE A.COMCD = #{comcd}
+					     
+					     		<if test="evtGbn != null and evtGbn != '' and evtGbn != 'ALL' ">
+					     			AND A.EVT_GBN = #{evtGbn}
+					     		</if>
+					     
+                                <if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(comCtgLvl)">
+									<choose>
+											<when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(comCtgLvl,'0')">
+												<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(comPrnctgcd)">
+													AND (C.COM_PRNCTGCD = #{comPrnctgcd} OR C.COM_TOPCTGCD = #{comPrnctgcd}
+													OR C.COM_CTGCD = #{comPrnctgcd})
+												</if>
+											</when>
+											<when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(comCtgLvl,'1')">
+							                       <if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(CtgCd)">
+													AND (C.COM_PRNCTGCD = #{CtgCd} OR  C.COM_CTGCD= #{CtgCd})
+													</if>
+											</when>
+											<when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(comCtgLvl,'2')">
+											 <if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(CtgCd)">
+												AND C.COM_PRNCTGCD = #{comPrnctgcd} AND A.COM_CTGCD= #{CtgCd}
+											</if>
+											</when>
+									</choose>
+								</if>
+									<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(evtName)">
+										AND A.EVT_NAME LIKE CONCAT('%', #{evtName}, '%')
+									</if>
+									<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(evtPartcd)">
+										AND A.EVT_PARTCD = #{evtPartcd}
+									</if>
+
+						AND A.USE_YN = 'Y'
+                        AND A.OPENYN = 'Y'
+						AND A.EVT_USE_EDATE <![CDATA[>=]]> DATE_FORMAT(SYSDATE(),'%Y%m%d')
+
+				<choose>
+                	<when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(orderField,'regdate')">
+                             ORDER BY A.REGDATE DESC
+                    </when>
+					<when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(orderField,'reqStime')">
+                             ORDER BY RSV_ABLE_YN DESC ,  REQ_YMD DESC , EVT_NAME
+					</when>
+					<otherwise>
+                             ORDER BY (CASE WHEN EVT_USE_SDATE <![CDATA[>]]> DATE_FORMAT(SYSDATE(),'%Y%m%d') THEN 1000-(DATE_FORMAT(EVT_USE_SDATE,'%Y%m%d')-SYSDATE()) ELSE SYSDATE() - DATE_FORMAT(EVT_USE_SDATE,'%Y%m%d') END) ASC , REQ_YMD , EVT_NAME
+					</otherwise>
+				</choose>
+			) T 
+			
+		)  PRG 
+		
+		WHERE PRG.RN BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+		ORDER BY RN 
+		
+	</select>
+
+	<!-- 단체 교육 상세-->
+	<select id="selectEventPrgDetail" resultType="com.hisco.user.evtedcrsvn.service.EventProgramVO">
+	
+		/* EvtEdcrsvnSMainDAO.selectEventPrgDetail */
+		SELECT 
+			A.COMCD , 
+			A.EVT_NO , 
+			A.EVT_PARTCD , 
+			B.PART_NM  AS EVT_PARTNM , 
+			A.COM_CTGCD , 
+			C.COM_CTGNM , 
+			C.COM_PRNCTGCD,
+			(SELECT COM_CTGNM FROM COM_CTGR WHERE COM_CTGCD = C.COM_PRNCTGCD ) AS COM_PRNCTGCDNM,
+			(SELECT COM_CTGNM FROM COM_CTGR WHERE COM_CTGCD = C.COM_TOPCTGCD ) AS COM_TOPCTGCDNM,
+	        A.EVT_NAME ,
+	        A.EVT_PLACENM ,
+	        A.EVT_APP_PERIOD_GBN , 
+	        D.CD_NM AS EVT_APP_PERIOD_GBNNM ,
+	        A.OPENYN , 
+	        A.USE_YN , 
+	        A.USEINFOR_YN ,
+	        A.EVT_TIMEINFO , 
+	        A.EVT_RUNING_TIME , 
+	        A.EVT_TARGETAGE ,
+	        A.EVT_USE_SDATE , 
+	        A.EVT_USE_EDATE , 
+	        A.EVT_REQ_SDATE, 
+	        
+	        A.EVT_REQ_STIME ,
+	        
+            SUBSTRING(A.EVT_REQ_STIME, 1, 2) AS EVT_REQ_STIME_HH ,
+            SUBSTRING(A.EVT_REQ_STIME, 3, 4) AS EVT_REQ_STIME_MM ,	        
+	         
+	        A.EVT_REQ_EDATE ,
+	        
+	        A.EVT_REQ_ETIME ,
+
+            SUBSTRING(A.EVT_REQ_ETIME, 1, 2) AS EVT_REQ_ETIME_HH ,
+            SUBSTRING(A.EVT_REQ_ETIME, 3, 4) AS EVT_REQ_ETIME_MM ,
+	         
+	        A.EVT_OPENDATE ,
+	         
+	        A.EVT_OPENTIME ,
+	         
+        	SUBSTRING(A.EVT_OPENTIME, 1, 2) AS EVT_OPENTIME_HH ,
+        	SUBSTRING(A.EVT_OPENTIME, 3, 4) AS EVT_OPENTIME_MM ,	         
+	         
+	        A.EVT_SEXDSTN ,
+	        E.CD_NM AS EVT_SEXDSTNNM , 
+	        A.EVT_ANUALMEMBYN , 
+	        A.EVT_SPECLMEMBYN , 
+	        A.EVT_STDMEMBYN ,
+	        A.EVT_NONMEBYN , NVL(A.EVT_ORG_MINCNT,0 ) AS EVT_ORG_MINCNT, NVL(A.EVT_ORG_MAXCNT,0) AS EVT_ORG_MAXCNT ,
+	        A.EVT_FEE_TYPE ,  F.CD_NM AS EVT_FEE_TYPENM ,  A.EVT_ONLINE_RSVYN , A.EVT_PAYWAIT_GBN ,
+	        NVL(A.EVT_PAYWAIT_TIME,0) AS  EVT_PAYWAIT_TIME,
+	        NVL(A.EVT_MAXTIME_CNT,0) AS  EVT_MAXTIME_CNT , A.EVT_GUIDE_TELNO , A.EVT_INTRCN , A.EVT_INTRIMG_FINNB ,
+	        A.EVT_PLAN_FINNB , A.EVT_TICKET_NOTICE , A.EVT_TICKET_CHKYN ,
+	        A.EVT_THMB_IMG_FINNB, A.EVT_POSTR_IMG_FINNB,
+	        (SELECT NVL(MAX(ITEM_PRICE),0) FROM GRP_ITEM_AMOUNT WHERE EVT_NO = A.EVT_NO) as ITEM_PRICE,
+	        H.DC_REASON_CD AS DC_REASON_CD,
+			H.DC_RATE AS DC_RATE,
+	        NVL(A.EVT_BFTICKET_MSGTIME, 0) AS EVT_BFTICKET_MSGTIME,
+	        A.EVT_PRIOR_STIMEYN,
+	        A.EVT_ANUALMEMB_STIME,
+	        A.EVT_SPECMEMB_STIME,
+	        A.EVT_GEMEMBER_STIME,
+	        A.EVT_EXCEP_DAY,
+	        C.COM_CTGLVL,
+<![CDATA[
+	        (CASE WHEN
+	        	EVT_APP_PERIOD_GBN='1001'
+				
+					AND concat(EVT_OPENDATE,(CASE WHEN EVT_PRIOR_STIMEYN='Y' THEN concat((case when #{memberType} = 'S' then EVT_SPECMEMB_STIME when 'U' then EVT_ANUALMEMB_STIME else EVT_GEMEMBER_STIME end),'00') ELSE NVL(EVT_OPENTIME, '0000') END)) > DATE_FORMAT(SYSDATE(),'%Y%m%d%H%i') THEN 'W'
+					
+	        	WHEN
+				
+					 EVT_APP_PERIOD_GBN='1001' AND concat(EVT_OPENDATE,(CASE WHEN EVT_PRIOR_STIMEYN='Y' THEN concat((case when #{memberType} = 'S' then EVT_SPECMEMB_STIME when 'U' then EVT_ANUALMEMB_STIME else EVT_GEMEMBER_STIME end),'00') ELSE NVL(EVT_OPENTIME, '0000') END)) <= DATE_FORMAT(SYSDATE(),'%Y%m%d%H%i') THEN 
+					 
+	        		(CASE WHEN #{evtTime} < DATE_FORMAT(SYSDATE(), '%Y%m%d') OR (#{evtTime}=DATE_FORMAT(SYSDATE() , '%Y%m%d') AND EVT_ONLINE_RSVYN='N') THEN 'N' ELSE 'Y' END)
+	        	WHEN
+	        		EVT_APP_PERIOD_GBN='2001'
+					
+				    AND concat(EVT_REQ_SDATE,(CASE WHEN EVT_PRIOR_STIMEYN='Y' THEN concat((case when #{memberType} = 'S' then EVT_SPECMEMB_STIME when 'U' then EVT_ANUALMEMB_STIME else EVT_GEMEMBER_STIME end),'00') ELSE NVL(EVT_REQ_STIME, '0000') END)) <= DATE_FORMAT(SYSDATE(),'%Y%m%d%H%i')
+					
+					AND	CONCAT(EVT_REQ_EDATE, NVL(EVT_REQ_ETIME, '0000')) > DATE_FORMAT(SYSDATE(),'%Y%m%d%H%i') THEN
+						(CASE WHEN #{evtTime} < DATE_FORMAT(SYSDATE() , '%Y%m%d') OR (#{evtTime}=DATE_FORMAT(SYSDATE() , '%Y%m%d') AND EVT_ONLINE_RSVYN='N') THEN 'N' ELSE 'Y' END)
+				WHEN
+				
+					EVT_APP_PERIOD_GBN='2001'  AND concat(EVT_REQ_SDATE,(CASE WHEN EVT_PRIOR_STIMEYN='Y' THEN concat((case when #{memberType} = 'S' then EVT_SPECMEMB_STIME when 'U' then EVT_ANUALMEMB_STIME else EVT_GEMEMBER_STIME end),'00') ELSE NVL(EVT_REQ_STIME, '0000') END)) > DATE_FORMAT(SYSDATE(),'%Y%m%d%H%i') THEN 'W'
+					
+				ELSE 'N' END
+	        ) AS RSV_ABLE_YN,
+]]>
+			 
+			(SELECT NVL(SUM(CNT),0) FROM (SELECT 1 CNT FROM CALENDAR
+				WHERE
+				COMCD = #{comcd} AND GUBUN IN ('3001', '1000') AND DATE_TYPE = '00' AND CAL_DATE=#{evtTime}
+			  UNION
+			  SELECT 1 FROM GRP_EXCP_DATE WHERE COMCD = #{comcd}  AND EVT_NO=#{evtNo} AND EXCP_DATE=#{evtTime}) HOLD_CNT_MAIN ) HOLD_CNT, 
+
+			 A.EVT_GBN,
+			 
+			(select ORGIN_FILE_NAME from atch_file_list where FILE_GRPINNB = A.EVT_INTRIMG_FINNB) as evtIntrimgFinnbOrginFileName,
+			(select FILE_PATH from atch_file_list where FILE_GRPINNB = A.EVT_INTRIMG_FINNB)       as evtIntrimgFinnbFilePath,
+			(select FILE_NAME from atch_file_list where FILE_GRPINNB = A.EVT_INTRIMG_FINNB)       as evtIntrimgFinnbFileName,
+			(select FILE_EXTSN from atch_file_list where FILE_GRPINNB = A.EVT_INTRIMG_FINNB)      as evtIntrimgFinnbOnlyOrginExtrn,			 
+			 
+			 A.CANCEL_YN,
+			 
+			 G.CD_NM  AS EVT_GBN_NM
+			  
+	      FROM GRP_PROGRAM A
+	      		LEFT JOIN PART_CD B
+                	ON A.COMCD = B.COMCD
+                    AND A.EVT_PARTCD = B.PART_CD
+                    AND B.PART_GBN =   '2001'
+                LEFT JOIN COM_CTGR C ON A.COM_CTGCD = C.COM_CTGCD
+                LEFT JOIN COT_GRPCD D ON A.COMCD = D.COMCD
+                         	AND A.EVT_APP_PERIOD_GBN = D.CD
+                            AND D.GRP_CD =   'SM_RSVN_PEROD_TYPE'
+                LEFT JOIN COT_GRPCD E
+                       ON A.COMCD = E.COMCD
+                      AND A.EVT_SEXDSTN = E.CD
+                      AND E.GRP_CD =   'SM_RSVN_SEXDSTN'
+                LEFT JOIN COT_GRPCD F
+                       ON A.COMCD = F.COMCD
+                      AND A.EVT_FEE_TYPE = F.CD
+                      AND F.GRP_CD =   'SM_PRICE_TYPE'
+                LEFT JOIN COT_GRPCD G
+                       ON A.COMCD   = G.COMCD
+                      AND A.EVT_GBN = G.CD
+                      AND G.GRP_CD  = 'SM_EVENT_GUBUN'                      
+                LEFT OUTER JOIN (
+						SELECT
+							S.COMCD, S.EVT_NO, S.DC_REASON_CD, S.DC_RATE
+						FROM GRP_DC_STDMNG S
+						WHERE S.COMCD=#{comcd} AND S.EVT_NO=#{evtNo}
+							AND S.DC_REASON_CD IN (SELECT CD FROM COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD='CM_REASON_DC' AND ITEM2='6001')
+							AND S.DC_RATE > 0
+							
+							LIMIT 1 
+						) H ON  A.COMCD = H.COMCD AND A.EVT_NO = H.EVT_NO
+          WHERE
+          	A.COMCD = #{comcd}
+         	AND A.EVT_NO = #{evtNo}
+            AND A.USE_YN = 'Y'
+            AND A.OPENYN = 'Y'
+	</select>
+
+
+	<!-- 단체 교육 목록 COUNT -->
+	<select id="countEventProgram" resultType="int">
+		/* EvtEdcrsvnSMainDAO.countEventProgram */
+		SELECT COUNT(*)
+		FROM
+			GRP_PROGRAM A
+			LEFT JOIN COM_CTGR C ON A.COM_CTGCD = C.COM_CTGCD
+		WHERE A.COMCD = #{comcd}
+		<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(evtName)">
+			AND A.EVT_NAME LIKE '%' || #{evtName} || '%'
+		</if>
+		<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(evtPartcd)">
+			AND A.EVT_PARTCD = #{evtPartcd}
+		</if>
+		<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(comCtgLvl)">
+			<choose>
+				<when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(comCtgLvl,'0')">
+					<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(comPrnctgcd)">
+						AND (C.COM_PRNCTGCD = #{comPrnctgcd} OR C.COM_TOPCTGCD = #{comPrnctgcd} OR C.COM_CTGCD = #{comPrnctgcd})
+					</if>
+				</when>
+				<when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(comCtgLvl,'1')">
+	                      <if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(CtgCd)">
+						AND (C.COM_PRNCTGCD = #{CtgCd} OR  C.COM_CTGCD= #{CtgCd})
+						</if>
+				</when>
+				<when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(comCtgLvl,'2')">
+				 <if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(CtgCd)">
+					AND C.COM_PRNCTGCD = #{comPrnctgcd} AND A.COM_CTGCD= #{CtgCd}
+				</if>
+				</when>
+			</choose>
+		</if>
+<![CDATA[
+        AND A.USE_YN = 'Y'
+        AND A.OPENYN = 'Y'
+		AND A.EVT_USE_EDATE >= DATE_FORMAT(SYSDATE(),'%Y%m%d')
+]]>
+	</select>
+
+	<!-- 선택 날짜 요일 코드   -->
+	<select id="selectEvtEdcTimeDay" resultType="String">
+		
+		/* EvtEdcrsvnSMainDAO.selectEvtEdcTimeDay */
+		SELECT 
+			CASE WHEN cnt > 0 THEN 8 ELSE CAST(dd AS INTEGER) END
+		FROM (
+		
+			select  dayofweek(DATE_FORMAT(#{evtTime}, '%Y%m%d'))  dd,
+			
+			(SELECT COUNT(*) FROM CALENDAR WHERE COMCD=#{comcd} AND GUBUN IN ('1000' , '3001')  AND DATE_TYPE='02' AND CAL_DATE=#{evtTime} ) cnt
+			from dual
+		) MAIN 		
+		
+	</select>
+
+	<!-- 단체 교육 회차 정보 -->
+	<select id="selectEvtEdcTimeList" resultType="cMap">
+		/* EvtEdcrsvnSMainDAO.selectEvtEdcTimeList */
+		SELECT A.EVT_NO ,
+			   A.EVT_TIMESTD_SEQ ,
+	           B.EVT_TIMESEQ ,
+	           B.TIME_NAME ,
+	           B.S_TIME ,
+	           B.E_TIME ,
+	           NVL(B.TOT_CAPA,0) AS TOT_CAPA , 
+	           
+			   (SELECT NVL(SUM(C.EVT_VEINGNMPR), 0)
+					FROM GRP_RSVN_MST C
+						INNER JOIN GRP_RSVN_TIME D ON C.EVT_RSVN_IDX = D.EVT_RSVN_IDX
+					WHERE
+						C.EVT_NO=#{evtNo}
+						AND C.EVT_VEINGDATE = #{evtTime}
+						AND C.EVT_RSVN_APPTYPE IN ('11','20')
+						AND B.EVT_TIMESEQ = D.EVT_TIMESEQ   AND B.EVT_TIMESTD_SEQ = D.EVT_TIMESTD_SEQ) AS RSV_CNT ,
+						
+			   (SELECT COUNT(*) 
+					FROM GRP_RSVN_MST C
+						INNER JOIN GRP_RSVN_TIME D ON C.EVT_RSVN_IDX = D.EVT_RSVN_IDX
+					WHERE
+						C.EVT_NO=#{evtNo}
+						AND C.EVT_VEINGDATE = #{evtTime}
+						AND C.EVT_RSVN_APPTYPE IN ('11','20')
+						AND B.EVT_TIMESEQ = D.EVT_TIMESEQ   AND B.EVT_TIMESTD_SEQ = D.EVT_TIMESTD_SEQ) AS GRP_RSV_CNT ,
+						
+				1   AS GRP_ORG_CNT ,
+						
+			CASE WHEN CONCAT(#{evtTime}, B.S_TIME) <![CDATA[>]]> DATE_FORMAT(SYSDATE(),'%Y%m%d%H%i') THEN 'Y' ELSE 'N' END AS RSV_ABLE_YN
+		FROM (
+			SELECT
+				EVT_TIMESTD_SEQ , EVT_BEFTIME , EVT_AFTIME, COMCD, EVT_NO
+			FROM (
+				
+				SELECT ROW_NUMBER() OVER ()  RNUM , EVT_TIMESTD_SEQ , EVT_BEFTIME , EVT_AFTIME, COMCD, EVT_NO
+				FROM
+					GRP_STDMNG A
+				WHERE
+				
+					COMCD=#{comcd} AND EVT_NO=#{evtNo}
+					AND EVT_USEDAYS LIKE CONCAT('%', #{dayWeek}, '%')
+					AND (EVT_PDBETENYN='N'  OR ( EVT_PDBETENYN='Y' AND EVT_TIME_STDATE <![CDATA[<=]]> #{evtTime}  AND EVT_TIME_ENDDATE <![CDATA[>=]]> #{evtTime}))
+					AND USE_YN='Y'
+					AND EXISTS (SELECT EVT_TIMESTD_SEQ FROM GRP_TIME_MNG WHERE COMCD=A.COMCD AND EVT_NO=A.EVT_NO AND EVT_TIMESTD_SEQ=A.EVT_TIMESTD_SEQ AND USE_YN='Y')
+				
+				ORDER BY
+					EVT_PDBETENYN DESC , EVT_TIMESTD_SEQ
+			) RNUM_MAIN WHERE RNUM=1
+		) A , GRP_TIME_MNG B
+		      WHERE A.COMCD= B.COMCD AND A.EVT_NO = B.EVT_NO AND A.EVT_TIMESTD_SEQ = B.EVT_TIMESTD_SEQ
+			    AND B.USE_YN='Y'
+			    AND B.WEB_DISPYN='Y'
+			
+				<if test="evtTimeseq != null and evtTimeseq > 0">
+					AND B.EVT_TIMESEQ=#{evtTimeseq}
+				</if>
+				
+				ORDER BY B.S_TIME , B.EVT_TIMESTD_SEQ 
+			
+	</select>
+
+	<!-- 단체 교육 월력 정보 -->
+	<select id="selectEvtEdcCalendar" resultType="cMap">
+	
+		/* EvtEdcrsvnSMainDAO.selectEvtEdcCalendar */
+		with recursive USQL01 as (
+		     select CAL_DATE,
+		   			DATE_TYPE,
+		   			dayofweek(DATE_FORMAT(CAL_DATE, '%Y%m%d')) WEEK_DT,
+		   			  (SELECT COUNT(*) FROM CALENDAR WHERE COMCD=#{comcd} AND GUBUN IN ('1000' , '3001')  AND DATE_TYPE='02' AND CAL_DATE=G.CAL_DATE) HOL_CNT
+		   				FROM ( SELECT CAL_DATE,DATE_TYPE
+					          	 FROM CALENDAR
+					          	WHERE COMCD = #{comcd} AND GUBUN IN ('3001', '1000') AND DATE_TYPE = '00' AND CAL_DATE LIKE CONCAT(#{month}, '%')
+					           UNION ALL 
+					            SELECT EXCP_DATE AS CAL_DATE, 
+					                   '00' AS DATE_TYPE 
+		                          FROM GRP_EXCP_DATE
+		                         WHERE COMCD = #{comcd} 
+		                           AND EVT_NO = #{evtNo} 
+		                           AND EXCP_DATE LIKE CONCAT(#{month}, '%') 
+		                       UNION ALL 
+		                        SELECT CAL_DATE, 
+		                               '30' AS SCHE_TYPE 
+						          FROM ( 
+						          
+										SELECT DATE_FORMAT(thisSdt + INTERVAL seq - 1 DAY, '%Y%m%d') as CAL_DATE   
+										  FROM seq_1_to_31 
+										 INNER JOIN
+										         (SELECT CONCAT(#{month}, '01') thisSdt, last_day(CONCAT(#{month}, '01')) thisEdt) thisMonthA  
+										  WHERE seq <![CDATA[<=]]> (ABS(DATEDIFF(CONCAT(#{month}, '01'), last_day(CONCAT(#{month}, '01')))) + 1)						          
+		
+					                   ) MAIN_A 
+					              where MAIN_A.CAL_DATE not in (
+							            SELECT EXCP_DATE 
+				                          FROM GRP_EXCP_DATE
+				                         WHERE COMCD = #{comcd} 
+				                           AND EVT_NO = #{evtNo} 
+				                           AND EXCP_DATE LIKE CONCAT(#{month}, '%') 					              			
+					                    )
+				             ) G
+				        WHERE CAL_DATE <![CDATA[>=]]> DATE_FORMAT(SYSDATE(),'%Y%m%d')  
+		)	
+		
+			select MAIN3.CAL_DATE  as CAL_DATE 
+			     , MAIN3.DATE_TYPE as DATE_TYPE
+			     , CONCAT(CAST(SUM(MAIN3.TOT_CAPA) as CHAR), '|', CAST(SUM(MAIN3.RSV_TOT_CNT) as CHAR), '|', CAST(SUM(MAIN3.RSV_GRP_CNT) as CHAR), '|', CAST(SUM(MAIN3.ORG_GRP_CNT) as CHAR)) as CNT_CHK 
+			from ( select 	MAIN2.CAL_DATE as CAL_DATE
+			 	
+			 		,
+						CASE WHEN
+							MAIN2.DATE_TYPE = '30' AND MAIN2.EVT_APP_PERIOD_GBN = '1001' AND fn_DateTime_Convert(3, MAIN2.EVT_OPENDATE, NVL(MAIN2.EVT_OPENTIME, '0000')) <![CDATA[<=]]>  DATE_FORMAT(SYSDATE(),'%Y-%m-%d %H:%i') THEN '40'
+						WHEN
+							MAIN2.DATE_TYPE = '30' AND MAIN2.EVT_APP_PERIOD_GBN = '2001'
+								AND fn_DateTime_Convert(3, MAIN2.EVT_REQ_SDATE, NVL(MAIN2.EVT_REQ_STIME, '0000')) <![CDATA[<=]]>  DATE_FORMAT(SYSDATE(), '%Y-%m-%d %H:%i')
+								AND	fn_DateTime_Convert(3, MAIN2.EVT_REQ_EDATE, NVL(MAIN2.EVT_REQ_ETIME, '0000')) <![CDATA[>]]>  DATE_FORMAT(SYSDATE(), '%Y-%m-%d %H:%i')
+								 THEN '40'
+						ELSE
+						 	MAIN2.DATE_TYPE 
+						END as DATE_TYPE				 		
+			 
+					  , MAIN2.TOT_CAPA              as TOT_CAPA
+					  , MAIN2.RSV_TOT_CNT           as RSV_TOT_CNT
+					  , MAIN2.RSV_GRP_CNT           as RSV_GRP_CNT
+					  , MAIN2.ORG_GRP_CNT           as ORG_GRP_CNT 
+			      
+			   FROM ( select MAIN1.CAL_DATE              as CAL_DATE
+					       , MAIN1.DATE_TYPE             as DATE_TYPE 
+					       , MAIN1.EVT_APP_PERIOD_GBN    as EVT_APP_PERIOD_GBN
+					       , MAIN1.EVT_OPENDATE          as EVT_OPENDATE
+					       , MAIN1.EVT_OPENTIME          as EVT_OPENTIME
+					       , MAIN1.EVT_REQ_SDATE         as EVT_REQ_SDATE
+					       , MAIN1.EVT_REQ_EDATE         as EVT_REQ_EDATE
+					       , MAIN1.EVT_REQ_STIME         as EVT_REQ_STIME
+					       , MAIN1.EVT_REQ_ETIME         as EVT_REQ_ETIME
+					       , MAIN1.TOT_CAPA              as TOT_CAPA
+					       , MAIN1.RSV_TOT_CNT           as RSV_TOT_CNT
+					       , MAIN1.RSV_GRP_CNT           as RSV_GRP_CNT
+					       , MAIN1.ORG_GRP_CNT           as ORG_GRP_CNT  
+		             FROM ( select A.COMCD
+				           , A.EVT_NO 
+				           , A.EVT_TIMESTD_SEQ 
+				           , A.EVT_BEFTIME
+				           , B.EVT_TIMESEQ
+				           , B.TIME_NAME 
+				           , B.S_TIME
+				           , F.CAL_DATE
+				           , B.TOT_CAPA
+				           , F.DATE_TYPE 
+
+					       , (select EVT_APP_PERIOD_GBN from GRP_PROGRAM T WHERE T.EVT_NO = #{evtNo}) AS EVT_APP_PERIOD_GBN
+					       , (select EVT_OPENDATE from GRP_PROGRAM T WHERE T.EVT_NO  = #{evtNo}) AS EVT_OPENDATE
+					       , (select EVT_OPENTIME from GRP_PROGRAM T WHERE T.EVT_NO  = #{evtNo}) AS EVT_OPENTIME
+					       , (select EVT_REQ_SDATE from GRP_PROGRAM T WHERE T.EVT_NO = #{evtNo}) AS EVT_REQ_SDATE
+					       , (select EVT_REQ_EDATE from GRP_PROGRAM T WHERE T.EVT_NO = #{evtNo}) AS EVT_REQ_EDATE
+					       , (select EVT_REQ_STIME from GRP_PROGRAM T WHERE T.EVT_NO = #{evtNo}) AS EVT_REQ_STIME
+					       , (select EVT_REQ_ETIME from GRP_PROGRAM T WHERE T.EVT_NO = #{evtNo}) AS EVT_REQ_ETIME					           
+								
+				           ,   (SELECT NVL(SUM(C.EVT_VEINGNMPR), 0)
+								from GRP_RSVN_MST C , GRP_RSVN_TIME D
+								where C.COMCD = B.COMCD AND C.EVT_NO=B.EVT_NO AND C.EVT_VEINGDATE=F.CAL_DATE
+								  AND C.EVT_RSVN_IDX = D.EVT_RSVN_IDX
+								  AND D.EVT_TIMESEQ  = B.EVT_TIMESEQ AND D.EVT_TIMESTD_SEQ=B.EVT_TIMESTD_SEQ
+								  AND C.EVT_RSVN_APPTYPE IN ('11','20'))  AS RSV_TOT_CNT 		
+				           ,   (SELECT COUNT(*) 
+								from GRP_RSVN_MST C , GRP_RSVN_TIME D
+								where C.COMCD = B.COMCD AND C.EVT_NO=B.EVT_NO AND C.EVT_VEINGDATE=F.CAL_DATE
+								  AND C.EVT_RSVN_IDX = D.EVT_RSVN_IDX
+								  AND D.EVT_TIMESEQ  = B.EVT_TIMESEQ AND D.EVT_TIMESTD_SEQ=B.EVT_TIMESTD_SEQ
+								  AND C.EVT_RSVN_APPTYPE IN ('11','20'))  AS RSV_GRP_CNT								  
+				           ,   1  AS ORG_GRP_CNT								  
+				
+				  from GRP_STDMNG A, GRP_TIME_MNG B, USQL01 F 
+		         where A.COMCD=#{comcd} 
+						  AND A.EVT_NO=#{evtNo} 
+						  AND A.EVT_USEDAYS LIKE CONCAT('%', (CASE WHEN F.HOL_CNT <![CDATA[>]]> 0 THEN '8' ELSE F.WEEK_DT END), '%')
+						  AND (A.EVT_PDBETENYN='N' 
+						  OR ( A.EVT_PDBETENYN='Y' AND A.EVT_TIME_STDATE <![CDATA[<=]]> F.CAL_DATE AND A.EVT_TIME_ENDDATE <![CDATA[>=]]> F.CAL_DATE))
+						  AND A.USE_YN='Y'
+						  AND A.COMCD=B.COMCD 
+						  AND A.EVT_NO=B.EVT_NO
+						  AND A.EVT_TIMESTD_SEQ=B.EVT_TIMESTD_SEQ 
+						  AND B.USE_YN='Y' ) MAIN1  ) MAIN2 ) MAIN3 
+                  group by MAIN3.CAL_DATE 
+			             , MAIN3.DATE_TYPE 
+				
+				       		
+		<!-- 원본 JYS 2021.07.14
+		with recursive USQL01 as (
+		     select CAL_DATE,
+		   			DATE_TYPE,
+		   			dayofweek(DATE_FORMAT(CAL_DATE, '%Y%m%d')) WEEK_DT,
+		   			 (SELECT COUNT(*) FROM CALENDAR WHERE COMCD=#{comcd} AND GUBUN IN ('1000' , '3001')  AND DATE_TYPE='02' AND CAL_DATE=G.CAL_DATE) HOL_CNT
+		   				FROM ( SELECT CAL_DATE,DATE_TYPE
+					          	 FROM CALENDAR
+					          	WHERE COMCD = #{comcd} AND GUBUN IN ('3001', '1000') AND DATE_TYPE = '00' AND CAL_DATE LIKE CONCAT(#{month}, '%')
+					           UNION ALL 
+					            SELECT EXCP_DATE AS CAL_DATE, 
+					                   '00' AS DATE_TYPE 
+		                          FROM GRP_EXCP_DATE
+		                         WHERE COMCD = #{comcd} 
+		                           AND EVT_NO = #{evtNo} 
+		                           AND EXCP_DATE LIKE CONCAT(#{month}, '%') 
+		                       UNION ALL 
+		                        SELECT CAL_DATE, 
+		                               '30' AS SCHE_TYPE 
+						          FROM ( 
+						          
+										SELECT DATE_FORMAT(thisSdt + INTERVAL seq - 1 DAY, '%Y%m%d') as CAL_DATE   
+										  FROM seq_1_to_31 
+										 INNER JOIN
+										        (SELECT CONCAT(#{month}, '01') thisSdt, last_day(CONCAT(#{month}, '01')) thisEdt) thisMonthA  
+										  WHERE seq   <![CDATA[<=]]>   (ABS(DATEDIFF(CONCAT(#{month}, '01'), last_day(CONCAT(#{month}, '01')))) + 1)						          
+		
+					                   ) MAIN_A
+				             ) G
+				        WHERE CAL_DATE  <![CDATA[>=]]>  DATE_FORMAT(SYSDATE(),'%Y%m%d')  
+		)	
+		
+
+		select MAIN_A1.A1_CAL_DATE  as CAL_DATE 
+		     
+				, 
+				CASE WHEN
+					MAIN_A1.A1_DATE_TYPE = '30' AND  EVT_APP_PERIOD_GBN = '1001' AND fn_DateTime_Convert(3, EVT_OPENDATE, NVL(EVT_OPENTIME, '0000')) <![CDATA[<=]]> DATE_FORMAT(SYSDATE(),'%Y-%m-%d %H:%i') THEN '40'
+				WHEN
+					MAIN_A1.A1_DATE_TYPE = '30' AND  EVT_APP_PERIOD_GBN = '2001'
+						AND fn_DateTime_Convert(3, EVT_REQ_SDATE, NVL(EVT_REQ_STIME, '0000')) <![CDATA[<=]]> DATE_FORMAT(SYSDATE(), '%Y-%m-%d %H:%i')
+						AND	fn_DateTime_Convert(3, EVT_REQ_EDATE, NVL(EVT_REQ_ETIME, '0000')) <![CDATA[>]]> DATE_FORMAT(SYSDATE(), '%Y-%m-%d %H:%i')
+						 THEN '40'
+				ELSE
+				 	MAIN_A1.A1_DATE_TYPE 
+				END as DATE_TYPE		     
+		     
+		     , CONCAT( CAST(MAIN_A2.A2_THIS_ROW as CHAR), '|', CAST(MAIN_A2.A2_TOT_CAPA as CHAR), '|', CAST(MAIN_A1.A1_REMAIN_CNT as CHAR)) as CNT_CHK  
+		from 
+		  ( 
+		    select MAIN2.CAL_DATE      as A1_CAL_DATE,
+			       MAIN2.DATE_TYPE     as A1_DATE_TYPE, 
+			       
+			       (select EVT_APP_PERIOD_GBN from GRP_PROGRAM T WHERE T.EVT_NO = #{evtNo}) AS EVT_APP_PERIOD_GBN,
+			       (select EVT_OPENDATE from GRP_PROGRAM T WHERE T.EVT_NO  = #{evtNo}) AS EVT_OPENDATE,
+			       (select EVT_OPENTIME from GRP_PROGRAM T WHERE T.EVT_NO  = #{evtNo}) AS EVT_OPENTIME,
+			       (select EVT_REQ_SDATE from GRP_PROGRAM T WHERE T.EVT_NO = #{evtNo}) AS EVT_REQ_SDATE,
+			       (select EVT_REQ_EDATE from GRP_PROGRAM T WHERE T.EVT_NO = #{evtNo}) AS EVT_REQ_EDATE,
+			       (select EVT_REQ_STIME from GRP_PROGRAM T WHERE T.EVT_NO = #{evtNo}) AS EVT_REQ_STIME,
+			       (select EVT_REQ_ETIME from GRP_PROGRAM T WHERE T.EVT_NO = #{evtNo}) AS EVT_REQ_ETIME,			       
+			       
+			       SUM(MAIN2.THIS_ROW) as A1_THIS_ROW,
+			       SUM(MAIN2.TOT_CAPA) as A1_TOT_CAPA,
+			       MAIN2.REMAIN_CNT    as A1_REMAIN_CNT 
+          	from (select  1    as THIS_ROW, 
+	              MAIN1.TOT_CAPA, 
+	              MAIN1.RSV_CNT,
+	              MAIN1.CAL_DATE,
+	              MAIN1.S_TIME,
+	              MAIN1.DATE_TYPE,
+                  CASE when MAIN1.TOT_CAPA <![CDATA[>]]> MAIN1.RSV_CNT AND DATE_FORMAT(fn_DateTime_Convert(3, MAIN1.CAL_DATE, NVL(MAIN1.S_TIME, '0000')),'%Y-%m-%d %H:%i') <![CDATA[>]]> DATE_FORMAT(SYSDATE(), '%Y-%m-%d %H:%i') THEN 1 ELSE 0 end REMAIN_CNT   		              
+				              
+				from (select A.COMCD
+				           , A.EVT_NO 
+				           , A.EVT_TIMESTD_SEQ 
+				           , A.EVT_BEFTIME
+				           , B.EVT_TIMESEQ
+				           , B.TIME_NAME 
+				           , B.S_TIME
+				           , F.CAL_DATE
+				           , B.TOT_CAPA
+				           , F.DATE_TYPE 
+				           ,  (SELECT NVL(SUM(C.EVT_VEINGNMPR), 0)
+								from GRP_RSVN_MST C , GRP_RSVN_TIME D
+								where C.COMCD = B.COMCD AND C.EVT_NO=B.EVT_NO AND C.EVT_VEINGDATE=F.CAL_DATE
+								  AND C.EVT_RSVN_IDX = D.EVT_RSVN_IDX
+								  AND D.EVT_TIMESEQ  = B.EVT_TIMESEQ AND D.EVT_TIMESTD_SEQ=B.EVT_TIMESTD_SEQ
+								  AND C.EVT_RSVN_APPTYPE IN ('11','20'))  AS RSV_CNT 		
+				
+				  from GRP_STDMNG A, GRP_TIME_MNG B, USQL01 F 
+		         where A.COMCD=#{comcd} 
+						  AND A.EVT_NO=#{evtNo} 
+						  AND A.EVT_USEDAYS LIKE CONCAT('%', (CASE WHEN F.HOL_CNT   <![CDATA[>]]>   0 THEN '8' ELSE F.WEEK_DT END), '%')
+						  AND (A.EVT_PDBETENYN='N' 
+						  OR ( A.EVT_PDBETENYN='Y' AND A.EVT_TIME_STDATE  <![CDATA[<=]]>  F.CAL_DATE AND A.EVT_TIME_ENDDATE  <![CDATA[>=]]>  F.CAL_DATE))
+						  AND A.USE_YN='Y'
+						  AND A.COMCD=B.COMCD 
+						  AND A.EVT_NO=B.EVT_NO
+						  AND A.EVT_TIMESTD_SEQ=B.EVT_TIMESTD_SEQ 
+						  AND B.USE_YN='Y') MAIN1 ) MAIN2 
+
+			group by MAIN2.CAL_DATE,
+			         MAIN2.DATE_TYPE 
+						  
+		) MAIN_A1, 			       
+		(
+		
+			    select 
+				       SUM(MAIN2.THIS_ROW) as A2_THIS_ROW,
+				       SUM(MAIN2.TOT_CAPA) as A2_TOT_CAPA  
+		          	from (select  1    as THIS_ROW, 
+			              MAIN1.TOT_CAPA, 
+			              MAIN1.RSV_CNT,
+			              MAIN1.CAL_DATE,
+			              MAIN1.S_TIME,
+			              MAIN1.DATE_TYPE,
+		                  CASE when MAIN1.TOT_CAPA > MAIN1.RSV_CNT AND DATE_FORMAT(fn_DateTime_Convert(3, MAIN1.CAL_DATE, NVL(MAIN1.S_TIME, '0000')),'%Y-%m-%d %H:%i') <![CDATA[>]]> DATE_FORMAT(SYSDATE(), '%Y-%m-%d %H:%i') THEN 1 ELSE 0 end REMAIN_CNT   		              
+						              
+						from (select A.COMCD
+						           , A.EVT_NO 
+						           , A.EVT_TIMESTD_SEQ 
+						           , A.EVT_BEFTIME
+						           , B.EVT_TIMESEQ
+						           , B.TIME_NAME 
+						           , B.S_TIME
+						           , F.CAL_DATE
+						           , B.TOT_CAPA
+						           , F.DATE_TYPE 
+						           ,  (SELECT NVL(SUM(C.EVT_VEINGNMPR), 0)
+										from GRP_RSVN_MST C , GRP_RSVN_TIME D
+										where C.COMCD = B.COMCD AND C.EVT_NO=B.EVT_NO AND C.EVT_VEINGDATE=F.CAL_DATE
+										  AND C.EVT_RSVN_IDX = D.EVT_RSVN_IDX
+										  AND D.EVT_TIMESEQ  = B.EVT_TIMESEQ AND D.EVT_TIMESTD_SEQ=B.EVT_TIMESTD_SEQ
+										  AND C.EVT_RSVN_APPTYPE IN ('11','20'))  AS RSV_CNT 		
+						
+						  from GRP_STDMNG A, GRP_TIME_MNG B, USQL01 F 
+				         where A.COMCD=#{comcd} 
+								  AND A.EVT_NO=#{evtNo} 
+								  AND A.EVT_USEDAYS LIKE CONCAT('%', (CASE WHEN F.HOL_CNT   <![CDATA[>]]>   0 THEN '8' ELSE F.WEEK_DT END), '%')
+								  AND (A.EVT_PDBETENYN='N' 
+								  OR ( A.EVT_PDBETENYN='Y' AND A.EVT_TIME_STDATE  <![CDATA[<=]]>  F.CAL_DATE AND A.EVT_TIME_ENDDATE  <![CDATA[>=]]>  F.CAL_DATE))
+								  AND A.USE_YN='Y'
+								  AND A.COMCD=B.COMCD 
+								  AND A.EVT_NO=B.EVT_NO
+								  AND A.EVT_TIMESTD_SEQ=B.EVT_TIMESTD_SEQ 
+								  AND B.USE_YN='Y') MAIN1 ) MAIN2 
+		
+				  			
+		  ) MAIN_A2 
+		  -->
+		  
+	</select>
+	
+	
+	<!-- 단체 교육 요금 정보 -->
+	<select id="selectChrgList" resultType="com.hisco.user.evtedcrsvn.service.EvtEdcItemAmountVO">
+			/* EvtEdcrsvnSMainDAO.selectChrgList */
+		    SELECT
+			     	AMT.COMCD,
+					AMT.EVT_NO,
+					AMT.ITEM_CD,
+					B.ITEM_NM,
+					B.SORTNO,
+					CASE WHEN P.EVT_FEE_TYPE='2001' THEN 0 ELSE AMT.ITEM_PRICE END AS ITEM_PRICE,
+					(SELECT NVL(SUM(EVT_RSVN_ITEMCNT),0) FROM GRP_RSVN_ITEM T WHERE T.EVT_RSVN_ITEMCD = AMT.ITEM_CD AND T.EVT_RSVN_IDX = #{evtRsvnIdx}) AS ITEM_CNT,
+					B.GROUPDCYN
+				FROM GRP_ITEM_AMOUNT AMT , GRP_PROGRAM P , PROGRAM_ITEM B
+				WHERE AMT.COMCD = #{comcd}
+				AND AMT.EVT_NO = #{evtNo}
+				AND AMT.USE_YN = 'Y'
+				AND AMT.COMCD=P.COMCD AND AMT.EVT_NO=P.EVT_NO
+				AND AMT.COMCD = B.COMCD AND AMT.ITEM_CD=B.ITEM_CD AND B.USE_YN='Y'
+				<choose>
+					<when test='evtPersnGbn == "20" or evtPersnGbn=="2001"'>AND B.PERGRGBN IN ('2001' , '3001')</when>
+					<otherwise>AND B.PERGRGBN IN ('1001' , '3001')</otherwise>
+				</choose>
+				ORDER BY SORTNO ASC
+	</select>
+
+	<!-- 예약 관련 시퀀스 -->
+	<select id="selectEvtEdcSeq" resultType="java.lang.String">
+		     SELECT
+					NEXTVAL(SEQ_EVT_RSVN_IDX)
+			 FROM DUAL
+	</select>
+
+	<!-- 예약  번호 -->
+	<select id="selectRsvnNumber" resultType="java.lang.String">
+		    SELECT /* selectRsvnNumber */ CONCAT('R2', DATE_FORMAT(SYSDATE(), '%y%m%d'), LPAD(NEXTVAL(SEQ_EVT_RSVNNO), 5, '0')) FROM DUAL
+	</select>
+
+	<!-- 단체 교육 예약 마스터 입력 -->
+	<insert id="insertEvtEdcrsvnMst">
+		/* EvtEdcrsvnSMainDAO.insertEvtEdcrsvnMst */
+		INSERT INTO GRP_RSVN_MST (
+			EVT_RSVN_IDX,
+			COMCD,
+			EVT_NO,
+			EVT_PARTCD,
+			EVT_APPDATE,
+			EVT_RSVNNO,
+			EVT_RSVN_MEMTYPE,
+			EVT_RSVN_MEMNO,
+			EVT_RSVN_WEBID,
+			EVT_RSVN_CUSTNM,
+			EVT_PERSN_GBN,
+			EVT_RSVN_GRPNM,
+			EVT_RSVN_MOBLPHON,
+			EVT_EMAIL,
+			EVT_VISIT_CUSTNM,
+			EVT_VISIT_MOBLPHON,
+			EVT_NONMEMB_CERTNO,
+			EVT_VEINGNMPR,
+			EVT_VEINGDATE,
+			EVT_RSVN_ETC,
+			EVT_RSVN_APPTYPE,
+			EVT_RSVN_SALEAMT,
+			EVT_RSVN_PAYAMT,
+			EVT_ONOFF_INTYPE,
+			EVT_ONOFFPYNTYPE,
+			EVT_TRMNLTYPE,
+			EVT_INDVDLINFO_AGRID,
+			EVT_INDVDLINFO_AGRYN,
+			EVT_AGREEID,
+			EVT_AGREEYN,
+			EVT_REFND_AGRID,
+			EVT_REFND_AGRYN,
+			EVT_PAYWAIT_ENDDATETIME,
+			EVT_GRADE_TARGET,
+			EVT_WANT_PRGMNM,
+			REGDATE,
+			REGUSER
+		)
+		VALUES
+		(
+			#{evtRsvnIdx},
+			#{comcd},
+			#{evtNo},
+			#{evtPartcd},
+			DATE_FORMAT(SYSDATE() ,'%Y%m%d'),
+			#{evtRsvnno},
+			#{evtRsvnMemtype},
+			#{evtRsvnMemno},
+			#{evtRsvnWebid},
+			#{evtRsvnCustnm},
+			#{evtPersnGbn},
+			#{evtRsvnGrpnm},
+			#{evtRsvnMoblphon},
+			#{evtEmail}, 
+			#{evtVisitCustnm},
+			REPLACE(#{evtVisitMoblphon},'-',''), 
+			#{evtNonmembCertno},
+			#{evtVeingnmpr},
+			#{evtVeingdate},
+			#{evtRsvnEtc},
+			(CASE WHEN #{evtRsvnSaleamt} > 1 THEN '11' ELSE '20' END),
+			#{evtRsvnSaleamt},
+			#{evtRsvnPayamt},
+			'10',
+			'10',
+			#{evtTrmnltype},
+			'1001',
+			'Y',
+			'4001',
+			'Y',
+			'4002',
+			'Y',
+			CASE WHEN #{evtPersnGbn}='10' THEN (DATE_FORMAT(#{payWaitTime},'%Y%m%d%H%i%S')) END,
+			#{evtGradeTarget},
+			#{evtWantPrgmnm},
+			SYSDATE(),
+			#{reguser}
+		)
+	</insert>
+
+	<!-- 단체 교육 예약품목세부 입력 -->
+	<insert id="insertEvtEdcrsvnItem">
+		/* EvtEdcrsvnSMainDAO.insertEvtEdcrsvnItem */
+		INSERT INTO GRP_RSVN_ITEM
+		(
+			EVT_RSVN_IDX,
+			EVT_SALE_SEQ,
+			COMCD,
+			EVT_RSVN_ITEMCD,
+			EVT_COST,
+			EVT_RSVN_ITEMCNT,
+			EVT_SALAMT,
+			EVT_DC_TYPE,
+			EVT_DC_CPNNO,
+			EVT_EVENT_DCID,
+			EVT_DC_RATE,
+			EVT_DCAMT,
+			EVT_TOTAMT,
+			EVT_ONOFF_INTYPE,
+			SELNG_ID,
+			EVT_TERMINAL_TYPE,
+			REGDATE,
+			REGUSER
+		)
+		VALUES
+		(
+			#{evtRsvnIdx},
+			(SELECT NVL(MAX(EVT_SALE_SEQ),0)+1 FROM GRP_RSVN_ITEM WHERE EVT_RSVN_IDX = #{evtRsvnIdx}),
+			#{comcd},
+			#{evtRsvnItemcd},
+			#{evtCost},
+			#{evtRsvnItemcnt},
+			#{evtSalamt},
+			#{evtDcType},
+			#{evtDcCpnno},
+			#{evtEventDcid},
+			#{evtDcRate},
+			#{evtDcamt},
+			#{evtTotamt},
+			'10',
+			0,
+			#{evtTerminalType},
+			SYSDATE(),
+			#{reguser}
+		)
+	</insert>
+
+	<!-- 단체 교육 예약 상세 입력 -->
+	<insert id="insertEvtEdcrsvnTime">
+		/* EvtEdcrsvnSMainDAO.insertEvtEdcrsvnTime */
+		INSERT INTO GRP_RSVN_TIME
+		(
+			EVT_RSVN_IDX,
+			EVT_RSVN_TIMEIDX,
+			COMCD,
+			EVT_NO,
+			EVT_TIMESTD_SEQ,
+			EVT_TIMESEQ,
+			EVT_STIME,
+			EVT_ETIME,
+			REGDATE,
+			REGUSER
+		)
+		SELECT
+			#{evtRsvnIdx},
+			NEXTVAL(SEQ_EVT_RSVN_TIME_IDX),
+			#{comcd},
+			EVT_NO,
+			EVT_TIMESTD_SEQ,
+			EVT_TIMESEQ,
+			S_TIME,
+			E_TIME,
+			SYSDATE(),
+			#{reguser}
+		FROM GRP_TIME_MNG
+		WHERE COMCD = #{comcd}
+		AND EVT_NO = #{evtNo}
+		AND EVT_TIMESTD_SEQ = #{evtTimestdSeq}
+		AND EVT_TIMESEQ = #{evtTimeseq}
+	</insert>
+
+	<!-- 단체 교육 예약 정보 -->
+	<select id="selectEvtEdcrsvnDetail" resultType="com.hisco.user.evtedcrsvn.service.EvtEdcrsvnMstVO">
+		/* EvtEdcrsvnSMainDAO.selectEvtEdcrsvnDetail */
+	    SELECT 
+	            A.EVT_NO,
+		        A.EVT_RSVN_IDX,
+				A.EVT_PARTCD,
+				EVT_RSVNNO,
+				EVT_RSVN_WEBID,
+		     	EVT_RSVN_GRPNM,
+		     	EVT_RSVN_MEMNO,
+				EVT_PERSN_GBN,
+
+				EVT_RSVN_MOBLPHON AS evtRsvnMoblphon,
+				EVT_EMAIL         AS EVT_EMAIL,
+				
+				EVT_VEINGNMPR,
+				EVT_VEINGDATE,
+				EVT_RSVN_ETC,
+				EVT_RSVN_WEBID,
+				EVT_RSVN_CUSTNM,
+				EVT_RSVN_APPTYPE,
+				(SELECT CD_NM FROM COT_GRPCD GRP WHERE GRP.GRP_CD = 'SM_RSVN_STAT' AND CD = EVT_RSVN_APPTYPE) AS EVT_APPTYPE_NM,
+				EVT_RSVN_SALEAMT,
+				EVT_RSVN_PAYAMT,
+				EVT_RSVN_PAYDATE,
+				EVT_RSVN_RETYN,
+				EVT_RECEIPTNO,
+				EVT_CANCEL_MEMO,
+				EVT_ONOFF_INTYPE,
+				EVT_ONOFFPYNTYPE,
+				EVT_VISIT_CUSTNM,
+				
+				EVT_VISIT_MOBLPHON, 
+				
+				EVT_TRMNLTYPE,
+				EVT_PAYWAIT_ENDDATETIME,
+				EVT_VISITCARNO,
+				B.EVT_TIMESEQ,
+				B.EVT_STIME,
+				(SELECT EVT_NAME FROM GRP_PROGRAM WHERE EVT_NO = A.EVT_NO) AS EVT_NAME,
+				B.EVT_ETIME,
+				CASE WHEN DATE_FORMAT(A.EVT_VEINGDATE || B.EVT_STIME, '%Y%m%d%H%i%S') > SYSDATE() THEN 'Y' ELSE 'N' END AS editYn,
+				P.EVT_ORG_MINCNT AS GRP_MIN_CNT,
+				P.EVT_ORG_MAXCNT AS GRP_MAX_CNT,
+				A.EVT_GRADE_TARGET,
+				A.EVT_WANT_PRGMNM,
+				A.REGDATE,
+				P.USEINFOR_YN
+			FROM GRP_RSVN_MST A INNER JOIN GRP_RSVN_TIME B ON A.EVT_RSVN_IDX = B.EVT_RSVN_IDX
+				INNER JOIN GRP_PROGRAM P ON A.EVT_NO = P.EVT_NO
+			WHERE A.EVT_RSVN_IDX = #{evtRsvnIdx}
+	</select>
+
+	<!-- 단체 교육 요금 정보 -->
+	<select id="selectEvtEdcrsvnItem" resultType="com.hisco.user.evtedcrsvn.service.EvtEdcRsvnItemVO">
+			/* EvtEdcrsvnSMainDAO.selectEvtEdcrsvnItem */
+		    SELECT
+				AA.EVT_RSVN_ITEMCD AS evtRsvnItemcd,
+				AA.EVT_COST AS evtCost,
+				AA.EVT_RSVN_ITEMCNT AS evtRsvnItemcnt,
+				AA.EVT_SALAMT AS evtSalamt,
+				AA.EVT_TOTAMT AS evtTotamt,
+				B.ITEM_NM AS evtItemNm,
+				B.PERGRGBN AS pergrgbn,
+				B.VAT_YN AS vatYn,
+				C.EVT_TOTAMT AS itemAmount,
+				C.EVT_DC_TYPE AS evtDcType,
+				C.EVT_DC_CPNNO AS evtDcCpnno,
+				C.EVT_EVENT_DCID AS evtEventDcid,
+				C.EVT_DC_RATE AS evtDcRate,
+				C.EVT_DCAMT AS evtDcamt,
+				C.EVT_RSVN_ITEMCNT AS itemSubCnt,
+				C.EVT_SALE_SEQ AS evtSaleSeq,
+				C.SELNG_ID AS selngId,
+				E.EVENT_DCNAME AS dcName,
+				CI.CPN_NAME AS cpnName,
+				G.CD_NM AS dcTypeNm,
+				G.ITEM2 AS dcKindCd,
+				L.RETURN_AMT AS cancelAmt,
+				L.BREAK_AMT AS breakAmt
+			FROM (
+				SELECT
+					A.EVT_RSVN_ITEMCD,
+					MAX(A.EVT_COST) EVT_COST ,
+					SUM(A.EVT_RSVN_ITEMCNT) EVT_RSVN_ITEMCNT,
+					SUM(A.EVT_SALAMT) EVT_SALAMT,
+					SUM(A.EVT_TOTAMT) EVT_TOTAMT
+				FROM
+					GRP_RSVN_ITEM A
+				WHERE
+					A.EVT_RSVN_IDX=#{evtRsvnIdx}
+				GROUP BY
+					A.EVT_RSVN_ITEMCD
+			) AA , PROGRAM_ITEM B , GRP_RSVN_ITEM C
+				LEFT OUTER JOIN EVENT_DC_STDMNG E ON E.EVENT_DCID =C.EVT_EVENT_DCID
+				LEFT OUTER JOIN CPN_PYMNT_INFO CC ON CC.CPN_UID = C.EVT_DC_CPNNO
+				LEFT OUTER JOIN CPN_ISUMANGE CI ON CC.COMCD = CI.COMCD AND CC.CPN_ID=CI.CPN_ID
+				LEFT OUTER JOIN COT_GRPCD G ON G.COMCD=#{comcd} AND G.GRP_CD='CM_REASON_DC' AND G.CD=C.EVT_DC_TYPE
+				LEFT OUTER JOIN CANCEL L ON L.COMCD=#{comcd} AND L.SALE_SEQ = C.SELNG_ID
+			WHERE
+				AA.EVT_RSVN_ITEMCD = B.ITEM_CD
+				AND C.EVT_RSVN_IDX = #{evtRsvnIdx}
+				AND AA.EVT_RSVN_ITEMCD = C.EVT_RSVN_ITEMCD
+				<if test="itemCd != null and itemCd !=''" >
+				AND B.ITEM_CD=#{itemCd}
+				</if>
+			ORDER BY
+				B.SORTNO , B.ITEM_CD
+	</select>
+
+	<!-- 예약 횟수 체크 -->
+	<select id="selectEvtEdcrsvnCnt" resultType="java.lang.Integer">
+		/* EvtEdcrsvnSMainDAO.selectEvtEdcrsvnCnt */
+		SELECT
+				NVL(COUNT(*),0)
+			FROM
+				GRP_RSVN_MST A
+			WHERE
+				EVT_NO = #{evtNo}
+			AND
+			<choose>
+				<when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(evtNonmembCertno)">
+					EVT_NONMEMB_CERTNO = #{evtNonmembCertno}
+				</when>
+				<otherwise>
+					EVT_RSVN_MEMNO = #{evtRsvnMemno}
+				</otherwise>
+			</choose>
+	        AND EVT_RSVN_APPTYPE IN ('11','20')
+	</select>
+
+	<!-- 노쇼 리스트 체크 -->
+	<select id="selectMemNshwCnt" resultType="java.lang.Integer">
+		/* EvtEdcrsvnSMainDAO.selectMemNshwCnt */
+		SELECT
+		 		COUNT(*)
+			FROM NSHW_BLCLST_MEMBER A INNER JOIN NSHW_BLCLST_LMMT B
+				ON A.COMCD= B.COMCD AND A.BLCLST_NO = B.BLCLST_NO
+			WHERE
+				A.COMCD = #{comcd}
+				AND
+					( A.BLCLST_MOBLPHON =#{evtRsvnMoblphon} OR ( #{evtRsvnMemno} IS NOT NULL AND BLCLST_MEM_NO=#{evtRsvnMemno}))
+		 		AND BLCLST_STDATE <![CDATA[<=]]> DATE_FORMAT(SYSDATE(),'%Y%m%d')
+		 		AND BLCLST_ENDDATE <![CDATA[>=]]> DATE_FORMAT(SYSDATE(),'%Y%m%d')
+		 		AND A.PARTCD= #{evtPartcd}
+		 		AND (B.BLCLST_LMMT_CTGCD IS NULL OR B.BLCLST_LMMT_CTGCD   =#{ctgCd})
+	</select>
+
+	<select id="selectEvtEdcCapa" resultType="java.lang.Integer">
+	/* EvtEdcrsvnSMainDAO.selectEvtEdcCapa */
+	SELECT (F.TOT_CAPA - F.RSV_CNT) AS CNT
+	FROM
+	(
+		SELECT
+			  B.TOT_CAPA AS TOT_CAPA,
+			  (SELECT NVL(SUM(C.EVT_VEINGNMPR ),0)
+					FROM GRP_RSVN_MST C INNER JOIN GRP_RSVN_TIME D ON
+						C.EVT_RSVN_IDX = D.EVT_RSVN_IDX
+						WHERE
+							C.COMCD=A.COMCD AND C.EVT_NO=A.EVT_NO
+							D.EVT_TIMESEQ  =  B.EVT_TIMESEQ
+							AND C.EVT_VEINGDATE = #{evtVeingdate}
+							AND C.EVT_RSVN_APPTYPE IN ('11','20')) AS RSV_CNT
+			FROM GRP_STDMNG A INNER JOIN  GRP_TIME_MNG B
+		                                    ON A.COMCD = B.COMCD
+		                                   AND A.EVT_TIMESTD_SEQ = B.EVT_TIMESTD_SEQ
+		    WHERE B.EVT_TIMESEQ = #{evtTimeseq}
+		      AND B.EVT_TIMESTD_SEQ = #{evtTimestdSeq}
+		      AND A.EVT_NO = #{evtNo} ) F
+	</select>
+
+
+		<!-- 오늘 이후 예약 내역 확인 -->
+ 	<select id="selectMyReserveCnt" resultType="Integer">
+ 			/* EvtEdcrsvnSMainDAO.selectMyReserveCnt */
+            SELECT
+                  	COUNT(*)
+             FROM GRP_RSVN_MST
+             WHERE COMCD=#{comcd}
+             	AND EVT_RSVN_MEMNO=#{uniqId}
+             	AND EVT_VEINGDATE>= DATE_FORMAT(SYSDATE(),'%Y%m%d')
+             	AND EVT_RSVN_APPTYPE IN ('11','20')
+ 	</select>
+
+ 	<!-- 수량조절  -->
+	<update id="updateEvtEdcItemCount" >
+		/* EvtEdcrsvnSMainDAO.updateEvtEdcItemCount */
+		UPDATE
+			GRP_RSVN_ITEM
+		SET
+			EVT_RSVN_ITEMCNT = #{evtRsvnItemcnt} ,
+			EVT_SALAMT= #{evtSalamt} ,
+			EVT_DCAMT = #{evtDcamt} ,
+			EVT_TOTAMT= #{evtTotamt} ,
+			EVT_DC_TYPE=#{evtDcType},
+			EVT_EVENT_DCID = #{evtEventDcid},
+			EVT_DC_RATE = #{evtDcRate}
+		WHERE
+			EVT_RSVN_IDX=#{evtRsvnIdx}  AND EVT_SALE_SEQ=#{evtSaleSeq}
+	</update>
+
+	<!-- 삭제  -->
+	<delete id="deleteEvtEdcItem">
+		/* EvtEdcrsvnSMainDAO.deleteEvtEdcItem */
+		DELETE
+		FROM
+			GRP_RSVN_ITEM
+		WHERE
+			EVT_RSVN_IDX=#{evtRsvnIdx}  AND EVT_SALE_SEQ=#{evtSaleSeq}
+	</delete>
+
+	<!-- 삭제  -->
+	<delete id="deleteEvtEdcItemAll">
+		/* EvtEdcrsvnSMainDAO.deleteEvtEdcItemAll */
+		DELETE
+		FROM
+			GRP_RSVN_ITEM
+		WHERE
+			EVT_RSVN_IDX=#{evtRsvnIdx}
+	</delete>
+
+
+	<!-- 가격 업데이트  -->
+	<update id="updateEvtEdcMstData">
+		/* EvtEdcrsvnSMainDAO.updateEvtEdcMstData */
+		UPDATE
+			GRP_RSVN_MST
+		SET
+			EVT_RSVN_SALEAMT = (SELECT NVL(SUM(EVT_SALAMT),0) FROM  GRP_RSVN_ITEM WHERE EVT_RSVN_IDX=#{rsvnIdxOne}) ,
+			EVT_RSVN_PAYAMT =  (SELECT NVL(SUM(EVT_TOTAMT),0) FROM  GRP_RSVN_ITEM WHERE EVT_RSVN_IDX=#{rsvnIdxOne})
+		WHERE
+			EVT_RSVN_IDX=#{rsvnIdxOne}
+	</update>
+
+			 <!-- 티켓번호 -->
+ 	<select id="selectTicketNumber" resultType="String">
+ 			/* EvtEdcrsvnSMainDAO.selectTicketNumber */
+            SELECT
+                  EVT_TICKET_NO
+             FROM GRP_TICKET_INFO
+             WHERE EVT_RSVN_IDX=#{evtRsvnIdx}
+ 	</select>
+
+ 		 <!-- 예약마감시간 -->
+ 	<select id="selectPayWaitTime" resultType="String">
+ 			/* EvtEdcrsvnSMainDAO.selectPayWaitTime */
+            SELECT
+                SUBSTR(DATE_FORMAT((SYSDATE() + #{evtPaywaitTime}/24 + 9/1440) ,'%Y%m%d%H%i%S'),1,11) ||'0'
+             FROM DUAL
+ 	</select>
+
+	 <!-- 단체할인 -->
+ 	<select id="selectEvtEdcGrpDscnt" resultType="cMap">
+ 	       /* selectEvtEdcGrpDscnt */
+           SELECT
+			S.COMCD,
+			S.EVT_NO,
+			S.DC_REASON_CD,
+			S.DC_RATE
+		FROM GRP_DC_STDMNG S
+		WHERE S.COMCD=#{comcd} AND S.EVT_NO=#{evtNo}
+			AND S.DC_REASON_CD IN (SELECT CD FROM COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD='CM_REASON_DC' AND ITEM2='6001')
+			AND S.DC_RATE > 0
+ 	</select>
+
+ 	<!-- 예약정보 수정  -->
+	<update id="updateEvtEdcRsvnData" >
+		UPDATE
+			GRP_RSVN_MST
+		SET
+			<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(evtRsvnGrpnm)">
+				EVT_RSVN_GRPNM = #{evtRsvnGrpnm},
+			</if>
+			<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(evtVisitCustnm)">
+				EVT_VISIT_CUSTNM = #{evtVisitCustnm},
+			</if>
+			<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(evtVisitMoblphon)">
+				<!-- for Tibero EVT_VISIT_MOBLPHON = CRYPTO.Encrypt_ARIA(#{evtVisitMoblphon}, #{dbEnckey}), -->
+				EVT_VISIT_MOBLPHON = #{evtVisitMoblphon},
+			</if>
+			<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(evtVisitMoblphon)">
+				<!-- for Tibero EVT_EMAIL = CRYPTO.Encrypt_ARIA(#{evtEmail}, #{dbEnckey}), -->
+				EVT_EMAIL = #{evtEmail},
+			</if>
+			MODDATE = SYSDATE()
+		WHERE
+			COMCD = #{comcd}
+			AND EVT_RSVN_IDX= #{evtRsvnIdx}
+			AND EVT_PERSN_GBN = '2001'
+			AND EVT_RSVN_APPTYPE IN ('11','20')
+	</update>
+
+		<!-- 가격 업데이트  -->
+	<update id="updateEvtEdcMstAmt" >
+		UPDATE
+			GRP_RSVN_MST
+		SET
+			EVT_RSVN_SALEAMT = (SELECT NVL(SUM(EVT_SALAMT),0) FROM  GRP_RSVN_ITEM WHERE EVT_RSVN_IDX=#{rsvnIdxOne}) ,
+			EVT_RSVN_PAYAMT=  (SELECT NVL(SUM(EVT_TOTAMT),0) FROM GRP_RSVN_ITEM WHERE EVT_RSVN_IDX=#{rsvnIdxOne}),
+			EVT_VEINGNMPR=  (SELECT NVL(SUM(EVT_RSVN_ITEMCNT),0) FROM  GRP_RSVN_ITEM WHERE EVT_RSVN_IDX=#{rsvnIdxOne})
+		WHERE
+			EVT_RSVN_IDX=#{rsvnIdxOne}
+	</update>
+
+	<!-- 단체 교육 예약 마스터 입력 -->
+	<insert id="insertGrpRsvnFamlyinfo">
+		/* EvtEdcrsvnSMainDAO.insertGrpRsvnFamlyinfo */
+		INSERT INTO GRP_RSVN_FAMLYINFO (
+			COMCD,
+			EVT_RSVN_IDX,
+			EVT_RSVN_FMSEQ,
+			EVT_RSVNFM_NAME,
+			EVT_RSVNFM_TELNO 
+		) VALUES (
+			#{comcd},
+			#{evtRsvnIdx},
+			#{evtRsvnFmseq},
+			#{evtRsvnfmName},
+			#{evtRsvnfmTelno}
+		)
+	</insert>
+
+	<!-- 단체 교육 예약 정보 -->
+	<select id="selectGrpRsvnFamlyinfo" resultType="cMap">
+	
+		/* EvtEdcrsvnSMainDAO.selectGrpRsvnFamlyinfo */
+		SELECT
+			  COMCD
+			, EVT_RSVN_IDX
+			, EVT_RSVN_FMSEQ
+			, EVT_RSVNFM_NAME
+			, EVT_RSVNFM_TELNO		  
+		  FROM GRP_RSVN_FAMLYINFO 
+		  WHERE EVT_RSVN_IDX = #{evtRsvnIdx} 
+		
+	</select>
+</mapper>

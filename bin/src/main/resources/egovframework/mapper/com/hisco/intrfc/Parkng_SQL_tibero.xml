@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	수정일         수정자     수정내용
+    =========      =======    =================================================
+    2020.09.08     전영석     주차 연계 Tibero Mapper
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ParkngDAO">
+
+ 	<select id="selectMemerRow" parameterType="Map" resultType="int">
+
+		SELECT /* ParkngDAO.selectMemerRow */
+	           COUNT(*) AS ALLROW 
+		 FROM MEMBER A
+		WHERE A.MEM_NO IN (SELECT B.MEM_NO FROM MEMBER_CARINFO B WHERE B.CAR_NO = #{VHCLE_NO} AND USE_YN = 'Y')
+
+ 	</select>
+
+ 	<select id="selectMemerNo" parameterType="Map" resultType="cMap">
+
+		SELECT /* ParkngDAO.selectMemerNo */
+	           MEM_NO
+		 FROM MEMBER A
+		WHERE A.MEM_NO = (SELECT B.MEM_NO FROM MEMBER_CARINFO B WHERE B.CAR_NO = #{VHCLE_NO} AND USE_YN = 'Y')
+
+ 	</select>
+ 	
+	<!-- [유료회원여부조회][2020.08.10. 전영석] -->
+ 	<select id="selectMemerYearInfor" parameterType="Map" resultType="cMap">
+
+        SELECT /* ParkngDAO.selectMemerYearInfor */
+                COUNT(*) AS ROW_COUNT
+          FROM ANULMEMB_HIST A
+          WHERE A.MEM_NO = #{MEM_NO}
+            AND A.ANLMB_SDATE <![CDATA[<=]]> #{STARD_DATE}
+            AND A.ANLMB_EDATE <![CDATA[>=]]> #{STARD_DATE}
+            AND A.RET_YN = 'N'
+
+		<!--
+        SELECT /* ParkngDAO.selectMemerYearInfor */
+                (SELECT COUNT(*)
+                  FROM PROGRAM_ITEM B
+                WHERE B.PROGRAM_KIND = '03'
+                  AND B.ITEM_CD = A.ITEM_CD) AS ROW_COUNT
+          FROM MEM_SALE A
+          WHERE A.MEM_NO = #{MEM_NO}
+            AND A.ITEM_SDATE <![CDATA[>=]]> #{STARD_DATE}
+            AND A.ITEM_EDATE <![CDATA[>=]]> #{STARD_DATE}
+            AND A.SALE_SEQ <![CDATA[>=]]> 1
+            AND A.RETURN_YN != 'Y'
+            AND A.CANCEL_YN != 'Y'
+		-->
+
+ 	</select>
+
+ 	<!-- [관람대상자여부조회][2020.08.10. 전영석] -->
+ 	<select id="selectExbtRsvnInfor" parameterType="Map" resultType="cMap">
+
+        SELECT /* ParkngDAO.selectExbtRsvnInfor */
+               COUNT(*) AS ROW_COUNT
+          FROM EXBT_RSVN_MST A
+         WHERE A.EXBT_RSVN_MEMNO  = #{MEM_NO}
+            AND A.EXBT_VIEINGDATE = #{STARD_DATE}
+            AND A.EXBT_APPTYPE = '20'
+ 	</select>
+
+ 	<!-- [교육수강대상자여부조회][2020.08.10. 전영석] -->
+ 	<select id="selectTrainInfor" parameterType="Map" resultType="cMap">
+
+        SELECT /* ParkngDAO.selectTrainInfor */
+               COUNT(*) AS ROW_COUNT
+          FROM EDC_RSVN_INFO A
+          WHERE A.EDC_MEM_NO = #{MEM_NO}
+            AND A.EDC_STAT = '20'
+            AND A.EDC_REQ_SDATE <![CDATA[<=]]> #{STARD_DATE}
+            AND A.EDC_REQ_EDATE <![CDATA[>=]]> #{STARD_DATE}
+            AND A.EDC_PRGMID = (
+            						SELECT C.EDC_PRGMID
+            						  FROM EDC_DAYS C
+            						 WHERE A.COMCD = C.COMCD
+            						   AND A.EDC_PRGMID = C.EDC_PRGMID
+            						   AND C.EDC_DAYGBN = TO_CHAR(TO_DATE(#{STARD_DATE}), 'D'))
+
+ 	</select>
+
+ 	<!-- [강연/행사/영화대상자여부조회][2020.08.10. 전영석] -->
+ 	<select id="selectEvtRsvnInfor" parameterType="Map" resultType="cMap">
+
+        SELECT /* ParkngDAO.selectEvtRsvnInfor */
+               COUNT(*) AS ROW_COUNT
+          FROM EVT_RSVN_MST A
+         WHERE A.EVT_RSVN_MEMNO = #{MEM_NO}
+           AND A.EVT_RSVN_APPTYPE = '20'
+           AND A.EVT_VEINGDATE = #{STARD_DATE}
+
+ 	</select>
+
+ 	<!-- [특별회원대상자여부조회][2020.08.10. 전영석] -->
+ 	<select id="selectSpeclInfor" parameterType="Map" resultType="cMap">
+
+        SELECT /* ParkngDAO.selectSpeclInfor */
+               COUNT(*) AS ROW_COUNT
+          FROM MEMBER A
+          WHERE A.MEM_NO = #{MEM_NO}
+            AND A.MEM_GBN LIKE '20%'
+            AND A.STATUS = '0000'
+ 	</select>
+
+ 	<!-- [I/F 로그 저장(Req)][2020.10.28. 전영석] -->
+ 	<insert id="insertParkingReqInfor" parameterType="Map">
+
+		INSERT INTO /* ParkngDAO.insertParkingReqInfor */
+		            PARKING_INTERFACE_LOG (
+					LOG_SEQ
+				  , LOG_GBN
+				  , REQUEST_INFO
+				  , RESULT_INFO
+				  , ERRORYN
+				  , ERRORCODE
+				  , REGDATE
+				  , ERRORMSG
+		      ) VALUES (
+		            (SELECT NVL(MAX(LOG_SEQ), 0) + 1 FROM PARKING_INTERFACE_LOG)
+				  , 1
+				  , #{logParamMap}
+				  , #{logResultMap}
+				  , #{errorYn}
+				  , #{errorCode}
+				  , SYSDATE
+				  , #{errorMsg}
+		      )
+
+ 	</insert>
+
+ 	<!-- [I/F 로그 저장(Res)][2020.10.28. 전영석] -->
+ 	<insert id="insertParkingResInfor" parameterType="Map">
+
+		INSERT INTO /* ParkngDAO.insertParkingResInfor */
+		            PARKING_INTERFACE_LOG (
+					LOG_SEQ
+				  , LOG_GBN
+				  , REQUEST_INFO
+				  , RESULT_INFO
+				  , ERRORYN
+				  , ERRORCODE
+				  , REGDATE
+				  , ERRORMSG
+		      ) VALUES (
+		            (SELECT NVL(MAX(LOG_SEQ), 0) + 1 FROM PARKING_INTERFACE_LOG)
+				  , 2
+				  , #{logParamMap}
+				  , #{logResultMap}
+				  , #{errorYn}
+				  , #{errorCode}
+				  , SYSDATE
+				  , #{errorMsg}
+		      )
+
+ 	</insert>
+
+ 	<!-- [교육 회원 여부 조회][2020.11.10. 전영석] -->
+ 	<select id="selectEdcInfor" parameterType="Map" resultType="cMap">
+
+  		  SELECT /* ParkngDAO.selectEdcInfor */
+		         TO_CHAR(SYSDATE,'YYYY-MM-DD HH24:MI') AS FREE_CAR_YMD,
+		         A.CAR_NO        AS CAR_NO,
+		         '교육무료주차'  AS FREE_PRK_CAUSE,
+		         'Y'             AS FREE_PRK_YN,
+		         E.MEM_NO        AS MEM_NO,
+		         E.MEM_NM        AS MEM_NM,
+		         F.EDC_PRGMID    AS PRM_NO,
+		         F.EDC_PRGMNM    AS PRM_NM ,
+		         D.EDC_DAYGBN    AS DAYGBN,
+		         (SELECT COUNT(*) FROM EDC_DAYS 
+		                         WHERE COMCD = C.COMCD
+		                           AND EDC_PRGMID = C.EDC_PRGMID) AS WEEK_CROW   
+		    FROM MEMBER_CARINFO A  
+		               INNER JOIN EDC_RSVN_COMPTINFO B
+		                     ON A.MEM_NO = B.EDC_MEM_NO
+ 		                 AND B.EDC_SDATE <![CDATA[<=]]> TO_CHAR(SYSDATE,'YYYYMMDD') 
+ 		                 AND B.EDC_EDATE <![CDATA[>=]]> TO_CHAR(SYSDATE,'YYYYMMDD') 
+
+<!--                          AND B.EDC_SDATE <![CDATA[<=]]> '20201202' -->
+<!--                          AND B.EDC_EDATE <![CDATA[>=]]> '20201202' -->
+
+		                 AND B.EDC_RETYN = 'N'
+		                 INNER JOIN EDC_RSVN_INFO C
+		                     ON B.COMCD = C.COMCD
+		                 AND B.EDC_RSVN_REQID = C.EDC_RSVN_REQID
+		                 INNER JOIN EDC_PROGRAM F
+		                     ON C.COMCD = F.COMCD
+		                 AND C.EDC_PRGMID = F.EDC_PRGMID
+		                 AND F.EDC_FEE_TYPE = '1001'
+		                LEFT JOIN EDC_DAYS D
+		                     ON C.COMCD = D.COMCD
+		                 AND C.EDC_PRGMID = D.EDC_PRGMID
+		                 AND D.EDC_DAYGBN = TO_CHAR(SYSDATE,'D')
+		                 INNER JOIN MEMBER E
+		                     ON A.MEM_NO = E.MEM_NO
+		 WHERE A.CAR_NO = #{VHCLE_NO}
+  		   AND A.CAR_REGDATE <![CDATA[<=]]> TO_CHAR(SYSDATE,'YYYYMMDD')  
+		   
+		<!-- 
+		  SELECT /* ParkngDAO.selectEdcInfor */
+		         TO_CHAR(SYSDATE,'YYYY-MM-DD HH24:MI') AS FREE_CAR_YMD,
+		         A.CAR_NO        AS CAR_NO,
+		         '교육무료주차'  AS FREE_PRK_CAUSE,
+		         'Y'             AS FREE_PRK_YN,
+		         E.MEM_NO        AS MEM_NO,
+		         E.MEM_NM        AS MEM_NM,
+		         F.EDC_PRGMID    AS PRM_NO,
+		         F.EDC_PRGMNM    AS PRM_NM 
+		    FROM MEMBER_CARINFO A  
+		               INNER JOIN EDC_RSVN_COMPTINFO B
+		                     ON A.MEM_NO = B.EDC_MEM_NO
+		                 AND B.EDC_SDATE <![CDATA[<=]]> TO_CHAR(SYSDATE,'YYYYMMDD')
+		                 AND B.EDC_EDATE <![CDATA[>=]]> TO_CHAR(SYSDATE,'YYYYMMDD')
+		                 AND B.EDC_RETYN = 'N'
+		                 INNER JOIN EDC_RSVN_INFO C
+		                     ON B.COMCD = C.COMCD
+		                 AND B.EDC_RSVN_REQID = C.EDC_RSVN_REQID
+		                 INNER JOIN EDC_PROGRAM F
+		                     ON C.COMCD = F.COMCD
+		                 AND C.EDC_PRGMID = F.EDC_PRGMID
+		                 INNER JOIN EDC_DAYS D
+		                     ON C.COMCD = D.COMCD
+		                 AND C.EDC_PRGMID = D.EDC_PRGMID
+		                 AND D.EDC_DAYGBN = TO_CHAR(SYSDATE,'D')
+		                 INNER JOIN MEMBER E
+		                     ON A.MEM_NO = E.MEM_NO
+		 WHERE A.CAR_NO = #{VHCLE_NO}
+		   AND A.CAR_REGDATE <![CDATA[<=]]> TO_CHAR(SYSDATE,'YYYYMMDD')
+		   AND ROWNUM = 1
+		-->
+		
+		 
+   
+ 	</select>
+
+ 	<!-- [특별 회원 여부 조회][2020.11.10. 전영석] -->
+ 	<select id="selectSpeInfor" parameterType="Map" resultType="cMap">
+
+		SELECT /* ParkngDAO.selectSpeInfor */
+		       TO_CHAR(SYSDATE,'YYYY-MM-DD HH24:MI') AS FREE_CAR_YMD,
+		       A.CAR_NO           AS CAR_NO,
+		       '특별회원무료주차' AS FREE_PRK_CAUSE,
+		       'Y'                AS FREE_PRK_YN ,
+		       B.MEM_NO           AS MEM_NO,
+		       B.MEM_NM           AS MEM_NM
+		       FROM MEMBER_CARINFO A  INNER JOIN  MEMBER B
+		            ON A.MEM_NO = B.MEM_NO
+		            AND B.MEM_GBN LIKE '20%'
+				WHERE A.CAR_NO = #{VHCLE_NO} 
+				AND  A.CAR_REGDATE <![CDATA[<=]]> TO_CHAR(SYSDATE,'YYYYMMDD')
+				AND ROWNUM = 1
+   
+ 	</select>
+ 	
+ 	<!-- [유료 회원 여부 조회][2020.11.10. 전영석] -->
+ 	<select id="selectPayInfor" parameterType="Map" resultType="cMap">
+
+		SELECT /* ParkngDAO.selectPayInfor */
+		       TO_CHAR(SYSDATE,'YYYY-MM-DD HH24:MI') AS FREE_CAR_YMD,
+		       A.CAR_NO           AS CAR_NO,
+		       '유료회원무료주차' AS FREE_PRK_CAUSE,
+		       'Y'                AS FREE_PRK_YN ,
+		       C.MEM_NO           AS MEM_NO,
+		       C.MEM_NM           AS MEM_NM
+		  FROM MEMBER_CARINFO A  INNER JOIN ANULMEMB_HIST B
+		       ON A.MEM_NO = B.MEM_NO
+		           AND B.ANLMB_SDATE <![CDATA[<=]]> TO_CHAR(SYSDATE,'YYYYMMDD')
+		           AND B.ANLMB_EDATE <![CDATA[>=]]> TO_CHAR(SYSDATE,'YYYYMMDD')
+		           AND B.RET_YN = 'N'
+		           INNER JOIN MEMBER C
+		                 ON C.MEM_NO = B.MEM_NO
+		WHERE A.CAR_NO = #{VHCLE_NO}
+		AND  A.CAR_REGDATE <![CDATA[<=]]> TO_CHAR(SYSDATE,'YYYYMMDD')
+		AND ROWNUM = 1
+   
+ 	</select> 	
+
+</mapper>

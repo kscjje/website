@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="DEBUG">
+
+	<properties>
+		<property name="LOG_HOME">${sys:logDirectory}</property>
+	</properties>
+
+    <Appenders>
+    
+        <Console name="LogToConsole" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </Console>
+        
+        <RollingFile name="LogToRollingFile" fileName="${LOG_HOME}/spowise_web.log" filePattern="${LOG_HOME}/$${date:yyyy-MM}/app-%d{MM-dd-yyyy}-%i.log.gz">
+        
+	        <PatternLayout>
+	            <Pattern>%d %p %c{1.} [%t] %m%n</Pattern>
+	        </PatternLayout>
+	        <Policies>
+	            <TimeBasedTriggeringPolicy />
+	            <SizeBasedTriggeringPolicy size="10 MB"/> 
+	        </Policies>
+	    </RollingFile>
+	    
+    </Appenders>
+    
+    <Loggers>
+        <!-- avoid duplicated logs with additivity=false -->
+        <Logger name="com.hisco" level="debug" additivity="false">
+            <AppenderRef ref="LogToRollingFile"/>
+            <AppenderRef ref="LogToConsole"/>
+        </Logger>
+        <Logger name="jdbc.sqlonly" level="debug" additivity="false">
+            <AppenderRef ref="LogToRollingFile"/>
+            <AppenderRef ref="LogToConsole"/>
+        </Logger>
+        <Logger name="jdbc.resultsettable" level="debug" additivity="false">
+            <AppenderRef ref="LogToRollingFile"/>
+            <AppenderRef ref="LogToConsole"/>
+        </Logger>
+
+		 <!-- 
+        <Root level="debug">
+            <AppenderRef ref="LogToConsole"/>
+        </Root>
+        -->
+
+    </Loggers>
+    
+</Configuration>

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	수정일         수정자     수정내용
+    =========      =======    =================================================
+    2020.09.09     전영석     쿠폰 Tibero Mapper
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hisco.intrfc.coupon.mapper.CouponMapper">
+
+	<!-- [쿠폰 번호 복호화 조회][2020-11-18][전영석] -->
+ 	<select id="selectCouponNumber" parameterType="Map" resultType="cMap">
+
+		SELECT /* CouponDAO.selectCouponNumber */
+	           <!-- CRYPTO.DEcrypt_ARIA(#{encCoupon} , #{dbEncKey}) AS DECY_COUPON  -->
+			   #{encCoupon} AS DECY_COUPON
+		 FROM DUAL 
+
+	</select>
+
+	<!-- [쿠폰 정보 노출 및 실시 관련 정보를 조회한다][2020-09-09][전영석] -->
+ 	<select id="selectCouponExecuteList" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnCampDAO.selectCouponExecuteList */
+	           COMCD
+	         , EDC_PRGMID
+	         , COM_CTGCD
+	         , EDC_PRGMNM
+	         , EDC_PLACENM
+	         , EDC_SDATE
+	         , EDC_EDATE
+	         , EDC_STIME
+	         , EDC_ETIME
+		 FROM EDC_PROGRAM T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="COMCD != null and COMCD != ''">
+		    	T.COMCD = #{COMCD}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+	<!-- [쿠폰 대상 메인 정보를 조회한다][2020-09-09][전영석] -->
+ 	<select id="selectCouponMainList" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnCampDAO.selectCouponMainList */
+	           COMCD
+	         , EDC_PRGMID
+	         , COM_CTGCD
+	         , EDC_PRGMNM
+	         , EDC_PLACENM
+	         , EDC_SDATE
+	         , EDC_EDATE
+	         , EDC_STIME
+	         , EDC_ETIME
+		 FROM EDC_PROGRAM T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="COMCD != null and COMCD != ''">
+		    	T.COMCD = #{COMCD}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+	<!-- 쿠폰조사 Detail -->
+
+</mapper>

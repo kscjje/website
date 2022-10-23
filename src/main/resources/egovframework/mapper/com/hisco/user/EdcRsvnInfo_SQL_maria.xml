@@ -1,0 +1,941 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+교육프로그램 예약신청
+작성자: 박우진
+ -->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hisco.user.edcatnlc.mapper.EdcRsvnInfoMapper">
+
+	<!-- [교육 결제 마감시간 생성] 박우진 -->
+ 	<select id="selectPaywaitTime" resultType="java.sql.Timestamp">
+ 		/* EdcRsvnInfoMapper.selectPaywaitTime */
+		SELECT
+			CASE WHEN T.EDC_PAYWAIT_GBN  = '1001' THEN /*11시13분->11시20분으로계산필요*/
+					DATE_ADD(STR_TO_DATE(T.YYYYMMDDHH, '%Y%m%d%H'), INTERVAL T.PLUS MINUTE)
+				ELSE
+					STR_TO_DATE(CONCAT(T.EDC_PAYWAIT_DATE, T.EDC_PAYWAIT_HHMM), '%Y%m%d%H%i')
+			END
+		FROM (
+			SELECT DATE_FORMAT(DATE_ADD(NOW(), INTERVAL P.EDC_PAYWAIT_TIME MINUTE), '%Y%m%d%H') AS YYYYMMDDHH
+				, CEIL(TIME_FORMAT(NOW(),'%i')/10)*10 AS PLUS
+				, P.EDC_PAYWAIT_TIME, P.EDC_PAYWAIT_DATE, P.EDC_PAYWAIT_HHMM, P.EDC_PAYWAIT_GBN
+				FROM EDC_RSVN_SET_INFO P
+				WHERE COMCD = #{comcd}
+					AND EDC_PRGM_NO = #{edcPrgmNo}
+					AND EDC_RSVNSET_SEQ = #{edcRsvnsetSeq}
+			) T
+	</select>
+
+	<!-- [예약번호 생성] 박우진 -->
+	<select id="selectNextRsvnNumber" resultType="java.lang.String">
+		/* EdcRsvnInfoMapper.selectNextRsvnNumber */
+		SELECT CONCAT('R3', DATE_FORMAT(SYSDATE(), '%y%m%d'), LPAD(NEXTVAL(SEQ_EDC_RSVNNO), 5, '0')) FROM DUAL
+	</select>
+
+	<!-- [교육 예약 등록을 위한 마스터를 신규 저장] 박우진
+	EDC_RSVN_NO(예약번호) 구성
+	교육프로그램  예약신청시 부여되는 예약번호
+	매표예약번호구성 : 'R'+예약구분(1)+매표일자(6)+예약일련번호 5자리 시퀀스(SEQ_EDC_RSVNNO )
+	예약구분 : 1:전시관람 ,2 공연행사,3 교육프로그램
+	매표예약일련번호 5자리 시퀀스(SEQ_EXBT_RSVNNO) 뒷5자리 : 5자리가 안될경우 앞자리를 '0'으로 채움
+	예시> R320071400001
+	 -->
+ 	<update id="insertRsvnInfo" parameterType="com.hisco.user.edcatnlc.vo.EdcRsvnInfoVO">
+ 		<selectKey keyProperty="edcRsvnReqid" resultType="integer" order="BEFORE">
+			SELECT NEXTVAL(EDC_RSVN_INFO_SEQ) FROM DUAL
+		</selectKey>
+		<![CDATA[
+		/* EdcRsvnInfoMapper.insertEdcRsvnInfo */
+		INSERT INTO EDC_RSVN_INFO (
+				COMCD /*1.*/
+				, EDC_RSVN_REQID
+				, EDC_RSVN_NO
+				, EDC_REQ_DATE
+				, EDC_REQ_TIME /*5.*/
+				, EDC_MEM_NO /*교육대상회원번호*/
+				, EDC_RSVN_MEMNO /*교육예약신청회원번호:예약신청한 ID회원의 회원번호를 기록*/
+				, EDC_RSVN_MEMTYPE /*교육신청회원구분*/
+				, EDC_RSVN_ORGNAME /*교육신청단체명*/
+				, EDC_RSVN_SCNM /*10.교육신청학교명*/
+				, EDC_RSVN_CUSTNM /*비회원교육예약고객명*/
+				, EDC_RSVN_TEL /*비회원교육예약자일반전화*/
+				, EDC_RSVN_MOBLPHON /*비회원교육예약자일반전화*/
+				, EDC_EMAIL /*비회원교육예약자이메일*/
+				, EDC_REQ_CUSTNM /*15.비회원교육대상자고객성명*/
+				, EDC_RSVN_BIRTHDATE
+				, EDC_RSVN_GENDER
+				, EDC_REQ_MOBLPHON /*비회원교육대상자고객휴대폰번호*/
+				, EDC_NONMEMB_CERTNO /*비회원사무실전화*/
+				, EDC_VISTNMPR /*교육참가신청인원*/
+				, EDC_VISTOR_GRADENM /*단체프프로그램참가학년*/
+				, EDC_REGISTGBN /*20.등록구분*/
+				, EDC_PRGM_NO
+				, EDC_REQ_ITEM_CD /*프로그램요금품목고유번호*/
+				, EDC_RSVNSET_SEQ
+				, EDC_REQ_SDATE /*교육시작일자*/
+				, EDC_REQ_EDATE /*교육종료일자*/
+				, EDC_REQ_STIME /*25.교육시작시간*/
+				, EDC_REQ_ETIME /*교육종료시간*/
+				, EDC_MONTHCNT /*교육이용개월수*/
+				, EDC_PROGM_COST /*교육비단가*/
+				, EDC_REASONDC /*교육비할인사유코드(CM_REASON_DC)*/
+				, EDC_DCAMT /*30.할인금액*/
+				, EDC_TOTAMT /*교육비총액*/
+				, EDC_HOME_ZIPNO /*운편발송주소*/
+				, EDC_HOME_ADDR1 /*운편발송주소*/
+				, EDC_HOME_ADDR2 /*우편발송주소*/
+				, EDC_ETC /*35.예약신청비고사항*/
+				, EDC_INDVDLINFO_AGRID /*개인정보수집동의약관ID*/
+				, EDC_INDVDLINFO_AGRYN /*개인~동의여부*/
+				, EDC_AGREEID /*교육이용동의약관ID*/
+				, EDC_AGREEYN /*교육~동의여부*/
+				, EDC_REFND_AGRID /*40.환불동의약관*/
+				, EDC_REFND_AGRYN /*환불~동의여부*/
+				, EDC_ONOFFINTYPE /*온오프라인예약등록구분*/
+				, EDC_ONOFFPYNTYPE /*온오프라인결제등록구분*/
+				, EDC_TRMNL_TYPE /*등록터미널타입*/
+				, EDC_PAYWAIT_ENDDATETIME /*45.결제대기만료일시*/
+				, EDC_CONFIRM_DATE
+				, EDC_RETYN /*환불여부*/
+				, RET_SELNG_ID /*매출정보의 고유번호. SEQ_SELNGID*/
+				, EDC_BEF_EDATE /*연장이전종료일자(확장성)*/
+				, EDC_STAT /*예약상태(SM_RSVN_STAT)*/
+				, DRWT_DATE /*50.추첨일시*/
+				, DRWT_USERID /*추첨담당자아이디*/
+				, PRZWIN_STAT /*당첨상태*/
+				, PRZWINYN /*당첨구분*/
+				, REGDATE
+				, REGUSER /*55*/
+				, MODDATE
+				, MODUSER)
+			SELECT
+				  R.COMCD /*1.*/
+				, #{edcRsvnReqid}
+				, #{edcRsvnNo}
+				, TRIM(DATE_FORMAT(SYSDATE(), '%Y%m%d'))
+				, TRIM(DATE_FORMAT(SYSDATE(), '%H%i%s')) /*5.*/
+				, #{edcMemNo}
+				, #{edcRsvnMemno}
+				, #{edcRsvnMemtype}
+				, #{edcRsvnOrgname}
+				, #{edcRsvnScnm} /*10.교육신청학교명*/
+				, #{edcRsvnCustnm}
+				, #{edcRsvnTel}
+				, (CASE WHEN LENGTH(NVL(#{edcRsvnMoblphon}, '')) > 0 THEN FN_AES_ENCRYPT(#{edcRsvnMoblphon}, #{dbEncKey}) ELSE NULL END)
+				, (CASE WHEN LENGTH(NVL(#{edcEmail}, '')) > 0 THEN FN_AES_ENCRYPT(#{edcEmail}, #{dbEncKey}) ELSE NULL END)
+				, #{edcRsvnCustnm} /*15.비회원교육대상자고객성명*/
+				, #{edcRsvnBirthdate}
+				, #{edcRsvnGender}
+				, (CASE WHEN LENGTH(NVL(#{edcReqMoblphon}, '')) > 0 THEN FN_AES_ENCRYPT(#{edcReqMoblphon}, #{dbEncKey}) ELSE NULL END)
+				, #{edcNonmembCertno}
+				, NVL(#{edcVistnmpr}, 1)
+				, NULL /*edcVistorGradenm*/
+				, '1001' /*20.edcRegistgbn:1001(신규등록),1101(재등록)*/
+				, R.EDC_PRGM_NO
+				, (SELECT ITEM_NO FROM EDC_PROGRAM_ITEM WHERE COMCD = P.COMCD AND EDC_PRGM_NO = P.EDC_PRGM_NO) /*program_item.ITEM_NO*/
+				, R.EDC_RSVNSET_SEQ
+				, R.EDC_SDATE
+				, R.EDC_EDATE
+				, R.EDC_STIME /*25.교육종료일자*/
+				, R.EDC_ETIME
+				, NVL(#{edcMonthcnt}, 1)
+				, (SELECT D.COST_AMT
+			          FROM PROGRAM_ITEM D
+			         WHERE D.COMCD = P.COMCD
+			           AND D.ITEM_NO = (SELECT C.ITEM_NO
+			                              FROM EDC_PROGRAM_ITEM C
+			                             WHERE C.COMCD = P.COMCD
+			                               AND C.EDC_PRGM_NO = P.EDC_PRGM_NO
+			                               LIMIT 0, 1
+			                           )
+			        ) AS EDC_PROGM_COST
+				, #{edcReasondc} /*교육비할인사유코드(CM_REASON_DC)*/
+				, NVL(#{edcDcamt},0) /*30*/
+				, (SELECT D.COST_AMT - NVL(#{edcDcamt},0)
+			          FROM PROGRAM_ITEM D
+			         WHERE D.COMCD = P.COMCD
+			           AND D.ITEM_NO = (SELECT C.ITEM_NO
+			                              FROM EDC_PROGRAM_ITEM C
+			                             WHERE C.COMCD = P.COMCD
+			                               AND C.EDC_PRGM_NO = P.EDC_PRGM_NO
+			                               LIMIT 0, 1
+			                           )
+			        ) AS EDC_TOTAMT
+				, #{edcHomeZipno}
+				, #{edcHomeAddr1}
+				, #{edcHomeAddr2} /*우편발송주소*/
+				, #{edcEtc} /*35*/
+				, '1001' /*개인정보수집동의약관ID*/
+				, 'Y' /*개인~동의여부*/
+				, '3001' /*교육이용동의약관ID*/
+				, 'Y' /*교육이용동의여부*/
+				, '3002' /*40.교육이용료환불동의약관ID*/
+				, 'Y' /*교육이용료환불동의여부*/
+				, #{edcOnoffintype} /*온오프라인예약등록구분*/
+				, #{edcOnoffpyntype}
+				, #{edcTrmnlType}
+				, #{edcPaywaitEnddatetime} /*45*/
+				, #{edcConfirmDate}	/*대기자추첨확정시 업데이트*/
+				, NVL(#{edcRetyn}, 'N') /*환불여부*/
+				, (CASE WHEN #{edcRetyn} = 'Y' THEN #{retSelngId} ELSE NULL END) RET_SELNG_ID
+				, NULL /*edcBefEdate*/
+				, #{edcStat} /*1000:배정대기,1002:추첨대기,2001:입금대기,3001:신청취소,3002:당첨취소,3003:결제기한만료자동취소,3004:환불취소,4001:등록완료*/
+				, #{drwtDate} /*50*/
+				, #{drwtUserid}
+				, #{przwinStat}
+				, #{przwinyn}
+				, SYSDATE()
+				, #{reguser} /*55*/
+				, SYSDATE()
+				, #{moduser}
+			FROM EDC_RSVN_SET_INFO R, EDC_PROGRAM P
+			WHERE 1 = 1
+				AND R.COMCD = #{comcd}
+				AND R.EDC_PRGM_NO = #{edcPrgmNo}
+				AND R.EDC_RSVNSET_SEQ = #{edcRsvnsetSeq}
+				AND P.COMCD = R.COMCD
+				AND P.EDC_PRGM_NO = R.EDC_PRGM_NO
+				AND NOT EXISTS (/*예약번호로 등록완료된 적이 없으면*/
+					SELECT 1 FROM EDC_RSVN_INFO
+						WHERE COMCD = R.COMCD
+							AND EDC_RSVN_NO = #{edcRsvnNo}
+				);
+				
+		INSERT RSVN_PAYWAITTIME_LOG (
+			LOG_SEQ
+			, COMCD
+			, PART_GBN
+			, RSVN_NO
+			, PAYWAIT_DATETIME
+			, REGDATE
+		)
+		SELECT 
+			NEXTVAL(RSVN_PAYWAITTIME_LOG_SEQ)
+			, #{comcd} AS COMCD
+			, '2001' AS PART_GBN
+			, #{edcRsvnNo} AS RSVN_NO
+			, #{edcPaywaitEnddatetime} AS PAYWAIT_DATETIME
+			, SYSDATE() AS REGDATE;
+		]]>
+ 	</update>
+
+ 	<!-- 예약취소 -->
+ 	<update id="cancelRsvnInfo">
+ 		UPDATE EDC_RSVN_INFO
+ 			SET MODDATE = SYSDATE()
+ 				, MODUSER = #{moduser}
+ 				, EDC_RETYN = NVL(#{edcRetyn}, 'Y')
+ 				, RET_SELNG_ID = #{retSelngId}
+ 				, EDC_STAT = NVL(#{edcStat}, '3001')
+ 		WHERE 1 = 1
+ 			AND COMCD = #{comcd}
+ 			AND EDC_RSVN_REQID = #{edcRsvnReqid}
+ 			AND EDC_RSVN_NO = #{edcRsvnNo}
+ 	</update>
+ 	
+ 	<!-- 배정대기->입금대기처리 -->
+ 	<update id="updateRsvnInfo1000To2001">
+ 		UPDATE EDC_RSVN_INFO
+ 			SET MODDATE = SYSDATE()
+ 				, MODUSER = #{moduser}
+ 				, EDC_STAT = '2001'
+ 				, EDC_PAYWAIT_ENDDATETIME = #{edcPaywaitEnddatetime}
+ 		WHERE 1 = 1
+ 			AND COMCD = #{comcd}
+ 			AND EDC_RSVN_REQID = #{edcRsvnReqid}
+ 			AND EDC_RSVN_NO = #{edcRsvnNo}
+ 			AND EDC_STAT = '1000'
+ 	</update>
+
+ 	<!-- 등록완료 혹은 reasondc, dcamt, totamt 갱신 -->
+ 	<update id="completeRsvnInfo">
+ 		UPDATE EDC_RSVN_INFO
+ 			SET MODDATE = SYSDATE()
+ 				, MODUSER = #{moduser}
+ 				, EDC_REASONDC = #{edcReasondc}
+ 				, EDC_DCAMT = #{edcDcamt}
+ 				, EDC_TOTAMT = #{edcTotamt}
+ 				, EDC_STAT = NVL(#{edcStat}, '4001')
+ 		WHERE 1 = 1
+ 			AND COMCD = #{comcd}
+ 			AND EDC_RSVN_REQID = #{edcRsvnReqid}
+ 			AND EDC_RSVN_NO = #{edcRsvnNo}
+ 	</update>
+
+ 	<update id="updateRsvnInfo">
+ 		/*com.hisco.user.edcatnlc.mapper.EdcRsvnInfoMapper.updateRsvnInfo*/
+ 		UPDATE EDC_RSVN_INFO
+ 			SET MODDATE = SYSDATE()
+ 				, MODUSER = #{moduser}
+ 				, EDC_REASONDC = #{edcReasondc}
+ 				, EDC_DCAMT = #{edcDcamt}
+ 				, EDC_TOTAMT = #{edcTotamt}
+ 		WHERE 1 = 1
+ 			AND COMCD = #{comcd}
+ 			AND EDC_RSVN_REQID = #{edcRsvnReqid}
+ 	</update>
+
+	<!-- [교육 예약 정보를 조회] 박우진 -->
+ 	<select id="selectRsvnInfoList" resultType="com.hisco.user.edcatnlc.vo.EdcRsvnInfoVO">
+ 		/* EdcRsvnInfoMapper.selectRsvnInfoList */
+		SELECT T.*
+			FROM (
+				SELECT <choose>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_CUST_NM_DESC'">
+						ROW_NUMBER() OVER (order by EDC_RSVN_CUSTNM DESC) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_CUST_NM_ASC'">
+						ROW_NUMBER() OVER (order by EDC_RSVN_CUSTNM ASC) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_ID_DESC'">
+						ROW_NUMBER() OVER (order by ID DESC) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_ID_ASC'">
+						ROW_NUMBER() OVER (order by ID ASC) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_REQ_DATE_DESC'">
+						ROW_NUMBER() OVER (order by EDC_REQ_DTIME DESC) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_REQ_DATE_ASC'">
+						ROW_NUMBER() OVER (order by EDC_REQ_DTIME ASC) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_WAIT_DATE_DESC'">
+						ROW_NUMBER() OVER (order by EDC_PAYWAIT_ENDDATETIME DESC) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_WAIT_DATE_ASC'">
+						ROW_NUMBER() OVER (order by EDC_PAYWAIT_ENDDATETIME ASC) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_STAT_DESC'">
+						ROW_NUMBER() OVER (order by STAT_SORT DESC , EDC_STAT DESC) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_STAT_ASC'">
+						ROW_NUMBER() OVER (order by STAT_SORT ASC, EDC_STAT ASC) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_TEL_DESC'">
+						ROW_NUMBER() OVER (order by EDC_RSVN_MOBLPHON DESC ) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_TEL_ASC'">
+						ROW_NUMBER() OVER (order by EDC_RSVN_MOBLPHON ASC ) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_RSVN_NO_ASC'">
+						ROW_NUMBER() OVER (order by  EDC_RSVN_NO ASC ) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_RSVN_NO_DESC'">
+						ROW_NUMBER() OVER (order by  EDC_RSVN_NO DESC ) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_ONOFF_DESC'">
+						ROW_NUMBER() OVER (order by  EDC_ONOFFINTYPE DESC ) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_ONOFF_ASC'">
+						ROW_NUMBER() OVER (order by  EDC_ONOFFINTYPE ASC) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_MEMNO_DESC'">
+						ROW_NUMBER() OVER (order by  EDC_RSVN_MEMNO DESC ) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_MEMNO_ASC'">
+						ROW_NUMBER() OVER (order by  EDC_RSVN_MEMNO ASC ) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_CANCEL_DESC'">
+						ROW_NUMBER() OVER (order by  CANCEL_DTIME DESC ) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_CANCEL_ASC'">
+						ROW_NUMBER() OVER (order by  CANCEL_DTIME ASC ) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_PAYMETHOD_DESC'">
+						ROW_NUMBER() OVER (order by  PAY_METHOD_NM DESC ) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_PAYMETHOD_ASC'">
+						ROW_NUMBER() OVER (order by  PAY_METHOD_NM ASC ) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_WAITTIME_DESC'">
+						ROW_NUMBER() OVER (order by  EDC_PAYWAIT_ENDDATETIME DESC ) RNUM
+							</when>
+							<when test="searchOrderBy !=null and searchOrderBy=='BY_WAITTIME_ASC'">
+						ROW_NUMBER() OVER (order by  EDC_PAYWAIT_ENDDATETIME IS NULL ASC , EDC_PAYWAIT_ENDDATETIME ASC ) RNUM
+							</when>
+						  	<when test="url eq 'edcRsvnInfoAssignWaitListAjax'">
+						ROW_NUMBER() OVER (order by EDC_RSVN_NO ASC) RNUM /*선착대기자 목록 조회시 예약순서대로*/
+							</when>
+							<otherwise>
+						ROW_NUMBER() OVER (order by EDC_RSVN_NO DESC) RNUM
+							</otherwise>
+						</choose>
+						, CASE WHEN CONCAT(T.EDC_REQ_SDATE, T.EDC_REQ_STIME) <![CDATA[>]]> DATE_FORMAT(SYSDATE(),'%Y-%m-%d%H:%i') THEN 'Y' ELSE 'N' END AS EDIT_YN  /*수업시작일 전시간까지 전액환불취소 가능*/
+						, CASE
+							WHEN T.EDC_STAT = '1000'
+								THEN (SELECT COUNT(*) FROM EDC_RSVN_INFO WHERE COMCD = T.COMCD AND EDC_PRGM_NO = T.EDC_PRGM_NO AND EDC_RSVNSET_SEQ = T.EDC_RSVNSET_SEQ AND EDC_STAT='1000' AND EDC_RSVN_REQID <![CDATA[<=]]> T.EDC_RSVN_REQID)
+						  END AS WAIT_NO
+						, T.*
+						FROM (
+							SELECT
+							 A.COMCD
+							, A.EDC_RSVN_REQID
+							, A.EDC_RSVN_NO
+							, B.EDC_PRGM_NO
+							, A.EDC_RSVNSET_SEQ
+							, B.EDC_PRGM_NM
+							, H.EDC_PNCPA
+							, H.EDC_SDATE
+							, H.EDC_EDATE
+							, CONCAT(H.EDC_RSVNSET_NM, ' (', H.EDC_RSVNSET_SEQ, ')') AS EDC_RSVNSET_NM 
+							, B.ORG_NO
+							, B.EDC_CL_CNT
+							, C.ORG_NM AS ORG_NM
+							, C.ORG_TEL
+							, A.EDC_REQ_DATE
+							, A.EDC_REQ_TIME
+							, DATE_FORMAT(CONCAT(A.EDC_REQ_DATE, A.EDC_REQ_TIME), '%Y-%m-%d %H:%i:%s') AS EDC_REQ_DTIME
+							, DATE_FORMAT(A.EDC_REQ_SDATE, '%Y-%m-%d') EDC_REQ_SDATE
+							, DATE_FORMAT(A.EDC_REQ_EDATE, '%Y-%m-%d') EDC_REQ_EDATE
+							, CONCAT(SUBSTR(EDC_REQ_STIME, 1, 2), ':', SUBSTR(EDC_REQ_STIME, 3, 4)) EDC_REQ_STIME
+							, CONCAT(SUBSTR(EDC_REQ_ETIME, 1, 2), ':', SUBSTR(EDC_REQ_ETIME, 3, 4)) EDC_REQ_ETIME
+							, A.EDC_PROGM_COST
+							, A.EDC_DCAMT
+							, A.EDC_TOTAMT
+							, Y.SELNG_ID
+							, Y.PAY_SEQ
+							, Y.P_COMCD AS PAY_COMCD
+							, Y.P_TYPE AS PAY_METHOD
+							, Y.PAY_DATE
+							, Y.PAY_TIME
+							, A.EDC_REASONDC
+							, (SELECT CD_NM FROM COT_GRPCD WHERE COMCD = A.COMCD AND GRP_CD = 'CM_REASON_DC' AND CD = A.EDC_REASONDC) AS EDC_REASONDC_NM  /*할인종류*/
+							, (SELECT CD_NM FROM COT_GRPCD WHERE COMCD = Y.COMCD AND GRP_CD = 'SM_PAYMENT_TYPE' AND CD = Y.P_TYPE) AS PAY_METHOD_NM
+							, Y.METHOD_CD AS FINANCE_CD /*은행코드,카드사코드*/
+							, PM.METHOD_NM AS FINANCE_NM /*은행명,카드사명*/
+							, Y.PAY_AMT /*결제금액*/
+							, (SELECT NVL(SUM(PAY_AMT), 0) FROM PAY_LIST WHERE COMCD = X.COMCD AND PARENT_SELNG_ID = X.SELNG_ID AND SLIP_TYPE IN ('2', '3')) AS CANCEL_AMT /*취소금액*/
+							, (SELECT NVL(SUM(PAY_AMT), 0) FROM PAY_LIST WHERE COMCD = X.COMCD AND (SELNG_ID = X.SELNG_ID OR PARENT_SELNG_ID = X.SELNG_ID)) AS REMAIN_AMT /*결제금액-취소금액*/
+							, CASE WHEN A.EDC_STAT IN ('3001','3003') THEN DATE_FORMAT(A.MODDATE,'%Y%m%d%H%i%s') ELSE (SELECT CONCAT(PAY_DATE, PAY_TIME) FROM PAY_LIST WHERE COMCD = A.COMCD AND SELNG_ID = A.RET_SELNG_ID AND SLIP_TYPE IN ('2', '3') LIMIT 1) END AS CANCEL_DTIME/*취소일시*/
+							, 0 AS REFUND_AMT
+							, 'TODO' REFUND_DATE
+							, A.EDC_PAYWAIT_ENDDATETIME
+							, CASE WHEN A.EDC_MEM_NO IS NULL THEN '비회원' ELSE A.EDC_MEM_NO END AS EDC_MEM_NO
+							, CASE WHEN A.EDC_RSVN_MEMNO IS NULL THEN '비회원' ELSE A.EDC_RSVN_MEMNO END AS EDC_RSVN_MEMNO
+							, A.PRZWIN_STAT
+							, PRZWINYN
+							, CASE WHEN PRZWINYN = '1001' THEN '당첨' WHEN PRZWINYN = '2001' THEN '예비당첨' ELSE '탈락' END AS PRZWIN_GBN_NM
+							, CASE WHEN A.EDC_ONOFFINTYPE = '10'/*10:on*/ THEN '온라인' ELSE '오프라인' END AS EDC_ONOFFINTYPE
+							, A.EDC_TRMNL_TYPE
+							, FN_AES_DECRYPT(NVL(A.EDC_RSVN_MOBLPHON , D.HP),#{dbEncKey})  AS EDC_RSVN_MOBLPHON
+					  		, FN_AES_DECRYPT(NVL(A.EDC_REQ_MOBLPHON, D.HP),#{dbEncKey}) AS EDC_REQ_MOBLPHON
+					  		, FN_AES_DECRYPT(NVL(A.EDC_EMAIL, D.EMAIL),#{dbEncKey}) AS EDC_EMAIL
+					  		, NVL(A.EDC_HOME_ZIPNO , D.HOME_ZIPCD) AS EDC_HOME_ZIPNO
+					  		, FN_AES_DECRYPT(NVL(A.EDC_HOME_ADDR1, D.HOME_ADDR1),#{dbEncKey}) AS EDC_HOME_ADDR1
+					  		, FN_AES_DECRYPT(NVL(A.EDC_HOME_ADDR2, D.HOME_ADDR2),#{dbEncKey}) AS EDC_HOME_ADDR2
+							, NVL(D.MEM_NM, A.EDC_RSVN_CUSTNM) AS EDC_RSVN_CUSTNM
+							, NVL(D.BIRTH_DATE, A.EDC_RSVN_BIRTHDATE) AS EDC_RSVN_BIRTHDATE
+							, NVL(D.USER_ID, '비회원') AS USER_ID
+							, D.SMS_YN
+							, NVL(D.GENDER, A.EDC_RSVN_GENDER) AS EDC_RSVN_GENDER
+							, E.CD_NM AS GENDER_NM
+							, EDC_STAT
+							, F.SORT_ORDER AS STAT_SORT
+							, (CASE
+								WHEN H.EDC_RSVN_RECTYPE = '2001'/*추첨*/ AND A.PRZWIN_STAT = '1101'/*추첨확정*/ AND A.PRZWINYN = '2001'/*예비당첨(탈락)*/ THEN '탈락'
+								WHEN H.EDC_RSVN_RECTYPE = '1002' AND A.EDC_STAT = '1000' THEN '배정대기'
+								ELSE F.CD_NM
+								END) AS EDC_STAT_NM
+							, (SELECT GROUP_CONCAT(fn_WeekName_Convert(1, C.EDC_DAY_GBN) ORDER BY (case C.EDC_DAY_GBN when '1' then '9' else C.EDC_DAY_GBN end) ASC SEPARATOR ', ')
+						  		FROM EDC_DAYS C
+						  		WHERE C.COMCD = A.COMCD
+						  			AND C.EDC_PRGM_NO = A.EDC_PRGM_NO
+						  	  ) AS EDC_DAY_GBN_NM
+							<if test='prevMonthOutYn !=null and prevMonthOutYn == "Y"'>
+							, CASE WHEN (SELECT COUNT(1) FROM EDC_RSVN_INFO B
+								WHERE B.COMCD = A.COMCD
+									AND B.PRZWIN_STAT = '1101' /*추첨완료(당첨확정)*/
+									AND B.PRZWINYN = '2001' /*예비당첨(미당첨)*/
+									AND B.EDC_RSVN_CUSTNM = A.EDC_RSVN_CUSTNM
+									AND B.EDC_RSVN_MOBLPHON = A.EDC_RSVN_MOBLPHON
+									AND B.EDC_REQ_DATE BETWEEN DATE_ADD(SYSDATE(), INTERVAL -3 MONTH) AND  DATE_ADD(SYSDATE(), INTERVAL -1 MONTH)
+									) > 0 THEN 'Y' ELSE 'N'
+								END AS PREV_MONTH_OUT_YN
+							</if>
+							, P.WEB_PAYMENT_METHOD
+							, Y.CANCEL_YN AS PAY_CANCEL_YN
+							, CASE WHEN X.EDC_COMPLSTAT='2001' THEN '수료' WHEN X.EDC_COMPLSTAT='1001' THEN '중도만료' END AS EDC_COMPLSTAT
+							, Z.APP_NO
+							, SI.OID
+							, SI.RECEIPT_NO
+							, NVL(Z.TID,  V1.VBANK_TID) AS TID
+							, NVL(Z.MID,  V1.VBANK_MID) AS MID
+							, (SELECT COUNT(1) FROM PG_ORD_DET WHERE COMCD = SI.COMCD AND OID = SI.OID AND OID_PCANCEL_NO IS NOT NULL) PCANCEL_CNT /*기부분취소건수*/
+							, NVL(SI.DPSTR_NM, V1.RET_DPSTR_NM) AS RET_DPSTR_NM
+							, NVL(SI.BANK_CD, V1.RET_BANK_CD) AS RET_BANK_CD
+							, NVL(SI.BANK_NM, V1.RET_BANK_NM) AS RET_BANK_NM
+							, FN_AES_DECRYPT(NVL(SI.ACOUNT_NUM, V1.RET_ACOUNT_NUM), #{dbEncKey}) AS RET_ACOUNT_NUM
+							, COUNT(*) OVER() AS TOT_COUNT
+							FROM EDC_RSVN_INFO A
+								INNER JOIN EDC_PROGRAM B  ON (B.COMCD = A.COMCD AND B.EDC_PRGM_NO = A.EDC_PRGM_NO)
+								INNER JOIN ORG_INFO C ON (C.COMCD = B.COMCD AND C.ORG_NO = B.ORG_NO)
+								LEFT OUTER JOIN ORG_OPTINFO P ON P.COMCD = C.COMCD AND P.ORG_NO = C.ORG_NO
+								LEFT OUTER JOIN MEMBER D ON (D.COMCD = A.COMCD AND D.MEM_NO = A.EDC_RSVN_MEMNO)
+								LEFT OUTER JOIN COT_GRPCD E ON (E.COMCD = A.COMCD AND E.GRP_CD = 'SM_GENDER_GBN' AND E.CD = (CASE WHEN A.EDC_RSVN_GENDER IS NOT NULL THEN A.EDC_RSVN_GENDER ELSE D.GENDER END))
+								LEFT OUTER JOIN COT_GRPCD F ON (F.COMCD = A.COMCD AND F.GRP_CD = 'SM_RSVN_STAT' AND F.CD = A.EDC_STAT)
+								INNER JOIN EDC_RSVN_SET_INFO H ON A.COMCD = H.COMCD AND A.EDC_PRGM_NO = H.EDC_PRGM_NO AND A.EDC_RSVNSET_SEQ = H.EDC_RSVNSET_SEQ
+								LEFT OUTER JOIN EDC_RSVN_COMPT_INFO X ON X.COMCD = A.COMCD AND X.EDC_RSVN_REQID = A.EDC_RSVN_REQID
+								LEFT OUTER JOIN SELNG_INFO SI ON SI.COMCD = X.COMCD AND SI.SELNG_ID = X.SELNG_ID AND SI.SLIP_TYPE = '1'
+								LEFT OUTER JOIN PAY_LIST Y ON Y.COMCD = X.COMCD AND Y.SELNG_ID = X.SELNG_ID AND Y.PAY_SEQ = 1
+								LEFT OUTER JOIN PAY_METHOD PM ON PM.P_COMCD = Y.P_COMCD AND PM.P_TYPE = Y.P_TYPE AND PM.METHOD_CD = Y.METHOD_CD
+								LEFT OUTER JOIN CARD_APP_HIST Z ON Z.COMCD = Y.COMCD AND Z.OID = Y.OID AND Z.APP_GBN = '1' AND Y.APP_NO = Z.APP_NO
+								LEFT OUTER JOIN VBANK_PAYMENT_INFO V1 ON V1.COMCD = Y.COMCD AND V1.VBANK_OID = Y.OID
+							WHERE 1 = 1
+							  AND A.COMCD = #{comcd}
+							  <if test='excludeCancelListYn !=null and excludeCancelListYn == "Y"'>
+							  AND A.EDC_STAT NOT LIKE '30%'
+							  </if>
+							  <if test="channel !=null and channel == 'FO'">
+								  <choose>
+								  	<when test="edcRsvnNo != null and edcRsvnNo != ''">
+								  AND A.EDC_RSVN_NO = #{edcRsvnNo}
+								  	</when>
+								  	<when test="edcMemNo == null or edcMemNo == ''">
+								  AND 1 != 1
+								  	</when>
+								  	<otherwise>
+								  AND A.EDC_MEM_NO = #{edcMemNo}
+								  	</otherwise>
+								  </choose>
+							  </if>
+							  <if test="channel !=null and channel == 'BO'">
+							  	<if test="orgNo > 0">
+							  	  AND B.ORG_NO = #{orgNo}
+							  	</if>
+							  	<if test="searchOrgNo !=null and searchOrgNo != ''">
+							  	  AND B.ORG_NO = #{searchOrgNo}
+							  	</if>
+							  	<if test="edcPrgmNo > 0">
+							  	  AND A.EDC_PRGM_NO = #{edcPrgmNo}
+							  	 </if>
+							  	 <if test="edcRsvnsetSeq>0">
+							  	  AND A.EDC_RSVNSET_SEQ = #{edcRsvnsetSeq}
+							  	</if>
+							  	<if test="edcRsvnNo != null and edcRsvnNo != ''">
+							  	  AND A.EDC_RSVN_NO = #{edcRsvnNo}
+							  	</if>
+							  	<if test="edcRsvnsetNm != null and edcRsvnsetNm != ''">
+							  	  AND H.EDC_RSVNSET_NM = #{edcRsvnsetNm}
+							  	</if>
+							  	<if test="przwinStat != null and przwinStat != ''">
+							  	  AND A.PRZWIN_STAT = #{przwinStat}
+							  	</if>
+							  	<if test="edcRsvnRectype !=null and edcRsvnRectype != ''">
+							  	  AND B.EDC_RSVN_RECTYPE = #{edcRsvnRectype}
+							  	</if>
+							  	<if test="searchKeyword !=null and searchKeyword != ''">
+							  	  <choose>
+							  	  	<when test='searchCondition == "memNm"'> AND NVL(D.MEM_NM, A.EDC_RSVN_CUSTNM) LIKE CONCAT('%' ,#{searchKeyword},'%' ) </when>
+							  	  	<when test='searchCondition == "memId"'> AND D.ID LIKE CONCAT('%' ,#{searchKeyword},'%' ) </when>
+							  	  	<when test='searchCondition == "rsvnNo"'> AND A.EDC_RSVN_NO LIKE CONCAT('%' ,#{searchKeyword},'%' ) </when>
+							  	  	<when test='searchCondition == "hp"'> AND FN_AES_DECRYPT(NVL(A.EDC_REQ_MOBLPHON, D.HP),#{dbEncKey}) LIKE CONCAT('%' ,#{searchKeyword},'%' ) </when>
+							  	  </choose>
+							  	</if>
+							  	<choose>
+			      					<when test="periodCondition eq 'EDCYM'">
+										AND (H.EDC_SDATE LIKE CONCAT(#{searchYear}, #{searchMonth}, '%') OR H.EDC_EDATE LIKE CONCAT(#{searchYear}, #{searchMonth}, '%'))
+			      					</when>
+			      					<when test="periodCondition eq 'RSVNYM'">
+			      						AND (H.EDC_RSVN_SDATE LIKE CONCAT(#{searchYear}, #{searchMonth}, '%') OR H.EDC_RSVN_EDATE LIKE CONCAT(#{searchYear}, #{searchMonth}, '%'))
+			      					</when>
+			      				</choose>
+							  </if>
+							  <choose>
+							  	<when test="url eq 'edcRsvnInfoAssignWaitListAjax'">
+							  		AND A.EDC_STAT IN ('1000')
+							  		AND A.EDC_PAYWAIT_ENDDATETIME IS NULL /*선착대기조건*/
+							  	</when>
+							  	<otherwise>
+								  <if test="edcStat !=null and edcStat != ''">
+								  	  AND A.EDC_STAT = #{edcStat}
+								  </if>
+								  <if test="edcStatList != null">
+						 		 	  AND A.EDC_STAT IN <foreach collection="edcStatList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+						 		  </if>
+							  	</otherwise>
+							  </choose>
+					) T
+				) T
+			<if test='usePagingYn !=null and usePagingYn == "Y"'>
+			WHERE 1 = 1
+				AND T.RNUM <![CDATA[>]]> #{firstIndex}
+				AND T.RNUM <![CDATA[<=]]> #{firstIndex} + #{recordCountPerPage}
+			</if>
+			<if test="przwinStat != null and przwinStat != ''">
+			ORDER BY PRZWIN_GBN_NM ASC, EDC_RSVN_CUSTNM ASC
+			</if>
+	</select>
+
+	<select id="selectRsvnInfoListForPay" resultType="com.hisco.user.edcatnlc.vo.EdcRsvnInfoVO">
+ 		/* EdcRsvnInfoMapper.selectRsvnInfoListForPay */
+		SELECT A.COMCD
+			, A.EDC_RSVN_REQID
+			, A.EDC_RSVN_NO
+			, C.ORG_NO
+			, A.EDC_REQ_DATE
+			, A.EDC_REQ_TIME
+			, A.EDC_RSVN_MEMNO
+			, (CASE WHEN A.EDC_RSVN_MEMNO IS NOT NULL THEN B.MEM_NM ELSE A.EDC_RSVN_CUSTNM END) EDC_RSVN_CUSTNM
+			, A.EDC_RSVN_MEMTYPE
+			, FN_AES_DECRYPT((CASE WHEN A.EDC_RSVN_MEMNO IS NOT NULL THEN B.HP ELSE A.EDC_RSVN_MOBLPHON END), #{dbEncKey}) EDC_RSVN_MOBLPHON
+			, (CASE WHEN A.EDC_RSVN_MEMNO IS NOT NULL THEN B.BIRTH_DATE ELSE A.EDC_RSVN_BIRTHDATE END) EDC_RSVN_BIRTHDATE
+			, (CASE WHEN A.EDC_RSVN_MEMNO IS NOT NULL THEN B.GENDER ELSE A.EDC_RSVN_GENDER END) EDC_RSVN_GENDER
+			, A.EDC_PRGM_NO
+			, C.EDC_PRGM_NM
+			, C.EXCL_DC_YN
+			, C.EDC_TIME_GUIDE
+			, A.EDC_RSVNSET_SEQ
+			, A.EDC_REQ_ITEM_CD
+			, A.EDC_REQ_SDATE
+			, A.EDC_REQ_EDATE
+			, A.EDC_REQ_STIME
+			, A.EDC_REQ_ETIME
+			, A.EDC_PROGM_COST
+			, A.EDC_REASONDC
+			, (SELECT DC_RATE FROM ORG_DC_STDMNG WHERE COMCD = A.COMCD AND ORG_NO = C.ORG_NO AND DC_REASON_CD = A.EDC_REASONDC) AS EDC_DCRATE
+			, A.EDC_DCAMT
+			, A.EDC_TOTAMT
+			, DATE_FORMAT(A.EDC_PAYWAIT_ENDDATETIME, '%Y%m%d%H%i%s') CLOSE_DATE
+			, CASE WHEN A.EDC_PAYWAIT_ENDDATETIME <![CDATA[<=]]> SYSDATE() THEN 'Y' ELSE 'N' END CLOSE_YN
+			, A.EDC_PAYWAIT_ENDDATETIME
+			, A.EDC_RETYN
+			, A.RET_SELNG_ID
+			, A.EDC_STAT
+			, E.CD_NM AS EDC_STAT_NM
+			, A.EDC_MONTHCNT
+			, D.EDC_RSVN_RECTYPE
+			, F.CD_NM AS EDC_RSVN_RECTYPE_NM
+			, (SELECT GROUP_CONCAT(FN_WEEKNAME_CONVERT(1, C.EDC_DAY_GBN) ORDER BY (CASE C.EDC_DAY_GBN WHEN '1' THEN '9' ELSE C.EDC_DAY_GBN END) ASC SEPARATOR ', ')
+		  		FROM EDC_DAYS C
+		  		WHERE C.COMCD = A.COMCD
+		  			AND C.EDC_PRGM_NO = A.EDC_PRGM_NO
+		  	  ) AS EDC_DAY_GBN_NM
+		  	, D.EDC_PNCPA
+		  	, A.EDC_TRMNL_TYPE
+		  	, A.REGDATE
+		  	, V2.VBANK_SEQ
+		  	, V2.VBANK_PAYAMT
+		  	, CASE
+			  	WHEN STR_TO_DATE(CONCAT(V2.VBANK_PAY_WAIT_DATE, V2.VBANK_PAY_WAIT_TIME), '%Y%m%d%H%i%s') > SYSDATE()
+			  		AND V2.VBANK_STATUS = '1001' AND V2.VBANK_PAYAMT = 0 THEN 'N'
+				ELSE 'Y'
+			  END AS VBANK_CLOSE_YN /*계좌 마감여부*/
+		  	, V2.VBANK_STATUS
+		  	, (SELECT CD_NM FROM COT_GRPCD WHERE COMCD = A.COMCD AND GRP_CD = 'SM_VBANK_PAYMENT_STATUS' AND CD = V2.VBANK_STATUS) AS VBANK_STATUS_NM
+		  	, V2.RET_DPSTR_NM
+		  	, V2.RET_BANK_NM
+		  	, V2.RET_BANK_CD
+		  	, FN_AES_DECRYPT(V2.RET_ACOUNT_NUM, #{dbEncKey}) AS RET_ACOUNT_NUM
+		  	, G.COST_AMT /*원가*/
+		  	, G.SALE_AMT /*판매금액*/
+		  	/*, A.NWPAY_USERID 노원페이지 사용자아이디*/
+		  	, B.USER_ID
+			FROM EDC_RSVN_INFO A
+				 LEFT OUTER JOIN MEMBER B ON (B.COMCD = A.COMCD AND B.MEM_NO = A.EDC_RSVN_MEMNO)
+				 INNER JOIN EDC_PROGRAM C ON (C.COMCD = A.COMCD AND C.EDC_PRGM_NO = A.EDC_PRGM_NO)
+				 INNER JOIN EDC_RSVN_SET_INFO D ON (D.COMCD = A.COMCD AND D.EDC_PRGM_NO = A.EDC_PRGM_NO AND D.EDC_RSVNSET_SEQ = A.EDC_RSVNSET_SEQ)
+				 INNER JOIN COT_GRPCD E ON E.COMCD = A.COMCD AND E.GRP_CD = 'SM_RSVN_STAT' AND E.CD = A.EDC_STAT
+				 INNER JOIN COT_GRPCD F ON F.COMCD = A.COMCD AND F.GRP_CD = 'SM_LERECPTYPE' AND F.CD = D.EDC_RSVN_RECTYPE
+				 INNER JOIN PROGRAM_ITEM G ON G.COMCD = A.COMCD AND G.ITEM_NO = A.EDC_REQ_ITEM_CD
+				 LEFT OUTER JOIN VBANK_ORDER_LIST V1 ON V1.COMCD = A.COMCD AND V1.TR_NO = A.EDC_RSVN_REQID AND V1.VBANK_ORD_SEQ = 1
+				 LEFT OUTER JOIN VBANK_PAYMENT_INFO V2 ON V2.COMCD = V1.COMCD AND V2.VBANK_SEQ = V1.VBANK_SEQ
+			WHERE 1 = 1
+				<if test="edcRsvnNo != null and edcRsvnNo != ''">
+				AND EDC_RSVN_NO = #{edcRsvnNo}
+				</if>
+				<if test="payMethod != null and payMethod != ''">
+					AND V2.COMCD = #{comcd}
+					AND V2.VBANK_TID = #{tid}
+					AND V2.VBANK_ACCOUNT_NO = #{acountNum}
+				</if>
+	</select>
+
+	<select id="selectRsvnInfoMember" resultType="com.hisco.user.edcatnlc.vo.EdcRsvnInfoVO">
+ 		/* EdcRsvnInfoMapper.selectRsvnInfoMember */
+		SELECT B.EDC_RSVN_MEMNO
+			, NVL(B.EDC_RSVN_CUSTNM, C.MEM_NM) AS EDC_RSVN_CUSTNM
+			, NVL(B.EDC_RSVN_GENDER, C.GENDER) AS EDC_RSVN_GENDER
+			, NVL(B.EDC_RSVN_BIRTHDATE, C.BIRTH_DATE) AS EDC_RSVN_BIRTHDATE
+			, FN_AES_DECRYPT(NVL(B.EDC_RSVN_MOBLPHON, C.HP), #{dbEncKey}) AS EDC_RSVN_MOBLPHON
+			, C.ID
+			, B.EDC_RSVN_NO
+			FROM PG_ORD_DET A
+				INNER JOIN EDC_RSVN_INFO B ON B.COMCD = A.COMCD AND B.EDC_RSVN_NO = A.OID_RSVN_NO
+				LEFT OUTER JOIN MEMBER C ON C.COMCD = B.COMCD AND C.MEM_NO = B.EDC_RSVN_MEMNO
+			WHERE A.COMCD = #{comcd}
+				AND A.OID = #{oid}
+				AND A.OID_SEQ = 1
+	</select>
+
+	<!-- [재료 받을 배송 주소 정보를 변경한다][2020-09-27][전영석] -->
+ 	<update id="updateRsvnInfoAddr" parameterType="Map">
+ 		/* EdcRsvnInfoMapper.updateEdcRsvnInfo */
+		UPDATE EDC_RSVN_INFO
+		   SET EDC_HOME_ZIPNO = #{edcHomeZipno}
+		     , EDC_HOME_ADDR1 = #{edcHomeAddr1}
+		     , EDC_HOME_ADDR2 = #{edcHomeAddr2}
+		WHERE COMCD = #{comcd}
+		  AND EDC_RSVN_REQID = #{edcRsvnReqid}
+ 	</update>
+
+	<!-- 이용횟수 제한 조회 -->
+ 	<select id="selectRsvnInfoLimitCheck" resultType="integer">
+ 	<![CDATA[
+		SELECT /* EdcRsvnInfoMapper.selectProgramRsvnLimitCheck */
+			COUNT(*)
+		FROM EDC_RSVN_INFO T
+			, EDC_PROGRAM P
+			, EDC_PROGRAM PM
+		WHERE T.COMCD = #{comcd}
+			AND T.EDC_MEM_NO = #{memNo}
+			AND T.EDC_STAT IN (SELECT CD FROM COT_GRPCD WHERE COMCD = #{comcd} AND GRP_CD = 'SM_RSVN_STAT' AND ITEM1 IN ('11', '20')) /*1000:배정대기, 1002:추첨대기, 2001:입금대기, 4001:등록롼료*/
+			AND P.COMCD = T.COMCD
+			AND P.EDC_PRGM_NO = T.EDC_PRGM_NO
+			AND P.EDC_RSVNLIMIT_YN = 'Y'
+			AND PM.COMCD = T.COMCD
+			AND PM.EDC_PRGM_NO = T.EDC_PRGM_NO
+			AND PM.EDC_RSVNLIMIT_YN = 'Y'
+			AND (
+				PM.EDC_RSVNLMIT_GBN='1001' /*전체프로그램*/
+				OR
+				(PM.EDC_RSVNLMIT_GBN='2001' /*프로그램분류별*/
+					AND P.PRDLST_CTGDID IN
+						(SELECT PRDLST_CTGDID FROM EDC_PROGRAM_LIMIT WHERE COMCD=#{comcd} AND EDC_PRGM_NO=#{edcPrgmNo})
+				)
+			)
+			AND
+			(
+				(PM.EDC_RSVNLIMIT_PD='1001' AND (PM.EDC_SDATE BETWEEN T.EDC_REQ_SDATE AND T.EDC_REQ_EDATE OR PM.EDC_EDATE BETWEEN T.EDC_REQ_SDATE AND T.EDC_REQ_EDATE OR (PM.EDC_SDATE >= T.EDC_REQ_SDATE AND PM.EDC_EDATE <= T.EDC_REQ_SDATE) ))
+				OR
+				(PM.EDC_RSVNLIMIT_PD='2001' /*월간적용*/ AND (SUBSTR(PM.EDC_SDATE,1,6) BETWEEN SUBSTR(T.EDC_REQ_SDATE,1,6) AND SUBSTR(T.EDC_REQ_EDATE,1,6) OR SUBSTR(PM.EDC_EDATE,1,6) BETWEEN SUBSTR(T.EDC_REQ_SDATE,1,6) AND SUBSTR(T.EDC_REQ_EDATE,1,6) ))
+				OR
+				(PM.EDC_RSVNLIMIT_PD='3001'/*년각적용*/ AND (SUBSTR(PM.EDC_SDATE,1,4) BETWEEN SUBSTR(T.EDC_REQ_SDATE,1,4) AND SUBSTR(T.EDC_REQ_EDATE,1,4) OR SUBSTR(PM.EDC_EDATE,1,4) BETWEEN SUBSTR(T.EDC_REQ_SDATE,1,4) AND SUBSTR(T.EDC_REQ_EDATE,1,4) ))
+			)
+	]]>
+	</select>
+
+	<!-- 이용횟수 제한 조회 -->
+ 	<select id="selectRsvnInfoCount" parameterType="Map" resultType="integer">
+         SELECT
+         	/* EdcRsvnInfoMapper.selectProgramRsvnCount */
+         	NVL(SUM(EDC_VISTNMPR),0) /*교육참가신청인원*/
+         FROM
+         	EDC_RSVN_INFO
+         WHERE COMCD = #{comcd}
+         	AND EDC_PRGM_NO = #{edcPrgmNo}
+         	AND EDC_STAT IN (SELECT CD FROM COT_GRPCD WHERE COMCD = #{comcd} AND GRP_CD = 'SM_RSVN_STAT' AND ITEM2 = 'LIMIT') /*1000:배정대기, 1002:추첨대기, 2001:입금대기, 4001:등록롼료*/
+	</select>
+
+	<!-- 추첨정보 갱신 -->
+	<update id="doDrawRsvnInfo">
+		UPDATE /* EdcRsvnInfoMapper.doDrawRsvnInfo */
+		       EDC_RSVN_INFO A
+		   SET DRWT_DATE = SYSDATE()
+		     , DRWT_USERID = #{moduser}
+		     , PRZWIN_STAT = #{przwinStat}
+		     , PRZWINYN = #{przwinyn} /*1001:당첨, 2001:예비당첨*/
+		     , MODUSER = #{moduser}
+		     , MODDATE = SYSDATE()
+		WHERE COMCD = #{comcd}
+			AND EDC_RSVN_REQID = #{edcRsvnReqid}
+			AND EDC_STAT IN ('1002') /*1002:추첨대기*/
+ 	</update>
+
+ 	<update id="undoDrawRsvnInfo">
+		UPDATE /* EdcRsvnInfoMapper.undoDrawRsvnInfo */
+		       EDC_RSVN_INFO A
+		   SET DRWT_DATE = SYSDATE()
+		     , DRWT_USERID = #{moduser}
+		     , PRZWIN_STAT = '3001' /*3001:되돌리기*/
+		     , PRZWINYN = NULL
+		     , MODUSER = #{moduser}
+		     , MODDATE = SYSDATE()
+		WHERE COMCD = #{comcd}
+			AND EDC_RSVN_REQID = #{edcRsvnReqid}
+			AND EDC_STAT IN ('1002') /*1002:추첨대기*/
+ 	</update>
+
+ 	<update id="confirmDrawRsvnInfo">
+		UPDATE /* EdcRsvnInfoMapper.confirmDrawRsvnInfo */
+		       EDC_RSVN_INFO A
+		   SET DRWT_DATE = SYSDATE()
+		     , DRWT_USERID = #{moduser}
+		     , PRZWIN_STAT = '1101' /*1101:당첨확정*/
+		     , PRZWINYN = #{przwinyn} /*1001:당첨, 2001:예비당첨*/
+		     , EDC_PAYWAIT_ENDDATETIME = (CASE WHEN A.EDC_PROGM_COST > 0 AND A.EDC_TOTAMT > 0 THEN #{edcPaywaitEnddatetime} ELSE A.EDC_PAYWAIT_ENDDATETIME END)
+		     , EDC_STAT = #{edcStat} /*유료일경우 결제대기, 무료일경우 신청완료(4001)*/
+		     , EDC_CONFIRM_DATE = SYSDATE()
+		     , MODUSER = #{moduser}
+		     , MODDATE = SYSDATE()
+		WHERE COMCD = #{comcd}
+			AND EDC_RSVN_REQID = #{edcRsvnReqid}
+			AND EDC_STAT IN ('1002') /*1002:추첨대기*/
+ 	</update>
+
+ 	<update id="insertDrawHistory">
+ 		/* EdcRsvnInfoMapper.insertDrawHistory */
+ 		INSERT INTO DRWT_LOG (
+ 			COMCD
+ 			, EDC_PRGM_NO
+ 			, EDC_RSVNSET_SEQ
+ 			, LOG_SEQ
+ 			, DRWT_GBN
+ 			, LOG_TEXT
+ 			, REGDATE
+ 			, REGUSER
+ 			, MODDATE
+ 			, MODUSER
+ 		) SELECT
+ 			COMCD
+ 			, EDC_PRGM_NO
+ 			, EDC_RSVNSET_SEQ
+ 			, NVL((SELECT MAX(LOG_SEQ)+1 FROM DRWT_LOG WHERE COMCD = A.COMCD AND EDC_PRGM_NO = A.EDC_PRGM_NO AND EDC_RSVNSET_SEQ = A.EDC_RSVNSET_SEQ), 1) AS LOG_SEQ
+ 			, PRZWIN_STAT AS DRWT_GBN
+ 			, EDC_RSVN_NO AS LOG_TEXT
+ 			, SYSDATE()
+ 			, #{reguser}
+ 			, SYSDATE()
+ 			, #{moduser}
+ 		FROM EDC_RSVN_INFO A
+ 		WHERE 1 = 1
+ 			AND COMCD = #{comcd}
+ 			AND EDC_RSVN_REQID = #{edcRsvnReqid}
+ 	</update>
+
+ 	<update id="cancelRsvnInfoWating">
+		UPDATE /* EdcRsvnInfoMapper.confirmDrawRsvnInfo */
+		       EDC_RSVN_INFO A
+		   SET EDC_STAT =  '3001' /*3001:신청취소*/
+		     , MODUSER = #{moduser}
+		     , MODDATE = SYSDATE()
+		WHERE COMCD = #{comcd}
+			AND EDC_RSVN_REQID = #{edcRsvnReqid}
+			AND EDC_STAT IN ('1000') /*1000:배정대기*/
+ 	</update>
+
+ 	<!-- 교육 신청정보 이메일 수정 -->
+	<update id="updateRsvnInfoEmail" parameterType="map" >
+		/* EdcRsvnInfoMapper.updateEdcRsvnInfoEmail */
+		UPDATE EDC_RSVN_INFO
+			SET EDC_EMAIL = #{edcEmail}
+		WHERE COMCD = #{comcd}
+			  AND EDC_RSVN_REQID = #{edcRsvnReqid}
+	</update>
+
+	<!-- 수업일자목록 조회 -->
+	<select id="selectLectDateList" resultType="java.lang.String">
+		<![CDATA[
+		SELECT YYYYMMDD FROM (
+			SELECT CONCAT(YYYYMM, '-', LPAD(DAAY, 2, '0')) YYYYMMDD
+				FROM (
+					SELECT DATE_FORMAT(DT,'%Y-%m') YYYYMM
+						, WEEK(DT) WEEEK
+						, DAY(DT) DAAY
+						, DAYOFWEEK(DT) DAYOFWEEEK
+					FROM (
+						SELECT CONCAT(Y, '0101') + INTERVAL A*100 + B*10 + C DAY AS DT
+							FROM (
+								SELECT 0 A UNION ALL
+								SELECT 1 UNION ALL
+								SELECT 2 UNION ALL
+								SELECT 3
+							) A
+							, (
+								SELECT 0 B UNION ALL
+								SELECT 1 UNION ALL
+								SELECT 2 UNION ALL
+								SELECT 3 UNION ALL
+								SELECT 4 UNION ALL
+								SELECT 5 UNION ALL
+								SELECT 6 UNION ALL
+								SELECT 7 UNION ALL
+								SELECT 8 UNION ALL
+								SELECT 9
+							) B
+							, (
+								SELECT 0 C UNION ALL
+								SELECT 1 UNION ALL
+								SELECT 2 UNION ALL
+								SELECT 3 UNION ALL
+								SELECT 4 UNION ALL
+								SELECT 5 UNION ALL
+								SELECT 6 UNION ALL
+								SELECT 7 UNION ALL
+								SELECT 8 UNION ALL
+								SELECT 9
+							) C
+							, (
+								SELECT SUBSTR(#{edcReqSdate}, 1, 4) Y UNION
+								SELECT SUBSTR(#{edcReqEdate}, 1, 4)
+							) D
+						WHERE A*100 + B*10 + C < DAYOFYEAR(CONCAT(Y, '1231'))
+					) T
+				) T
+				WHERE YYYYMM BETWEEN SUBSTR(#{edcReqSdate}, 1, 7) AND SUBSTR(#{edcReqEdate}, 1, 7)
+					AND DAYOFWEEEK in (
+						SELECT (CASE WHEN EDC_DAY_GBN = 7 THEN 1 ELSE EDC_DAY_GBN + 1 END)
+							FROM EDC_DAYS
+							WHERE COMCD = #{comcd}
+								AND EDC_PRGM_NO = #{edcPrgmNo}
+					)
+			) T
+		WHERE 1 = 1
+			AND YYYYMMDD BETWEEN #{edcReqSdate} AND #{edcReqEdate} /*수업시작일~종료일*/
+		ORDER BY YYYYMMDD ASC
+		]]>
+	</select>
+
+	<!-- 교육 수료여부처리-->
+	<update id="updateRsvnInfoComplstat" >
+		/* EdcRsvnInfoMapper.updateRsvnInfoComplstat */
+		UPDATE EDC_RSVN_COMPT_INFO
+			SET
+			EDC_COMPLSTAT = #{edcComplstat}
+			,EDC_CONFIRM_DATE = SYSDATE()
+			,EDC_COMPL_USERID = #{reguser}
+		WHERE COMCD = #{comcd}
+			  AND EDC_RSVN_REQID = #{edcRsvnReqid} AND (EDC_COMPLSTAT IS NULL OR EDC_COMPLSTAT != #{edcComplstat}) AND EDC_RETYN='N'
+	</update>
+	
+	<!-- 노원구청 3기본(공릉평생교육원+노원평생교육원+장미실습장) 할인감면 횟수제한을 위한 조회 -->
+	<select id="selectNowon3BasicOrgRegiList" resultType="com.hisco.user.edcatnlc.vo.EdcRsvnInfoVO">
+ 		/* EdcRsvnInfoMapper.selectNowon3BasicOrgRegiList */
+ 		SELECT 
+			A.EDC_RSVN_REQID
+			, A.EDC_REQ_SDATE
+			, QUARTER(A.EDC_REQ_SDATE) QTER
+			, NVL(B.MEM_NM, A.EDC_RSVN_CUSTNM) AS MEM_NM
+			, NVL(A.EDC_RSVN_MOBLPHON , B.HP) AS MEM_HP
+			, A.EDC_PROGM_COST
+			, A.EDC_REASONDC
+			, D.ORG_NM
+			, C.EDC_PRGM_NM
+		FROM EDC_RSVN_INFO A		
+			LEFT OUTER JOIN MEMBER B ON B.MEM_NO = A.EDC_RSVN_MEMNO
+			INNER JOIN EDC_PROGRAM C ON C.COMCD = A.COMCD AND C.EDC_PRGM_NO = A.EDC_PRGM_NO
+			INNER JOIN ORG_INFO D ON (D.COMCD = C.COMCD AND D.ORG_NO = C.ORG_NO)
+		WHERE 1 = 1
+			AND A.EDC_STAT IN ('2001', '4001') /*입금대기,등록완료*/
+			AND A.EDC_PROGM_COST != 0
+			AND A.EDC_REASONDC IS NOT NULL
+			AND A.EDC_REASONDC != ''
+			AND A.EDC_REASONDC != 'NWPY'
+			AND NVL(B.MEM_NM, A.EDC_RSVN_CUSTNM) = #{edcRsvnCustnm}
+			AND NVL(A.EDC_RSVN_MOBLPHON , B.HP) = FN_AES_ENCRYPT(REPLACE(#{edcRsvnMoblphon}, '-', ''), #{dbEncKey})
+			AND SUBSTR(A.EDC_REQ_SDATE, 1, 4) = SUBSTR(#{edcReqSdate}, 1, 4) /*같은연도*/
+			AND QUARTER(A.EDC_REQ_SDATE) = QUARTER(#{edcReqSdate}) /*같은분기*/
+			AND D.ORG_NM IN ('공릉평생교육원', '노원평생교육원', '장미실습장') /*노원구청3기본기관*/
+			AND A.EDC_RSVN_NO != #{edcRsvnNo} /*자신제외*/
+			AND EXISTS (
+				SELECT 1 /*결제하고자하는 과목이 3기본기관에 속하는지 체크*/ 
+					FROM EDC_PROGRAM X
+						INNER JOIN ORG_INFO Y ON (Y.COMCD = X.COMCD AND Y.ORG_NO = X.ORG_NO)
+					WHERE X.COMCD = A.COMCD
+						AND X.EDC_PRGM_NO = #{edcPrgmNo}
+						AND Y.ORG_NM IN ('공릉평생교육원', '노원평생교육원', '장미실습장')
+			)
+ 	</select>
+</mapper>

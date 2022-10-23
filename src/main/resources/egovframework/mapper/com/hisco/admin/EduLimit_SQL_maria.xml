@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 교육프로그램 예약제한 관리
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2021.10.26   	진수진          최초 작성
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.admin.eduadm.mapper.EduLimitMapper">
+
+
+ 	<select id="selectEdcLimitRecord" parameterType="com.hisco.admin.eduadm.vo.EdcLimitVO" resultType="com.hisco.admin.eduadm.vo.EdcLimitVO">
+            SELECT
+            	 *
+			FROM
+				EDC_PROGRAM_LIMIT
+			WHERE
+				COMCD=#{comcd}
+				AND ORG_NO = #{orgNo}
+ 	</select>
+
+
+ 	<select id="selectCountEdcLimit" resultType="Integer">
+            SELECT
+            	 COUNT(*)
+			FROM
+				EDC_PROGRAM_LIMIT
+			WHERE
+				COMCD=#{comcd}
+				AND ORG_NO = #{orgNo}
+ 	</select>
+
+
+ 	<insert id="insertEdcLimit">
+            INSERT INTO
+				EDC_PROGRAM_LIMIT
+			(COMCD
+			,ORG_NO
+			,EDC_RSVNLIMIT_YN
+			,EDC_RSVNLMIT_GBN
+			,EDC_RSVNLIMIT_PD
+			,EDC_RSVNLIMIT_CNT
+			,REGDATE
+			,REGUSER
+			,MODDATE
+			,MODUSER)
+			VALUES(
+				#{comcd}
+				,#{orgNo}
+				,#{edcRsvnlimitYn}
+				,#{edcRsvnlmitGbn}
+				,#{edcRsvnlimitPd}
+				,#{edcRsvnlimitCnt}
+				,SYSDATE()
+				,#{reguser}
+				,SYSDATE()
+				,#{reguser}
+			)
+ 	</insert>
+
+ 	<update id="updateEdcLimit">
+            UPDATE
+				EDC_PROGRAM_LIMIT
+			SET
+				EDC_RSVNLIMIT_YN=#{edcRsvnlimitYn}
+				,EDC_RSVNLMIT_GBN=#{edcRsvnlmitGbn}
+				,EDC_RSVNLIMIT_PD=#{edcRsvnlimitPd}
+				,EDC_RSVNLIMIT_CNT=#{edcRsvnlimitCnt}
+				,MODDATE=SYSDATE()
+				,MODUSER=#{moduser}
+			WHERE
+				COMCD=#{comcd}
+				AND ORG_NO = #{orgNo}
+ 	</update>
+
+ 	<insert id="insertEdcLimitCtgcd">
+            INSERT INTO
+				EDC_LIMINT_CTGD
+			(COMCD
+			,ORG_NO
+			,CTG_CD
+			,REGDATE
+			,REGUSER
+			,MODDATE
+			,MODUSER)
+			VALUES(
+				#{comcd}
+				,#{orgNo}
+				,#{CtgCd}
+				,SYSDATE()
+				,#{reguser}
+				,SYSDATE()
+				,#{reguser}
+			)
+ 	</insert>
+
+ 	<insert id="insertEdcLimitProgram">
+            INSERT INTO
+				EDC_LIMIT_PRNM
+			(COMCD
+			,ORG_NO
+			,EDC_PRGM_NO
+			,REGDATE
+			,REGUSER
+			,MODDATE
+			,MODUSER)
+			VALUES(
+				#{comcd}
+				,#{orgNo}
+				,#{edcPrgmid}
+				,SYSDATE()
+				,#{reguser}
+				,SYSDATE()
+				,#{reguser}
+			)
+ 	</insert>
+
+ 	<delete id="deleteEdcLimitCtgcd">
+            DELETE FROM
+				EDC_LIMINT_CTGD
+			WHERE
+				COMCD=#{comcd}
+				AND ORG_NO = #{orgNo}
+ 	</delete>
+
+ 	<delete id="deleteEdcLimitProgram">
+            DELETE FROM
+				EDC_LIMIT_PRNM
+			WHERE
+				COMCD=#{comcd}
+				AND ORG_NO = #{orgNo}
+ 	</delete>
+
+
+ 	 <select id="selectEdcLimitComctgList" resultType="com.hisco.admin.comctgr.vo.ComCtgrVO">
+            SELECT
+            	 B.*
+            	 , T1.CTG_NM AS COM_TOPCTGNM
+				 , T1.CTG_NM AS COM_PRNCTGNM
+			FROM
+				EDC_LIMINT_CTGD A , COM_CTGR B
+				LEFT OUTER JOIN COM_CTGR T1 ON T1.COMCD=B.COMCD AND T1.CTG_CD=B.TOP_CTG_CD
+				LEFT OUTER JOIN COM_CTGR T2 ON T2.COMCD=B.COMCD AND T2.CTG_CD=B.PARENT_CTG_CD
+			WHERE
+				A.COMCD=#{comcd}
+				AND A.ORG_NO = #{orgNo}
+				AND A.COMCD=B.COMCD AND A.CTG_CD=B.CTG_CD
+			ORDER BY
+				NVL(T1.SORT_ORDER,B.SORT_ORDER)  , NVL(T2.SORT_ORDER,B.SORT_ORDER) , B.SORT_ORDER
+ 	</select>
+
+
+ 	<select id="selectEdcLimitProgramList" resultType="com.hisco.admin.eduadm.vo.EdcProgramVO">
+            SELECT
+            	 B.EDC_PRGM_NM
+            	 ,B.EDC_PRGM_NO
+            	 ,B.EDC_OPEN_YN
+            	 , (SELECT CTG_NM FROM COM_CTGR ALIAS_FOR_SUBQUERY WHERE COMCD=B.COMCD AND CTG_CD=B.CTG_CD) COM_CTG_NM
+			FROM
+				EDC_LIMIT_PRNM A , EDC_PROGRAM B
+			WHERE
+				A.COMCD=#{comcd}
+				AND A.ORG_NO = #{orgNo}
+				AND B.USE_YN='Y'
+				AND A.COMCD=B.COMCD AND A.EDC_PRGM_NO=B.EDC_PRGM_NO
+			ORDER BY
+				B.EDC_PRGM_NM
+ 	</select>
+
+
+
+</mapper>

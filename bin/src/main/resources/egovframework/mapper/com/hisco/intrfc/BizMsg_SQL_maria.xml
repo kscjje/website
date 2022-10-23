@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hisco.intrfc.sms.mapper.BizMsgMapper">
+
+	<update id="sendMessage">
+		/* com.hisco.intrfc.sms.mapper.BizMsgMapper.sendMessage */
+	    INSERT INTO BIZ_MSG (
+	    	MSG_TYPE
+	    	, CMID
+	    	, REQUEST_TIME
+	    	, SEND_TIME
+	    	, DEST_PHONE
+	    	, DEST_NAME
+	    	, SEND_PHONE
+	    	, SEND_NAME
+	    	, SUBJECT
+	    	, MSG_BODY
+	    ) VALUES (
+	    	#{msgType}
+	    	, NEXTVAL(BIZ_MSG_SEQ)
+	    	, SYSDATE()
+	    	, CASE WHEN #{sendTime} IS NULL OR #{sendTime} = '' THEN SYSDATE() ELSE STR_TO_DATE(#{sendTime}, '%Y%m%d%H%i') END
+	    	, #{destPhone}
+	    	, #{destName}
+	    	, #{sendPhone}
+	    	, #{reguser} /*send_name*/
+	    	, #{subject}
+	    	, #{msgBody}
+	    )
+    </update>
+
+    <update id="sendKakaoMessage">
+    	/* com.hisco.intrfc.sms.mapper.BizMsgMapper.sendKakaoMessage */
+	    INSERT INTO BIZ_MSG (
+	    	MSG_TYPE
+	    	, CMID
+	    	, REQUEST_TIME
+	    	, SEND_TIME
+	    	, DEST_PHONE
+	    	, DEST_NAME
+	    	, SEND_PHONE
+	    	, SEND_NAME
+	    	, SUBJECT
+	    	, MSG_BODY
+	    	, TEMPLATE_CODE
+	    	, SENDER_KEY
+	    	, NATION_CODE
+		)SELECT
+			CASE WHEN B.MSG_SENDMETHOD = '1001' THEN 6 ELSE 5 END AS BIZ_MSG_TYPE /*6:알림톡, 6:LMS*/
+			, NEXTVAL(BIZ_MSG_SEQ)
+			, SYSDATE()
+			, SYSDATE()
+			, #{destPhone}
+			, #{destName}
+			, SEND_TELNO
+			, '노원평생교육포털'
+			, REPLACE(B.MSG_NAME, '시', '') AS SUBJECT
+			, REPLACE(REPLACE(B.SENDMSG, '#' , ''), '{예약자명}', #{destName})
+			, KKO_MESSAGE_TEMPLATE_ID
+			, #{kakaoSenderKey}
+			, '82' AS NATION_COE
+		FROM
+			MESSAGE B
+			WHERE B.COMCD = #{comcd}
+				AND B.MSGNO = #{msgNo}
+	</update>
+
+
+
+    <update id="sendRsvnMessage">
+    	/* com.hisco.intrfc.sms.mapper.BizMsgMapper.sendRsvnMessage */
+	    INSERT INTO BIZ_MSG (
+	    	MSG_TYPE
+	    	, CMID
+	    	, REQUEST_TIME
+	    	, SEND_TIME
+	    	, DEST_PHONE
+	    	, DEST_NAME
+	    	, SEND_PHONE
+	    	, SEND_NAME
+	    	, SUBJECT
+	    	, MSG_BODY
+	    	, TEMPLATE_CODE
+	    	, SENDER_KEY
+	    	, NATION_CODE
+		)
+		SELECT BIZ_MSG_TYPE
+			/*, CONCAT(EDC_RSVN_NO, EDC_STAT, EDC_RSVN_REQID) AS CMID*/
+			, NEXTVAL(BIZ_MSG_SEQ)
+			, SYSDATE()
+			, SYSDATE()
+			, FN_AES_DECRYPT(MEM_HP, #{dbEncKey})
+			, MEM_NM
+			, EDC_GUIDE_TELNO
+			, '노원평생교육포털'
+			, SUBJECT
+			, MSG_BODY
+			, (CASE WHEN BIZ_MSG_TYPE = 6 THEN KKO_MESSAGE_TEMPLATE_ID ELSE NULL END) AS TEMPLATE_CODE
+			, (CASE WHEN BIZ_MSG_TYPE = 6 THEN #{kakaoSenderKey} ELSE NULL END) AS SENDER_KEY
+			, '82' AS NATION_COE
+			FROM (
+				SELECT REPLACE(B.MSG_NAME, '시', '') AS SUBJECT
+					, CASE WHEN B.MSG_SENDMETHOD = '1001' THEN 6 ELSE 5 END AS BIZ_MSG_TYPE /*6:알림톡, 6:LMS*/
+					, REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(B.SENDMSG
+						, '#', '')
+						, '{예약자명}', A.MEM_NM)
+						, '{결제취소금액}', FORMAT(CANCEL_AMT, 0))
+						, '{교육명}', EDC_PRGM_NM)
+						, '{교육기간}', EDC_DATE_PERIOD)
+						, '{교육요일}', EDC_DAYS_NM)
+						, '{교육장소}', EDC_PLACE_NM)
+						, '{교육시간}', EDC_TIME_PERIOD)
+						, '{결제금액}', FORMAT(EDC_TOTAMT, 0))
+						, '{문의전화}', EDC_GUIDE_TELNO)
+						, '{예약번호}', EDC_RSVN_NO)
+						, '{예약일시}', EDC_APPLY_DTIME)
+						, '{추첨발표일}', NVL(DRWT_NTCE_DATE, ''))
+						, '{결제마감시간}', NVL(EDC_DEADLINE_DTIME, ''))
+					  AS MSG_BODY
+					, B.KKO_MESSAGE_TEMPLATE_ID
+					, A.*
+					FROM (
+						SELECT
+							CASE
+								/* message의 msgno가 변경되면 아래 when 구문의 결과값을 변경해준다.*/
+								<choose>
+									<when test="przwinStat == '1101'"> /*1101:당첨확정*/
+										WHEN PRZWINYN = '1001' THEN 8 /*1001:추첨강좌당첨*/
+										WHEN PRZWINYN IS NULL THEN 9 /*추첨강좌탈락*/
+									</when>
+									<otherwise>
+										WHEN EDC_STAT = '1000' THEN -1 /*배정대기*/
+										WHEN EDC_STAT = '1002' THEN 7 /*추첨대기*/
+										WHEN EDC_STAT = '2001' AND FREE_YN = 'N' THEN 2 /*유료입금대기*/
+										WHEN EDC_STAT = '3001' THEN 4 /*신청취소*/
+										WHEN EDC_STAT = '3003' THEN 5 /*기한만료자동취소*/
+										WHEN EDC_STAT = '3004' THEN 6 /*환불취소*/
+										WHEN EDC_STAT = '4001' AND FREE_YN = 'Y' THEN 1 /*무료등록완료*/
+										WHEN EDC_STAT = '4001' AND FREE_YN = 'N' THEN 3 /*유료등록완료*/
+									</otherwise>
+								</choose>
+							END AS MSGNO
+							, A.*
+							FROM (
+								SELECT A.COMCD
+									, A.EDC_RSVN_REQID
+									, A.EDC_RSVN_NO
+									, A.EDC_RSVN_MEMNO
+									, NVL(A.EDC_RSVN_CUSTNM, D.MEM_NM) MEM_NM
+									, NVL(A.EDC_RSVN_MOBLPHON, D.HP) MEM_HP
+									, B.EDC_PRGM_NM
+									, CONCAT(DATE_FORMAT(A.EDC_REQ_SDATE, '%Y-%m-%d'), '~', DATE_FORMAT(A.EDC_REQ_EDATE, '%Y-%m-%d')) EDC_DATE_PERIOD
+									, CONCAT(SUBSTR(EDC_REQ_STIME, 1, 2), ':', SUBSTR(EDC_REQ_STIME, 3, 4), '-', SUBSTR(EDC_REQ_ETIME, 1, 2), ':', SUBSTR(EDC_REQ_ETIME, 3, 4)) EDC_TIME_PERIOD
+									, (SELECT GROUP_CONCAT(FN_WEEKNAME_CONVERT(1, C.EDC_DAY_GBN) ORDER BY (CASE C.EDC_DAY_GBN WHEN '1' THEN '9' ELSE C.EDC_DAY_GBN END) ASC SEPARATOR ', ')
+									  		FROM EDC_DAYS C
+								  			WHERE C.COMCD = A.COMCD
+								  				AND C.EDC_PRGM_NO = A.EDC_PRGM_NO
+								  	  ) AS EDC_DAYS_NM
+								  	, B.EDC_PLACE_NM
+								  	, DATE_FORMAT(A.REGDATE, '%Y-%m-%d %H:%i') AS EDC_APPLY_DTIME
+								  	, A.EDC_PROGM_COST
+									, A.EDC_TOTAMT
+								  	, B.EDC_GUIDE_TELNO
+								  	, DATE_FORMAT(A.EDC_PAYWAIT_ENDDATETIME, '%Y-%m-%d %H:%i') AS EDC_DEADLINE_DTIME
+								  	, NVL((SELECT SALAMT FROM SELNG_INFO WHERE COMCD = A.COMCD AND SELNG_ID = A.RET_SELNG_ID), 0) AS CANCEL_AMT
+								  	, A.EDC_STAT
+								  	, A.PRZWIN_STAT
+								  	, A.PRZWINYN
+								  	, CASE WHEN LENGTH(REPLACE(C.DRWT_NTCE_DATE, '-', '')) = 8 THEN DATE_FORMAT(C.DRWT_NTCE_DATE, '%Y-%m-%d') ELSE '' END AS DRWT_NTCE_DATE /*추첨발표일*/
+								  	, CASE WHEN EDC_PROGM_COST = 0 THEN 'Y' ELSE 'N' END AS FREE_YN
+									FROM EDC_RSVN_INFO A
+										INNER JOIN EDC_PROGRAM B  ON (B.COMCD = A.COMCD AND B.EDC_PRGM_NO = A.EDC_PRGM_NO)
+										INNER JOIN EDC_RSVN_SET_INFO C ON (C.COMCD = A.COMCD AND C.EDC_PRGM_NO = A.EDC_PRGM_NO AND C.EDC_RSVNSET_SEQ = A.EDC_RSVNSET_SEQ)
+										LEFT OUTER JOIN MEMBER D ON (D.COMCD = A.COMCD AND D.MEM_NO = A.EDC_RSVN_MEMNO)
+									WHERE 1 = 1
+										<if test="edcRsvnReqid > 0">
+										AND EDC_RSVN_REQID = #{edcRsvnReqid}
+										</if>
+										<if test="edcRsvnNo != null and edcRsvnNo != ''">
+										AND EDC_RSVN_NO = #{edcRsvnNo}
+										</if>
+										<if test="edcRsvnReqid == 0">
+											<if test="edcRsvnNo == null or edcRsvnNo == ''">
+										AND 1 != 1
+											</if>
+										</if>
+										/*
+										AND NOT EXISTS (
+											SELECT 1 FROM BIZ_MSG_TEMP
+												WHERE CMID = CONCAT(A.EDC_RSVN_NO, A.EDC_STAT, A.EDC_RSVN_REQID)
+										)
+										*/
+								) A
+						) A
+						, MESSAGE B
+						WHERE B.COMCD = A.COMCD
+							AND B.MSGNO = A.MSGNO
+			) A
+    </update>
+    
+    <update id="sendMessageToAdmin">
+    	/* com.hisco.intrfc.sms.mapper.BizMsgMapper.sendMessageToAdmin */
+	    INSERT INTO BIZ_MSG (
+	    	MSG_TYPE
+	    	, CMID
+	    	, REQUEST_TIME
+	    	, SEND_TIME
+	    	, DEST_PHONE
+	    	, DEST_NAME
+	    	, SEND_PHONE
+	    	, SEND_NAME
+	    	, SUBJECT
+	    	, MSG_BODY
+	    	, TEMPLATE_CODE
+	    	, SENDER_KEY
+	    	, NATION_CODE
+		)		
+		SELECT BIZ_MSG_TYPE
+			, NEXTVAL(BIZ_MSG_SEQ)
+			, SYSDATE()
+			, SYSDATE()
+			, EDC_RSVNNOTI_HPNO
+			, MEM_NM
+			, EDC_GUIDE_TELNO
+			, '노원평생교육포털'
+			, SUBJECT
+			, MSG_BODY
+			, (CASE WHEN BIZ_MSG_TYPE = 6 THEN KKO_MESSAGE_TEMPLATE_ID ELSE NULL END) AS TEMPLATE_CODE
+			, (CASE WHEN BIZ_MSG_TYPE = 6 THEN #{kakaoSenderKey} ELSE NULL END) AS SENDER_KEY
+			, '82' AS NATION_COE
+			FROM (
+				SELECT REPLACE(B.MSG_NAME, '시', '') AS SUBJECT
+					, CASE WHEN B.MSG_SENDMETHOD = '1001' THEN 6 ELSE 5 END AS BIZ_MSG_TYPE /*6:알림톡, 6:LMS*/
+					, REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(
+						REPLACE(B.SENDMSG
+						, '#', '')
+						, '{예약자명}', A.MEM_NM)
+						, '{교육프로그램명}', EDC_PRGM_NM)
+						, '{교육기간}', EDC_DATE_PERIOD)
+						, '{교육요일}', EDC_DAYS_NM)
+						, '{교육장소}', EDC_PLACE_NM)
+						, '{교육시간}', EDC_TIME_PERIOD)
+						, '{결제금액}', FORMAT(EDC_TOTAMT, 0))
+						, '{예약일시}', EDC_APPLY_DTIME)
+						, '{취소사유}', '수강생취소')
+					  AS MSG_BODY
+					, B.KKO_MESSAGE_TEMPLATE_ID
+					, A.*
+					FROM (
+						SELECT
+							CASE 
+								WHEN EDC_RSVN_RECTYPE = '1001' AND SEND_TALK_YN = 'Y' THEN 11  /*선착순 취소OR환불*/
+								WHEN EDC_RSVN_RECTYPE = '1002' AND (SEND_TALK_YN = 'Y' OR EDC_PNCPA = SUM_APPLY_CNT + 1) THEN 11 /*선착마감대기*/
+								ELSE -1
+							END AS MSGNO
+							, A.*
+							FROM (
+								SELECT A.COMCD
+									, A.EDC_RSVN_REQID
+									, A.EDC_RSVN_NO
+									, A.EDC_RSVN_MEMNO
+									, NVL(A.EDC_RSVN_CUSTNM, D.MEM_NM) MEM_NM
+									, B.EDC_PRGM_NM
+									, CONCAT(DATE_FORMAT(A.EDC_REQ_SDATE, '%Y-%m-%d'), '~', DATE_FORMAT(A.EDC_REQ_EDATE, '%Y-%m-%d')) EDC_DATE_PERIOD
+									, CONCAT(SUBSTR(EDC_REQ_STIME, 1, 2), ':', SUBSTR(EDC_REQ_STIME, 3, 4), '-', SUBSTR(EDC_REQ_ETIME, 1, 2), ':', SUBSTR(EDC_REQ_ETIME, 3, 4)) EDC_TIME_PERIOD
+									, (SELECT GROUP_CONCAT(FN_WEEKNAME_CONVERT(1, C.EDC_DAY_GBN) ORDER BY (CASE C.EDC_DAY_GBN WHEN '1' THEN '9' ELSE C.EDC_DAY_GBN END) ASC SEPARATOR ', ')
+									  		FROM EDC_DAYS C
+								  			WHERE C.COMCD = A.COMCD
+								  				AND C.EDC_PRGM_NO = A.EDC_PRGM_NO
+								  	  ) AS EDC_DAYS_NM
+								  	, B.EDC_PLACE_NM
+								  	, DATE_FORMAT(A.REGDATE, '%Y-%m-%d %H:%i') AS EDC_APPLY_DTIME
+								  	, A.EDC_PROGM_COST
+									, A.EDC_TOTAMT
+								  	, B.EDC_GUIDE_TELNO
+								  	, DATE_FORMAT(A.EDC_PAYWAIT_ENDDATETIME, '%Y-%m-%d %H:%i') AS EDC_DEADLINE_DTIME
+								  	, NVL((SELECT SALAMT FROM SELNG_INFO WHERE COMCD = A.COMCD AND SELNG_ID = A.RET_SELNG_ID), 0) AS CANCEL_AMT
+								  	, A.EDC_STAT
+								  	, A.PRZWIN_STAT
+								  	, A.PRZWINYN
+								  	, CASE WHEN LENGTH(REPLACE(C.DRWT_NTCE_DATE, '-', '')) = 8 THEN DATE_FORMAT(C.DRWT_NTCE_DATE, '%Y-%m-%d') ELSE '' END AS DRWT_NTCE_DATE /*추첨발표일*/
+								  	, CASE WHEN EDC_PROGM_COST = 0 THEN 'Y' ELSE 'N' END AS FREE_YN
+								  	, E.CHARGER_TEL
+								  	, B.EDC_RSVNNOTI_HPNO
+								  	, B.EDC_PROGM_TYPE
+								  	, C.EDC_RSVN_RECTYPE /*1001(선착), 1002(선착대기)*/
+								  	, C.EDC_RSVN_EDATE
+								  	, C.EDC_RSVN_ETIME
+								  	, C.EDC_SDATE
+								  	, C.EDC_STIME
+								  	, CASE 
+									  	WHEN DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i') <![CDATA[>]]> CONCAT(C.EDC_RSVN_EDATE, C.EDC_RSVN_ETIME)
+									  			AND DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i') <![CDATA[<]]> CONCAT(C.EDC_SDATE, C.EDC_STIME) THEN 'Y'
+									  	ELSE 'N'
+									  END AS SEND_TALK_YN
+									, C.EDC_PNCPA
+									, (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('1002', '2001', '4001') THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = A.COMCD AND X.EDC_PRGM_NO = A.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = A.EDC_RSVNSET_SEQ) AS SUM_APPLY_CNT
+									FROM EDC_RSVN_INFO A
+										INNER JOIN EDC_PROGRAM B  ON (B.COMCD = A.COMCD AND B.EDC_PRGM_NO = A.EDC_PRGM_NO)
+										INNER JOIN EDC_RSVN_SET_INFO C ON (C.COMCD = A.COMCD AND C.EDC_PRGM_NO = A.EDC_PRGM_NO AND C.EDC_RSVNSET_SEQ = A.EDC_RSVNSET_SEQ)
+										LEFT OUTER JOIN MEMBER D ON (D.COMCD = A.COMCD AND D.MEM_NO = A.EDC_RSVN_MEMNO)
+										INNER JOIN ORG_INFO E ON (E.COMCD = B.COMCD AND E.ORG_NO = B.ORG_NO)
+									WHERE 1 = 1
+										AND A.EDC_RSVN_REQID = #{edcRsvnReqid}
+										AND A.EDC_STAT IN ('3001', '3004')
+										AND B.EDC_RSVNNOTI_HPNO IS NOT NULL
+										AND B.EDC_RSVNNOTI_HPNO != ''
+								) A
+					) A
+					, MESSAGE B
+					WHERE B.COMCD = A.COMCD
+						AND B.MSGNO = A.MSGNO
+			) A
+    </update>
+
+</mapper>

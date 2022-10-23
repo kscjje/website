@@ -1,0 +1,893 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+교육프로그램 목록/상세조회
+작성자: 박우진
+ -->
+
+<mapper namespace="com.hisco.user.edcatnlc.mapper.EdcProgramMapper">
+
+	<!-- [교육 프로그램 목록을  조회한다] -->
+	<select id="selectProgramList" resultType="com.hisco.user.edcatnlc.vo.EdcProgramVO" parameterType="com.hisco.user.edcatnlc.vo.EdcProgramVO">
+		/* com.hisco.user.edcatnlc.mapper.EdcProgramMapper.selectEdcProgramList */
+		SELECT T.*
+			<if test='usePagingYn !=null and usePagingYn == "Y"'>
+			 	, F1.FILE_NM AS EDC_IMG_FILENM
+	            , F1.ORG_FILE_NM AS EDC_IMG_ORIGIN
+	            , F1.FILE_PATH AS EDC_IMG_PATH
+	        </if>
+	         , (SELECT CD_NM FROM COT_GRPCD WHERE COMCD=T.COMCD AND GRP_CD='CM_AGEGBN' AND CD=T.EDC_TARGET_AGE_GBN) TARGET_NAME
+	         , (SELECT PRZWIN_STAT
+	      		FROM EDC_RSVN_INFO
+	      		WHERE COMCD = T.COMCD
+	      			AND EDC_PRGM_NO = T.EDC_PRGM_NO
+	      			AND EDC_RSVNSET_SEQ = T.EDC_RSVNSET_SEQ
+	      			AND PRZWIN_STAT = '1101' /*당첨확정*/
+	      		LIMIT 0, 1) PRZWIN_STAT
+            FROM (SELECT T.*
+			      <choose>
+			      	<when test="searchOrderBy == 'BY_RECENT_UP'" >
+			      	, ROW_NUMBER() OVER (order by EDC_PRGM_NO DESC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_APPLY_CLOSE'" >
+			      	, ROW_NUMBER() OVER (order by EDC_STATUS_CLASS ASC,  EDC_RSVN_EDATE DESC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_APPLY_CLOSE_DESC'" >
+			      	, ROW_NUMBER() OVER (order by EDC_STATUS_CLASS ASC,  EDC_RSVN_EDATE ASC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_PROGRAM_NM_ASC'" >
+			      	, ROW_NUMBER() OVER (order by EDC_PRGM_NM ASC, EDC_PRGM_NO ASC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_PROGRAM_NM_DESC'" >
+			      	, ROW_NUMBER() OVER (order by EDC_PRGM_NM DESC, EDC_PRGM_NO DESC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_RSVN_TYPE_DESC'" >
+			      	, ROW_NUMBER() OVER (order by RSVN_SORT DESC, EDC_RSVN_RECTYPE DESC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_RSVN_TYPE_ASC'" >
+			      	, ROW_NUMBER() OVER (order by RSVN_SORT ASC, EDC_RSVN_RECTYPE ASC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_CATE_DESC'" >
+			      	, ROW_NUMBER() OVER (order by CTG_TOPSORT DESC, CTG_LVL DESC, SORT_ORDER DESC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_CATE_ASC'" >
+			      	, ROW_NUMBER() OVER (order by  CTG_TOPSORT ASC, CTG_LVL ASC , SORT_ORDER ASC) RNUM
+			      	</when>
+			      	<otherwise>
+			      	, ROW_NUMBER() OVER (order by EDC_PRGM_NO DESC) RNUM
+			      	</otherwise>
+			      </choose>
+              FROM  (
+					SELECT T.*
+						, COUNT(*) OVER() AS TOT_COUNT
+						<include refid="edcProgramAdditionalInfo"/>
+						FROM (SELECT
+						       A.EDC_PRGM_NO
+						     , A.COMCD
+						     , A.ORG_NO
+						     , A.EDC_PRGM_NM
+						     , A.EDC_TARGET_INFO
+						     , A.EDC_CAPA_DVD_YN
+						     , X.EDC_RSVNSET_SEQ
+						     , NVL(X.EDC_RSVNSET_NM, X.EDC_RSVNSET_SEQ) EDC_RSVNSET_NM
+						     , X.EDC_PNCPA
+						     , X.EDC_ONCAPA
+						     , X.EDC_OFFCAPA
+						     , X.EDC_ENDWAIT_CAPA
+						     , X.EDC_SDATE
+						     , X.EDC_EDATE
+						     , X.EDC_STIME
+						     , X.EDC_ETIME
+						     , A.EDC_TIME_GUIDE
+						     , X.EDC_RSVN_SDATE
+						     , X.EDC_RSVN_EDATE
+						     , X.EDC_RSVN_STIME
+						     , X.EDC_RSVN_ETIME
+						     , A.EDC_PART_CD
+						     , A.EDC_ADDR_OPEN_YN
+						     , A.EDC_LIMIT_AGE_YN
+						     , A.EDC_REQ_GENDER
+						     , A.EDC_RSVN_LIMIT_YN
+						     , A.EDC_RSVN_LIMIT_GBN
+				             , A.EDC_RSVN_LIMIT_CNT
+				             , A.EDC_RSVN_LIMIT_PD
+				             , A.RSVN_NONMEB_YN
+						     , (SELECT D.SALE_AMT
+						          FROM PROGRAM_ITEM D
+						         WHERE D.COMCD = A.COMCD
+						           AND D.ITEM_NO = (SELECT C.ITEM_NO
+						                              FROM EDC_PROGRAM_ITEM C
+						                             WHERE C.COMCD = A.COMCD
+						                               AND C.EDC_PRGM_NO = A.EDC_PRGM_NO
+						                           )
+						        ) AS SALE_AMT
+							  , A.EDC_FEE_TYPE
+							  , X.EDC_RSVN_RECTYPE
+							  , (SELECT GROUP_CONCAT(fn_WeekName_Convert(1, C.EDC_DAY_GBN))
+							  		FROM EDC_DAYS C
+							  		WHERE C.COMCD = A.COMCD
+							  			AND C.EDC_PRGM_NO = A.EDC_PRGM_NO
+							  	) AS EDC_DAY_GBN_NM
+						      , A.EDC_ODR
+						      , A.EDC_TCHMTR_GUIDE
+						      , A.EDC_PLACE_NM
+						      , A.EDC_ONLINE_YN
+						      , A.EDC_GUIDE_TELNO
+						      , A.EDC_GUIDE_COMMENT
+						      , A.EDC_IMG_FILEID
+						      , A.EDC_PRGM_INTRO_CNTS_FILEID
+						      , A.EDC_PLAN_FILEID
+							  , A.EDC_PAYWAIT_GBN
+							  , A.EDC_PAYWAIT_TIME
+							  , A.EDC_PAYWAIT_DATE
+							  , A.EDC_PAYWAIT_HHMM
+							  , A.EDC_PROGM_TYPE
+							  , A.CTG_CD
+							  , A.RSVN_FORCE_CLOSE_YN
+							  , A.EDC_RSVN_ACCSSRD
+							  , A.AREA_CD
+							  , G.CTG_NM
+							  , G.SORT_ORDER
+							  , G.CTG_LVL
+							  , NVL(G1.SORT_ORDER,G.SORT_ORDER) AS CTG_TOPSORT
+							  , A.EDC_OPEN_YN
+							  , A.USE_YN
+							  , A.INSTRCTR_NM
+							  , A.EDC_TARGET_AGE_GBN
+							  , C.CD_NM AS RSVN_TYPE_NM
+							  , C.SORT_ORDER AS RSVN_SORT
+							  , F.ORG_NM AS ORG_NAME
+							  , R.AREA_NM
+							  , STR_TO_DATE(CONCAT(X.EDC_RSVN_SDATE, X.EDC_RSVN_STIME), '%Y%m%d%H%i') EDC_RSVN_SDTIME
+						      , STR_TO_DATE(CONCAT(X.EDC_RSVN_EDATE, X.EDC_RSVN_ETIME), '%Y%m%d%H%i') EDC_RSVN_EDTIME
+						      , STR_TO_DATE(CONCAT(X.EDC_EDATE, X.EDC_ETIME), '%Y%m%d%H%i') EDC_EDTIME
+						      , DATEDIFF(STR_TO_DATE(X.EDC_RSVN_EDATE,'%Y%m%d'), SYSDATE()) AS EDC_RSVN_EDDAY /*예약종료DDAY*/
+						      , (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('1002', '2001', '4001') THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = AX.EDC_RSVNSET_SEQ) AS STAT_APPLY_CNT
+							  , (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('1002', '2001', '4001') AND X.EDC_ONOFFINTYPE = '10' THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = AX.EDC_RSVNSET_SEQ) AS STAT_APPLY_ON_CNT
+	 						  , (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('1002', '2001', '4001') AND X.EDC_ONOFFINTYPE = '20' THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = AX.EDC_RSVNSET_SEQ) AS STAT_APPLY_OFF_CNT
+							  , (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('4001') THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = AX.EDC_RSVNSET_SEQ) AS STAT_PAYDONE_CNT
+ 							  , (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('2001') THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = AX.EDC_RSVNSET_SEQ) AS STAT_PAYWAIT_CNT
+ 							  , (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('3001', '3002', '3003', '3004') THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = AX.EDC_RSVNSET_SEQ) AS STAT_CANCEL_CNT
+ 							,   (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('1000') THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = AX.EDC_RSVNSET_SEQ) AS STAT_ASSIGN_WAIT_CNT
+ 						FROM EDC_PROGRAM A /*1001:배정대기,1002:추첨대기,2001:입금대기,4001:등록완료*/
+						LEFT OUTER JOIN ORG_INFO F ON F.COMCD = A.COMCD AND F.ORG_NO = A.ORG_NO
+						LEFT OUTER JOIN COM_CTGR G ON A.COMCD = G.COMCD AND G.CTG_CD = A.CTG_CD
+						LEFT OUTER JOIN COM_CTGR G1 ON G1.COMCD=G.COMCD AND G1.CTG_CD=G.TOP_CTG_CD
+						LEFT OUTER JOIN AREA_CD R ON A.AREA_CD = R.AREA_CD
+						INNER JOIN (
+							SELECT
+								COMCD ,EDC_PRGM_NO, MAX(EDC_RSVNSET_SEQ) AS EDC_RSVNSET_SEQ
+							FROM
+								EDC_RSVN_SET_INFO
+							WHERE
+								COMCD= #{comcd}
+								<if test="edcOdr != null and edcOdr != ''">
+									AND EDC_RSVNSET_SEQ = #{edcOdr}
+								</if>
+								<if test="periodCondition != null and periodCondition == 'EDCYM'">
+									AND EDC_SDATE LIKE CONCAT(#{searchYear},#{searchMonth},'%')
+								</if>
+								<if test="periodCondition != null and periodCondition == 'RSVNYM'">
+									AND (EDC_RSVN_SDATE LIKE CONCAT(#{searchYear},#{searchMonth},'%') OR EDC_RSVN_EDATE LIKE CONCAT(#{searchYear},#{searchMonth},'%'))
+								</if>
+							GROUP BY  COMCD ,EDC_PRGM_NO
+						) AX ON A.COMCD=AX.COMCD AND A.EDC_PRGM_NO=AX.EDC_PRGM_NO
+						INNER JOIN EDC_RSVN_SET_INFO X ON X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ=AX.EDC_RSVNSET_SEQ
+						LEFT OUTER JOIN COT_GRPCD C ON C.COMCD = X.COMCD AND C.GRP_CD = 'SM_LERECPTYPE' AND C.CD = X.EDC_RSVN_RECTYPE
+						<where>
+							A.COMCD = #{comcd}
+							AND A.USE_YN = 'Y'
+							AND A.EDC_PRG = '3001' /*프로그램개설상태.승인(3001)*/
+							<if test="myOrgList != null and myOrgList.size != 0">
+								AND A.ORG_NO IN <foreach collection="myOrgList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+							</if>
+							<if test="edcProgmType != null and edcProgmType != ''">
+								AND A.EDC_PROGM_TYPE = #{edcProgmType}
+							</if>
+							<if test="edcOpenyn != null and edcOpenyn != ''">
+								AND A.EDC_OPEN_YN = #{edcOpenyn}
+							</if>
+							<if test="searchOrgNo != null and searchOrgNo != ''">
+								AND A.ORG_NO = #{searchOrgNo}
+							</if>
+							<choose>
+		      					<when test="searchTab == 'EDCANM'">
+		      						<if test="searchKeyword != null and searchKeyword != ''">
+							AND (UPPER(A.EDC_PRGM_NM) LIKE CONCAT('%', UPPER(#{searchKeyword}), '%')
+							 		OR UPPER(A.INSTRCTR_NM) LIKE CONCAT('%', UPPER(#{searchKeyword}), '%'))
+							 		</if>
+								</when>
+								<when test="searchTab == 'AREA'">
+									<choose>
+										<when test="areaCd > 0">
+											AND A.AREA_CD = #{areaCd}
+							 			</when>
+							 			<when test="areaName != null and areaName != ''">
+							 				AND R.AREA_NM LIKE CONCAT(#{areaName}, '%')
+							 			</when>
+									</choose>
+								</when>
+								<when test="searchTab == 'TARGET'">
+									<if test="edcTargetinfo != null and edcTargetinfo != ''">
+							AND A.EDC_TARGET_AGE_GBN = #{edcTargetinfo}
+							 		</if>
+								</when>
+								<when test="searchTab == 'CATE'">
+									<if test="CtgCd != null and CtgCd != ''">
+										AND (G.CTG_CD=#{CtgCd} OR G.PARENT_CTG_CD=#{CtgCd} OR G.TOP_CTG_CD=#{CtgCd})
+							 		</if>
+								</when>
+								<when test="searchTab == 'ORGAN'">
+					 				<if test="orgLtype != null and orgLtype != ''">
+					 					AND F.ORG_LTYPE= #{orgLtype}
+					 				</if>
+					 				<if test="orgMtype != null and orgMtype != ''">
+					 					<choose>
+					 						<when test='orgLtype == "9001"'>AND F.ORG_MTYPE= #{orgMtype}</when>
+					 						<otherwise>AND F.ORG_NO= #{orgMtype}</otherwise>
+					 					</choose>
+					 				</if>
+								</when>
+								<when test="searchTab == 'TIME'">
+									<if test="dayGbn != null and dayGbn != ''">
+							AND EXISTS (
+									SELECT 1 FROM EDC_DAYS D
+										WHERE COMCD = A.COMCD
+											AND EDC_PRGM_NO = A.EDC_PRGM_NO
+											AND EDC_DAY_GBN IN (SELECT CD FROM COT_GRPCD
+													WHERE COMCD = A.COMCD
+														AND GRP_CD = 'SM_DAILY_GBN'
+														AND ITEM2 = #{dayGbn}
+														AND USE_YN = 'Y'
+														AND DEL_YN = 'N'
+											)
+								)
+							 		</if>
+							 		<if test="hourbandGbn != null and hourbandGbn != ''">
+							AND A.EDC_STIME
+								BETWEEN (SELECT ITEM1 FROM COT_GRPCD WHERE COMCD = A.COMCD AND GRP_CD = 'CM_HOURBAND_GBN' AND CD = #{hourbandGbn} AND USE_YN = 'Y')
+										AND (SELECT ITEM2 FROM COT_GRPCD WHERE COMCD = A.COMCD AND GRP_CD = 'CM_HOURBAND_GBN' AND CD = #{hourbandGbn} AND USE_YN = 'Y')
+							 		</if>
+								</when>
+							</choose>
+							<choose>
+		      					<when test="searchOnOff eq 'ON'">
+									AND A.EDC_RSVN_ACCSSRD IN ('1001','3001') /*1001:온라인, 3001:온오프*/
+		      					</when>
+		      					<when test="searchOnOff eq 'OFF'">
+		      						AND A.EDC_RSVN_ACCSSRD IN ('2001','3001') /*2001:오프라인, 3001:온오프*/
+		      					</when>
+		      				</choose>
+		      				<if test="edcPrgmnm != null and edcPrgmnm != ''">
+		      				AND A.EDC_PRGM_NM LIKE CONCAT ('%', #{edcPrgmnm}, '%')
+		      				</if>
+		      				<if test="searchOrgNo > 0">
+		      					AND A.ORG_NO = #{searchOrgNo}
+		      				</if>
+		      				<if test="edcPrgmNo > 0">
+		      					AND A.EDC_PRGM_NO = #{edcPrgmNo}
+		      				</if>
+		      				<if test="edcRsvnRectype != null and edcRsvnRectype != ''">
+		      				AND X.EDC_RSVN_RECTYPE = #{edcRsvnRectype}
+		      				</if>
+		      				<if test="edcRsvnsetNm != null and edcRsvnsetNm != ''">
+		      				AND X.EDC_RSVNSET_NM = #{edcRsvnsetNm}
+		      				</if>
+		      				<choose>
+		      					<when test="periodCondition eq 'EDCYM'">
+									AND (X.EDC_SDATE LIKE CONCAT(#{searchYear}, #{searchMonth}, '%') OR X.EDC_EDATE LIKE CONCAT(#{searchYear}, #{searchMonth}, '%'))
+		      					</when>
+		      					<when test="periodCondition eq 'RSVNYM'">
+		      						AND (X.EDC_RSVN_SDATE LIKE CONCAT(#{searchYear}, #{searchMonth}, '%') OR X.EDC_RSVN_EDATE LIKE CONCAT(#{searchYear}, #{searchMonth}, '%'))
+		      					</when>
+		      				</choose>
+						</where>
+					 ) T
+					 <if test='searchHurry !=null and searchHurry == "Y"'>
+					 WHERE
+					 	7>=T.EDC_RSVN_EDDAY
+					 	AND RSVN_FORCE_CLOSE_YN = 'N'
+					 	AND SYSDATE() BETWEEN EDC_RSVN_SDTIME AND EDC_RSVN_EDTIME
+					 	AND STAT_ASSIGN_WAIT_CNT = 0
+					 	AND (T.EDC_RSVN_RECTYPE='2001' OR (EDC_CAPA_DVD_YN='N' AND EDC_PNCPA > STAT_APPLY_CNT) OR (EDC_CAPA_DVD_YN='Y' AND EDC_ONCAPA > STAT_APPLY_ON_CNT))
+					 </if>
+				) T
+			) T
+			<if test='usePagingYn !=null and usePagingYn == "Y"'>
+			LEFT OUTER JOIN
+				ATCH_FILE_LIST F1 ON T.COMCD=F1.COMCD AND T.EDC_IMG_FILEID = F1.FILE_GRP_NO AND F1.FILE_SEQ=0
+			WHERE  T.RNUM  <![CDATA[>]]> #{firstIndex}
+	           AND  T.RNUM <![CDATA[<=]]> #{firstIndex} + #{recordCountPerPage}
+	        </if>
+	</select>
+
+
+
+	<!-- [교육 프로그램 목록 조회 sp로 변경예정] -->
+	<select id="getProgramList" parameterType="HashMap" resultType="HashMap">
+		/* com.hisco.user.edcatnlc.mapper.EdcProgramMapper.selectEdcProgramList */
+		SELECT T.*
+			<if test='usePagingYn !=null and usePagingYn == "Y"'>
+			 	, F1.FILE_NM AS EDC_IMG_FILENM
+	            , F1.ORG_FILE_NM AS EDC_IMG_ORIGIN
+	            , F1.FILE_PATH AS EDC_IMG_PATH
+	        </if>
+	         , (SELECT CD_NM FROM COT_GRPCD WHERE COMCD=T.COMCD AND GRP_CD='CM_AGEGBN' AND CD=T.EDC_TARGET_AGE_GBN) TARGET_NAME
+	         , (SELECT PRZWIN_STAT
+	      		FROM EDC_RSVN_INFO
+	      		WHERE COMCD = T.COMCD
+	      			AND EDC_PRGM_NO = T.EDC_PRGM_NO
+	      			AND EDC_RSVNSET_SEQ = T.EDC_RSVNSET_SEQ
+	      			AND PRZWIN_STAT = '1101' /*당첨확정*/
+	      		LIMIT 0, 1) PRZWIN_STAT
+            FROM (SELECT T.*
+			      <choose>
+			      	<when test="searchOrderBy == 'BY_RECENT_UP'" >
+			      	, ROW_NUMBER() OVER (order by EDC_PRGM_NO DESC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_APPLY_CLOSE'" >
+			      	, ROW_NUMBER() OVER (order by EDC_STATUS_CLASS ASC,  EDC_RSVN_EDATE DESC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_APPLY_CLOSE_DESC'" >
+			      	, ROW_NUMBER() OVER (order by EDC_STATUS_CLASS ASC,  EDC_RSVN_EDATE ASC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_PROGRAM_NM_ASC'" >
+			      	, ROW_NUMBER() OVER (order by EDC_PRGM_NM ASC, EDC_PRGM_NO ASC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_PROGRAM_NM_DESC'" >
+			      	, ROW_NUMBER() OVER (order by EDC_PRGM_NM DESC, EDC_PRGM_NO DESC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_RSVN_TYPE_DESC'" >
+			      	, ROW_NUMBER() OVER (order by RSVN_SORT DESC, EDC_RSVN_RECTYPE DESC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_RSVN_TYPE_ASC'" >
+			      	, ROW_NUMBER() OVER (order by RSVN_SORT ASC, EDC_RSVN_RECTYPE ASC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_CATE_DESC'" >
+			      	, ROW_NUMBER() OVER (order by CTG_TOPSORT DESC, CTG_LVL DESC, SORT_ORDER DESC) RNUM
+			      	</when>
+			      	<when test="searchOrderBy == 'BY_CATE_ASC'" >
+			      	, ROW_NUMBER() OVER (order by  CTG_TOPSORT ASC, CTG_LVL ASC , SORT_ORDER ASC) RNUM
+			      	</when>
+			      	<otherwise>
+			      	, ROW_NUMBER() OVER (order by EDC_PRGM_NO DESC) RNUM
+			      	</otherwise>
+			      </choose>
+              FROM  (
+					SELECT T.*
+						, COUNT(*) OVER() AS TOT_COUNT
+						<include refid="edcProgramAdditionalInfo"/>
+						FROM (SELECT
+						       A.EDC_PRGM_NO
+						     , A.COMCD
+						     , A.ORG_NO
+						     , A.EDC_PRGM_NM
+						     , A.EDC_TARGET_INFO
+						     , A.EDC_CAPA_DVD_YN
+						     , X.EDC_RSVNSET_SEQ
+						     , NVL(X.EDC_RSVNSET_NM, X.EDC_RSVNSET_SEQ) EDC_RSVNSET_NM
+						     , X.EDC_PNCPA
+						     , X.EDC_ONCAPA
+						     , X.EDC_OFFCAPA
+						     , X.EDC_ENDWAIT_CAPA
+						     , X.EDC_SDATE
+						     , X.EDC_EDATE
+						     , X.EDC_STIME
+						     , X.EDC_ETIME
+						     , A.EDC_TIME_GUIDE
+						     , X.EDC_RSVN_SDATE
+						     , X.EDC_RSVN_EDATE
+						     , X.EDC_RSVN_STIME
+						     , X.EDC_RSVN_ETIME
+						     , A.EDC_PART_CD
+						     , A.EDC_ADDR_OPEN_YN
+						     , A.EDC_LIMIT_AGE_YN
+						     , A.EDC_REQ_GENDER
+						     , A.EDC_RSVN_LIMIT_YN
+						     , A.EDC_RSVN_LIMIT_GBN
+				             , A.EDC_RSVN_LIMIT_CNT
+				             , A.EDC_RSVN_LIMIT_PD
+				             , A.RSVN_NONMEB_YN
+						     , (SELECT D.SALE_AMT
+						          FROM PROGRAM_ITEM D
+						         WHERE D.COMCD = A.COMCD
+						           AND D.ITEM_NO = (SELECT C.ITEM_NO
+						                              FROM EDC_PROGRAM_ITEM C
+						                             WHERE C.COMCD = A.COMCD
+						                               AND C.EDC_PRGM_NO = A.EDC_PRGM_NO
+						                           )
+						        ) AS SALE_AMT
+							  , A.EDC_FEE_TYPE
+							  , X.EDC_RSVN_RECTYPE
+							  , (SELECT GROUP_CONCAT(fn_WeekName_Convert(1, C.EDC_DAY_GBN))
+							  		FROM EDC_DAYS C
+							  		WHERE C.COMCD = A.COMCD
+							  			AND C.EDC_PRGM_NO = A.EDC_PRGM_NO
+							  	) AS EDC_DAY_GBN_NM
+						      , A.EDC_ODR
+						      , A.EDC_TCHMTR_GUIDE
+						      , A.EDC_PLACE_NM
+						      , A.EDC_ONLINE_YN
+						      , A.EDC_GUIDE_TELNO
+						      , A.EDC_GUIDE_COMMENT
+						      , A.EDC_IMG_FILEID
+						      , A.EDC_PRGM_INTRO_CNTS_FILEID
+						      , A.EDC_PLAN_FILEID
+							  , A.EDC_PAYWAIT_GBN
+							  , A.EDC_PAYWAIT_TIME
+							  , A.EDC_PAYWAIT_DATE
+							  , A.EDC_PAYWAIT_HHMM
+							  , A.EDC_PROGM_TYPE
+							  , A.CTG_CD
+							  , A.RSVN_FORCE_CLOSE_YN
+							  , A.EDC_RSVN_ACCSSRD
+							  , A.AREA_CD
+							  , G.CTG_NM
+							  , G.SORT_ORDER
+							  , G.CTG_LVL
+							  , NVL(G1.SORT_ORDER,G.SORT_ORDER) AS CTG_TOPSORT
+							  , A.EDC_OPEN_YN
+							  , A.USE_YN
+							  , A.INSTRCTR_NM
+							  , A.EDC_TARGET_AGE_GBN
+							  , C.CD_NM AS RSVN_TYPE_NM
+							  , C.SORT_ORDER AS RSVN_SORT
+							  , F.ORG_NM AS ORG_NAME
+							  , R.AREA_NM
+							  , STR_TO_DATE(CONCAT(X.EDC_RSVN_SDATE, X.EDC_RSVN_STIME), '%Y%m%d%H%i') EDC_RSVN_SDTIME
+						      , STR_TO_DATE(CONCAT(X.EDC_RSVN_EDATE, X.EDC_RSVN_ETIME), '%Y%m%d%H%i') EDC_RSVN_EDTIME
+						      , STR_TO_DATE(CONCAT(X.EDC_EDATE, X.EDC_ETIME), '%Y%m%d%H%i') EDC_EDTIME
+						      , DATEDIFF(STR_TO_DATE(X.EDC_RSVN_EDATE,'%Y%m%d'), SYSDATE()) AS EDC_RSVN_EDDAY /*예약종료DDAY*/
+						      , (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('1002', '2001', '4001') THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = AX.EDC_RSVNSET_SEQ) AS STAT_APPLY_CNT
+							  , (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('1002', '2001', '4001') AND X.EDC_ONOFFINTYPE = '10' THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = AX.EDC_RSVNSET_SEQ) AS STAT_APPLY_ON_CNT
+	 						  , (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('1002', '2001', '4001') AND X.EDC_ONOFFINTYPE = '20' THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = AX.EDC_RSVNSET_SEQ) AS STAT_APPLY_OFF_CNT
+							  , (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('4001') THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = AX.EDC_RSVNSET_SEQ) AS STAT_PAYDONE_CNT
+ 							  , (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('2001') THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = AX.EDC_RSVNSET_SEQ) AS STAT_PAYWAIT_CNT
+ 							  , (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('3001', '3002', '3003', '3004') THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = AX.EDC_RSVNSET_SEQ) AS STAT_CANCEL_CNT
+ 							,   (SELECT NVL(SUM(CASE WHEN X.EDC_STAT IN ('1000') THEN X.EDC_VISTNMPR ELSE 0 END),0) FROM EDC_RSVN_INFO X WHERE X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = AX.EDC_RSVNSET_SEQ) AS STAT_ASSIGN_WAIT_CNT
+ 						FROM EDC_PROGRAM A /*1001:배정대기,1002:추첨대기,2001:입금대기,4001:등록완료*/
+						LEFT OUTER JOIN ORG_INFO F ON F.COMCD = A.COMCD AND F.ORG_NO = A.ORG_NO
+						LEFT OUTER JOIN COM_CTGR G ON A.COMCD = G.COMCD AND G.CTG_CD = A.CTG_CD
+						LEFT OUTER JOIN COM_CTGR G1 ON G1.COMCD=G.COMCD AND G1.CTG_CD=G.TOP_CTG_CD
+						LEFT OUTER JOIN AREA_CD R ON A.AREA_CD = R.AREA_CD
+						INNER JOIN (
+							SELECT
+								COMCD ,EDC_PRGM_NO, MAX(EDC_RSVNSET_SEQ) AS EDC_RSVNSET_SEQ
+							FROM
+								EDC_RSVN_SET_INFO
+							WHERE
+								COMCD= #{comcd}
+								<if test="edcOdr != null and edcOdr != ''">
+									AND EDC_RSVNSET_SEQ = #{edcOdr}
+								</if>
+								<if test="periodCondition != null and periodCondition == 'EDCYM'">
+									AND EDC_SDATE LIKE CONCAT(#{searchYear},#{searchMonth},'%')
+								</if>
+								<if test="periodCondition != null and periodCondition == 'RSVNYM'">
+									AND (EDC_RSVN_SDATE LIKE CONCAT(#{searchYear},#{searchMonth},'%') OR EDC_RSVN_EDATE LIKE CONCAT(#{searchYear},#{searchMonth},'%'))
+								</if>
+							GROUP BY  COMCD ,EDC_PRGM_NO
+						) AX ON A.COMCD=AX.COMCD AND A.EDC_PRGM_NO=AX.EDC_PRGM_NO
+						INNER JOIN EDC_RSVN_SET_INFO X ON X.COMCD = AX.COMCD AND X.EDC_PRGM_NO = AX.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ=AX.EDC_RSVNSET_SEQ
+						LEFT OUTER JOIN COT_GRPCD C ON C.COMCD = X.COMCD AND C.GRP_CD = 'SM_LERECPTYPE' AND C.CD = X.EDC_RSVN_RECTYPE
+						<where>
+							A.COMCD = #{comcd}
+							AND A.USE_YN = 'Y'
+							AND A.EDC_PRG = '3001' /*프로그램개설상태.승인(3001)*/
+							<if test="myOrgList != null and myOrgList.size != 0">
+								AND A.ORG_NO IN <foreach collection="myOrgList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+							</if>
+							<if test="edcProgmType != null and edcProgmType != ''">
+								AND A.EDC_PROGM_TYPE = #{edcProgmType}
+							</if>
+							<if test="edcOpenyn != null and edcOpenyn != ''">
+								AND A.EDC_OPEN_YN = #{edcOpenyn}
+							</if>
+							<if test="searchOrgNo != null and searchOrgNo != ''">
+								AND A.ORG_NO = #{searchOrgNo}
+							</if>
+							<choose>
+		      					<when test="searchTab == 'EDCANM'">
+		      						<if test="searchKeyword != null and searchKeyword != ''">
+							AND (UPPER(A.EDC_PRGM_NM) LIKE CONCAT('%', UPPER(#{searchKeyword}), '%')
+							 		OR UPPER(A.INSTRCTR_NM) LIKE CONCAT('%', UPPER(#{searchKeyword}), '%'))
+							 		</if>
+								</when>
+								<when test="searchTab == 'AREA'">
+									<choose>
+										<when test="areaCd > 0">
+											AND A.AREA_CD = #{areaCd}
+							 			</when>
+							 			<when test="areaName != null and areaName != ''">
+							 				AND R.AREA_NM LIKE CONCAT(#{areaName}, '%')
+							 			</when>
+									</choose>
+								</when>
+								<when test="searchTab == 'TARGET'">
+									<if test="edcTargetinfo != null and edcTargetinfo != ''">
+							AND A.EDC_TARGET_AGE_GBN = #{edcTargetinfo}
+							 		</if>
+								</when>
+								<when test="searchTab == 'CATE'">
+									<if test="CtgCd != null and CtgCd != ''">
+										AND (G.CTG_CD=#{CtgCd} OR G.PARENT_CTG_CD=#{CtgCd} OR G.TOP_CTG_CD=#{CtgCd})
+							 		</if>
+								</when>
+								<when test="searchTab == 'ORGAN'">
+					 				<if test="orgLtype != null and orgLtype != ''">
+					 					AND F.ORG_LTYPE= #{orgLtype}
+					 				</if>
+					 				<if test="orgMtype != null and orgMtype != ''">
+					 					<choose>
+					 						<when test='orgLtype == "9001"'>AND F.ORG_MTYPE= #{orgMtype}</when>
+					 						<otherwise>AND F.ORG_NO= #{orgMtype}</otherwise>
+					 					</choose>
+					 				</if>
+								</when>
+								<when test="searchTab == 'TIME'">
+									<if test="dayGbn != null and dayGbn != ''">
+							AND EXISTS (
+									SELECT 1 FROM EDC_DAYS D
+										WHERE COMCD = A.COMCD
+											AND EDC_PRGM_NO = A.EDC_PRGM_NO
+											AND EDC_DAY_GBN IN (SELECT CD FROM COT_GRPCD
+													WHERE COMCD = A.COMCD
+														AND GRP_CD = 'SM_DAILY_GBN'
+														AND ITEM2 = #{dayGbn}
+														AND USE_YN = 'Y'
+														AND DEL_YN = 'N'
+											)
+								)
+							 		</if>
+							 		<if test="hourbandGbn != null and hourbandGbn != ''">
+							AND A.EDC_STIME
+								BETWEEN (SELECT ITEM1 FROM COT_GRPCD WHERE COMCD = A.COMCD AND GRP_CD = 'CM_HOURBAND_GBN' AND CD = #{hourbandGbn} AND USE_YN = 'Y')
+										AND (SELECT ITEM2 FROM COT_GRPCD WHERE COMCD = A.COMCD AND GRP_CD = 'CM_HOURBAND_GBN' AND CD = #{hourbandGbn} AND USE_YN = 'Y')
+							 		</if>
+								</when>
+							</choose>
+							<choose>
+		      					<when test="searchOnOff eq 'ON'">
+									AND A.EDC_RSVN_ACCSSRD IN ('1001','3001') /*1001:온라인, 3001:온오프*/
+		      					</when>
+		      					<when test="searchOnOff eq 'OFF'">
+		      						AND A.EDC_RSVN_ACCSSRD IN ('2001','3001') /*2001:오프라인, 3001:온오프*/
+		      					</when>
+		      				</choose>
+		      				<if test="edcPrgmnm != null and edcPrgmnm != ''">
+		      				AND A.EDC_PRGM_NM LIKE CONCAT ('%', #{edcPrgmnm}, '%')
+		      				</if>
+		      				<if test="searchOrgNo > 0">
+		      					AND A.ORG_NO = #{searchOrgNo}
+		      				</if>
+		      				<if test="edcPrgmNo > 0">
+		      					AND A.EDC_PRGM_NO = #{edcPrgmNo}
+		      				</if>
+		      				<if test="edcRsvnRectype != null and edcRsvnRectype != ''">
+		      				AND X.EDC_RSVN_RECTYPE = #{edcRsvnRectype}
+		      				</if>
+		      				<if test="edcRsvnsetNm != null and edcRsvnsetNm != ''">
+		      				AND X.EDC_RSVNSET_NM = #{edcRsvnsetNm}
+		      				</if>
+		      				<choose>
+		      					<when test="periodCondition eq 'EDCYM'">
+									AND (X.EDC_SDATE LIKE CONCAT(#{searchYear}, #{searchMonth}, '%') OR X.EDC_EDATE LIKE CONCAT(#{searchYear}, #{searchMonth}, '%'))
+		      					</when>
+		      					<when test="periodCondition eq 'RSVNYM'">
+		      						AND (X.EDC_RSVN_SDATE LIKE CONCAT(#{searchYear}, #{searchMonth}, '%') OR X.EDC_RSVN_EDATE LIKE CONCAT(#{searchYear}, #{searchMonth}, '%'))
+		      					</when>
+		      				</choose>
+						</where>
+					 ) T
+					 <if test='searchHurry !=null and searchHurry == "Y"'>
+					 WHERE
+					 	7>=T.EDC_RSVN_EDDAY
+					 	AND RSVN_FORCE_CLOSE_YN = 'N'
+					 	AND SYSDATE() BETWEEN EDC_RSVN_SDTIME AND EDC_RSVN_EDTIME
+					 	AND STAT_ASSIGN_WAIT_CNT = 0
+					 	AND (T.EDC_RSVN_RECTYPE='2001' OR (EDC_CAPA_DVD_YN='N' AND EDC_PNCPA > STAT_APPLY_CNT) OR (EDC_CAPA_DVD_YN='Y' AND EDC_ONCAPA > STAT_APPLY_ON_CNT))
+					 </if>
+				) T
+			) T
+			<if test='usePagingYn !=null and usePagingYn == "Y"'>
+			LEFT OUTER JOIN
+				ATCH_FILE_LIST F1 ON T.COMCD=F1.COMCD AND T.EDC_IMG_FILEID = F1.FILE_GRP_NO AND F1.FILE_SEQ=0
+			WHERE  T.RNUM  <![CDATA[>]]> #{firstIndex}
+	           AND  T.RNUM <![CDATA[<=]]> #{firstIndex} + #{recordCountPerPage}
+	        </if>
+	</select>
+
+
+ 	<!-- [교육 프로그램 상세 정보를 조회한다] -->
+	<select id="selectProgramDetail" resultType="com.hisco.user.edcatnlc.vo.EdcProgramVO">
+		/* com.hisco.user.edcatnlc.mapper.EdcProgramMapper.selectEdcProgramDetail */
+		SELECT T.*
+			 , (SELECT PRZWIN_STAT
+	      		FROM EDC_RSVN_INFO
+	      		WHERE COMCD = T.COMCD
+	      			AND EDC_PRGM_NO = T.EDC_PRGM_NO
+	      			AND EDC_RSVNSET_SEQ = T.EDC_RSVNSET_SEQ
+	      			AND PRZWIN_STAT = '1101' /*당첨확정*/
+	      		LIMIT 0, 1) PRZWIN_STAT
+			<include refid="edcProgramAdditionalInfo"/>
+			FROM (
+			    SELECT A.COMCD
+			    	, A.EDC_PRGM_NO
+					, A.ORG_NO
+					, A.EDC_PRGM_NM
+					, A.EDC_PRGM_INTRO_CNTS
+					, A.EDC_PLACE_NM
+					, A.EDC_REL_DEPT_NM
+					, A.INSTRCTR_NM
+					, A.EDC_CL_CNT
+					, A.EDC_TARGET_INFO
+					, A.EDC_TARGET_AGE_GBN
+					, (SELECT CD_NM FROM COT_GRPCD WHERE COMCD = A.COMCD AND GRP_CD = 'CM_AGEGBN' AND CD = A.EDC_TARGET_AGE_GBN) EDC_TARGET_AGE_GBN_NM
+					, A.EDC_GUIDE_TELNO
+					, A.EDC_PROGM_TYPE
+					, A.EDC_CAPA_DVD_YN
+					, A.EDC_TCHMTR_GUIDE_YN
+					, A.EDC_TIME_GUIDE
+					, A.EDC_TCHMTR_GUIDE
+					, A.EDC_PART_CD
+					, A.EDC_ADDR_OPEN_YN
+					, A.EDC_LIMIT_AGE_YN
+					, A.EDC_REQ_GENDER
+					, A.EDC_RSVN_LIMIT_YN
+					, A.EDC_RSVN_LIMIT_GBN
+					, A.EDC_RSVN_LIMIT_CNT
+					, A.EDC_RSVN_LIMIT_PD
+					, A.EDC_RSVN_LINK_URL
+					, A.RSVN_NONMEB_YN
+					, A.EDC_ONLINE_YN
+					, A.EXCL_DC_YN
+					, A.EDC_FEE_TYPE
+					, H.EDC_RSVN_RECTYPE
+					, (SELECT CD_NM FROM COT_GRPCD WHERE COMCD = A.COMCD AND GRP_CD = 'SM_LERECPTYPE' AND CD = H.EDC_RSVN_RECTYPE) EDC_RSVN_RECTYPE_NM
+					, H.EDC_RSVN_ACCSSRD
+					, (SELECT CD_NM FROM COT_GRPCD WHERE COMCD = A.COMCD AND GRP_CD = 'CM_RSVN_ACCSSRD' AND CD = H.EDC_RSVN_ACCSSRD) EDC_RSVN_ACCSSRD_NM
+					, H.EDC_RSVNSET_SEQ
+					, H.EDC_RSVNSET_NM
+					, H.EDC_PNCPA
+					, H.EDC_ONCAPA
+					, H.EDC_OFFCAPA
+					, H.EDC_ENDWAIT_CAPA
+					, H.EDC_SDATE
+					, H.EDC_EDATE
+					, H.EDC_STIME
+					, H.EDC_ETIME
+					, H.EDC_RSVN_SDATE
+					, H.EDC_RSVN_EDATE
+					, H.EDC_RSVN_STIME
+					, H.EDC_RSVN_ETIME
+					, H.RSVN_FORCE_CLOSE_YN
+					, H.EDC_ODR
+					, H.EDC_RSVNSET_NM AS EDC_ODR_NM
+					, STR_TO_DATE(CONCAT(H.EDC_RSVN_SDATE, H.EDC_RSVN_STIME), '%Y%m%d%H%i') EDC_RSVN_SDTIME
+					, STR_TO_DATE(CONCAT(H.EDC_RSVN_EDATE, H.EDC_RSVN_ETIME), '%Y%m%d%H%i') EDC_RSVN_EDTIME
+					, STR_TO_DATE(CONCAT(H.EDC_EDATE, H.EDC_ETIME), '%Y%m%d%H%i') EDC_EDTIME
+					, O.ORG_NM AS ORG_NAME
+					, O.ORG_LTYPE
+					, O.ORG_MTYPE
+					, O.ORG_TEL
+					, O.FAX AS ORG_FAX
+					, O.ADDR AS ORG_ADDR
+					, O.EMAIL AS ORG_EMAIL
+					, S.ORG_RETDC_GUIDE
+					, CT.CTG_NM
+					, C.ITEM_NO
+					, (SELECT D.COST_AMT
+						FROM PROGRAM_ITEM D
+						WHERE D.COMCD = A.COMCD
+						AND D.ITEM_NO = C.ITEM_NO
+					) AS COST_AMT
+					, (SELECT D.SALE_AMT
+						FROM PROGRAM_ITEM D
+						WHERE D.COMCD = A.COMCD
+						AND D.ITEM_NO = C.ITEM_NO
+					) AS SALE_AMT
+					, (SELECT D.MONTH_CNT
+						FROM PROGRAM_ITEM D
+						WHERE D.COMCD = A.COMCD
+						AND D.ITEM_NO = C.ITEM_NO
+					) AS MONTH_CNT
+					, (SELECT GROUP_CONCAT(fn_WeekName_Convert(1, C.EDC_DAY_GBN))
+				  		FROM EDC_DAYS C
+				  		WHERE C.COMCD = A.COMCD
+				  			AND C.EDC_PRGM_NO = A.EDC_PRGM_NO
+				  	) AS EDC_DAY_GBN_NM
+				  	, R.AREA_NM
+	         		, (SELECT CD_NM FROM COT_GRPCD WHERE COMCD = A.COMCD AND GRP_CD = 'CM_AGEGBN' AND CD = A.EDC_TARGET_AGE_GBN) TARGET_NAME
+	         		, (SELECT AGE_APPGBN FROM ORG_OPTINFO F WHERE F.COMCD = A.COMCD AND F.ORG_NO=A.ORG_NO ) AGE_APPGBN
+					, F1.FILE_NM AS EDC_IMG_FILENM /*교육프로그램대표이미지*/
+					, F1.ORG_FILE_NM AS EDC_IMG_ORIGIN /*교육프로그램대표이미지*/
+					, F1.FILE_PATH AS EDC_IMG_PATH /*교육프로그램대표이미지*/
+					, F2.FILE_NM AS EDC_PRGM_INTRO_CNTS_FILENM /*교육프로그램소개이미지*/
+					, F2.ORG_FILE_NM AS EDC_PRGM_INTRO_CNTS_ORIGIN /*교육프로그램소개이미지*/
+					, F2.FILE_PATH AS EDC_PRGM_INTRO_CNTS_PATH /*교육프로그램소개이미지*/
+					, A.EDC_PLAN_FILEID
+					, F3.FILE_NM AS EDC_PLAN_FILENM /*강의계획서*/
+					, F3.ORG_FILE_NM AS EDC_PLAN_ORIGIN /*강의계획서*/
+					, F3.FILE_PATH AS EDC_PLAN_PATH /*강의계획서*/
+					, CONCAT(#{programNo}, '-', SUBSTR(H.EDC_SDATE, 3, 6), '-', LPAD(H.EDC_PRGM_NO, 8, '0')) PROGRAM_NO
+					, SUM(CASE WHEN X.EDC_STAT IN ('1002', '2001', '4001') THEN X.EDC_VISTNMPR ELSE 0 END) STAT_APPLY_CNT /*1000:배정대기,1002:추첨대기,2001:입금대기,4001:등록완료*/
+					, SUM(CASE WHEN X.EDC_STAT IN ('1002', '2001', '4001') AND X.EDC_ONOFFINTYPE = '10'/*10:ON*/ THEN X.EDC_VISTNMPR ELSE 0 END) STAT_APPLY_ON_CNT
+					, SUM(CASE WHEN X.EDC_STAT IN ('1002', '2001', '4001') AND X.EDC_ONOFFINTYPE = '20'/*20:OFF*/ THEN X.EDC_VISTNMPR ELSE 0 END) STAT_APPLY_OFF_CNT
+					, SUM(CASE WHEN X.EDC_STAT IN ('4001') THEN X.EDC_VISTNMPR ELSE 0 END) STAT_PAYDONE_CNT
+					, SUM(CASE WHEN X.EDC_STAT IN ('2001') THEN X.EDC_VISTNMPR ELSE 0 END) STAT_PAYWAIT_CNT
+					, SUM(CASE WHEN X.EDC_STAT IN ('3001', '3002', '3003', '3004') THEN X.EDC_VISTNMPR ELSE 0 END) STAT_CANCEL_CNT
+					, SUM(CASE WHEN X.EDC_STAT IN ('1000') THEN X.EDC_VISTNMPR ELSE 0 END) STAT_ASSIGN_WAIT_CNT
+				FROM EDC_PROGRAM A
+					INNER JOIN EDC_RSVN_SET_INFO H ON A.COMCD = H.COMCD AND A.EDC_PRGM_NO = H.EDC_PRGM_NO
+					LEFT OUTER JOIN EDC_PROGRAM_ITEM C ON C.COMCD = A.COMCD AND C.EDC_PRGM_NO = A.EDC_PRGM_NO
+					LEFT OUTER JOIN ORG_INFO O ON O.COMCD = A.COMCD AND O.ORG_NO = A.ORG_NO
+					LEFT OUTER JOIN ORG_CONTENTS S ON S.COMCD = A.COMCD AND S.ORG_NO = A.ORG_NO
+					LEFT OUTER JOIN COM_CTGR CT ON CT.COMCD = A.COMCD AND CT.CTG_CD = A.CTG_CD
+					LEFT OUTER JOIN ATCH_FILE_LIST F1 ON A.COMCD = F1.COMCD AND A.EDC_IMG_FILEID = F1.FILE_GRP_NO AND F1.FILE_SEQ = 0
+					LEFT OUTER JOIN ATCH_FILE_LIST F2 ON A.COMCD = F2.COMCD AND A.EDC_PRGM_INTRO_CNTS_FILEID = F2.FILE_GRP_NO AND F2.FILE_SEQ = 0
+					LEFT OUTER JOIN ATCH_FILE_LIST F3 ON A.COMCD = F3.COMCD AND A.EDC_PLAN_FILEID = F3.FILE_GRP_NO AND F3.FILE_SEQ = 0
+					LEFT OUTER JOIN EDC_RSVN_INFO X ON X.COMCD = H.COMCD AND X.EDC_PRGM_NO = H.EDC_PRGM_NO AND X.EDC_RSVNSET_SEQ = H.EDC_RSVNSET_SEQ
+					LEFT OUTER JOIN AREA_CD R ON A.AREA_CD = R.AREA_CD
+				WHERE A.COMCD = #{comcd}
+					AND A.EDC_PRGM_NO = #{edcPrgmNo}
+					AND H.EDC_RSVNSET_SEQ = #{edcRsvnsetSeq}
+					AND A.USE_YN = 'Y'
+					AND A.EDC_PRG = '3001' /*프로그램개설상태.승인(3001)*/
+					<if test="edcOpenyn != null and edcOpenyn != ''">
+						AND A.EDC_OPEN_YN = #{edcOpenyn}
+					</if>
+			) T
+	</select>
+
+	<sql id="edcProgramAdditionalInfo">
+			, CASE
+				WHEN SYSDATE() <![CDATA[>=]]> EDC_RSVN_EDTIME THEN '종료' /*접수기간종료*/
+				WHEN SYSDATE() <![CDATA[<]]> EDC_RSVN_SDTIME THEN '준비' /*접수기간보다빠른경우*/
+				WHEN RSVN_FORCE_CLOSE_YN = 'Y' AND ( EDC_RSVN_RECTYPE!='1002' OR (EDC_RSVN_RECTYPE='1002' AND STAT_ASSIGN_WAIT_CNT >= EDC_ENDWAIT_CAPA)) THEN '강제마감'
+				WHEN SYSDATE() BETWEEN EDC_RSVN_SDTIME AND EDC_RSVN_EDTIME AND EDC_RSVN_RECTYPE='2001' THEN '신청'
+				WHEN SYSDATE() BETWEEN EDC_RSVN_SDTIME AND EDC_RSVN_EDTIME
+					AND ((EDC_CAPA_DVD_YN='N' AND EDC_PNCPA > STAT_APPLY_CNT) OR (EDC_CAPA_DVD_YN='Y' AND EDC_ONCAPA > STAT_APPLY_ON_CNT))
+					AND STAT_ASSIGN_WAIT_CNT = 0 THEN '신청'
+				WHEN SYSDATE() BETWEEN EDC_RSVN_SDTIME AND EDC_RSVN_EDTIME AND EDC_RSVN_RECTYPE='1002'
+					AND EDC_ENDWAIT_CAPA > STAT_ASSIGN_WAIT_CNT THEN '대기접수'
+				ELSE '마감'
+			  END EDC_STATUS
+			 , CASE
+				WHEN SYSDATE() <![CDATA[>=]]> EDC_RSVN_EDTIME THEN '09' /*접수기간종료*/
+				WHEN SYSDATE() <![CDATA[<]]> EDC_RSVN_SDTIME THEN '08' /*접수기간보다빠른경우*/
+				WHEN RSVN_FORCE_CLOSE_YN = 'Y' AND ( EDC_RSVN_RECTYPE!='1002' OR (EDC_RSVN_RECTYPE='1002' AND STAT_ASSIGN_WAIT_CNT >= EDC_ENDWAIT_CAPA)) THEN '07'
+				WHEN SYSDATE() BETWEEN EDC_RSVN_SDTIME AND EDC_RSVN_EDTIME AND EDC_RSVN_RECTYPE='2001' THEN '01'
+				WHEN SYSDATE() BETWEEN EDC_RSVN_SDTIME AND EDC_RSVN_EDTIME
+					AND ((EDC_CAPA_DVD_YN='N' AND EDC_PNCPA > STAT_APPLY_CNT) OR (EDC_CAPA_DVD_YN='Y' AND EDC_ONCAPA > STAT_APPLY_ON_CNT))
+					AND STAT_ASSIGN_WAIT_CNT = 0 THEN '01'
+				WHEN SYSDATE() BETWEEN EDC_RSVN_SDTIME AND EDC_RSVN_EDTIME AND EDC_RSVN_RECTYPE='1002'
+					AND EDC_ENDWAIT_CAPA > STAT_ASSIGN_WAIT_CNT THEN '02'
+				ELSE '07'
+			  END EDC_STATUS_CLASS
+			, DATEDIFF(STR_TO_DATE(EDC_SDATE,'%Y%m%d'), SYSDATE()) AS EDC_SDDAY /*수업시작DDAY*/
+			, (SELECT (SELECT CD_NM FROM COT_GRPCD WHERE COMCD = O.COMCD AND GRP_CD = 'ORG_LTYPE' AND CD = O.ORG_LTYPE)
+					FROM ORG_INFO O
+					WHERE COMCD = T.COMCD AND ORG_NO = T.ORG_NO) ORG_LTYPE
+			, (SELECT (SELECT CD_NM FROM COT_GRPCD WHERE COMCD = O.COMCD AND GRP_CD = 'ORG_MTYPE' AND CD = O.ORG_LTYPE)
+					FROM ORG_INFO O
+					WHERE COMCD = T.COMCD AND ORG_NO = T.ORG_NO) ORG_MTYPE
+			<if test="memNo != null and memNo != ''">
+			, CASE WHEN (SELECT COUNT(*)
+					FROM EDC_RSVN_INFO
+					WHERE COMCD = T.COMCD
+						AND EDC_PRGM_NO = T.EDC_PRGM_NO
+						AND EDC_RSVNSET_SEQ = T.EDC_RSVNSET_SEQ
+						AND EDC_RSVN_MEMNO = #{memNo}
+						AND EDC_STAT IN ('1000', '1002', '2001', '4001')
+				) >0 THEN 'Y' ELSE 'N' END AS ALREADY_APPLY_YN
+			</if>
+	</sql>
+
+	<!-- [교육 프로그램 노트 공지 데이타를 조회한다] -->
+	<select id="selectProgramNotice" resultType="com.hisco.admin.eduadm.vo.EdcNoticeVO">
+		/* com.hisco.user.edcatnlc.mapper.EdcProgramMapper.selectProgramNotice */
+		<![CDATA[
+	    SELECT  NOTI_CNTS
+			, NOTI_PERODSET_YN
+			, NOTI_SDATE
+			, NOTI_EDATE
+			, CASE
+				WHEN NOTI_PERODSET_YN = 'Y' AND DATE_FORMAT(SYSDATE(), '%Y%m%d') BETWEEN NOTI_SDATE AND NOTI_EDATE THEN 'Y'
+				WHEN NOTI_PERODSET_YN = 'Y' AND (DATE_FORMAT(SYSDATE(), '%Y%m%d') < NOTI_SDATE OR DATE_FORMAT(SYSDATE(), '%Y%m%d') > NOTI_EDATE) THEN 'N'
+				ELSE 'Y'
+			END NOTI_POP_YN
+		FROM EDC_PROGRAM_NOTICE A
+		WHERE A.COMCD = #{comcd}
+		  	AND A.EDC_PRGM_NO = #{edcPrgmNo}
+		  	AND A.NOTI_POP_YN = 'Y'
+		LIMIT 1
+		]]>
+	</select>
+
+	<!-- [교육 프로그램 나이 제한 정보를 조회한다] -->
+	<select id="selectTargetAgeList" resultType="com.hisco.admin.eduadm.vo.EdcTargetAgeVO">
+		/* com.hisco.user.edcatnlc.mapper.EdcProgramMapper.selectEdcTargetAge */
+	    SELECT
+	    	A.*
+		FROM
+			TARGET_AGELIST A
+		WHERE
+			A.COMCD = #{comcd}
+		  	AND A.EDC_PRGM_NO = #{edcPrgmNo}
+	    ORDER BY
+	    	EDC_AGE_TARGET_SEQ
+	</select>
+
+ 	<!--교육프로그램 모집설정차수번호 -->
+	<select id="selectProgramSetSeq" resultType="String" >
+		/* com.hisco.user.edcatnlc.mapper.EdcProgramMapper.selectProgramSetSeq */
+		SELECT
+			NVL(MAX(EDC_RSVNSET_SEQ) , CONCAT(SUBSTR(#{edcRsvnSdate},1,4) , '00')) + 1
+		FROM
+			EDC_RSVN_SET_INFO
+		WHERE
+			COMCD=#{comcd} and  EDC_PRGM_NO=#{edcPrgmNo} AND EDC_RSVNSET_SEQ LIKE CONCAT(SUBSTR(#{edcRsvnSdate},1,4) , '%')
+	</select>
+
+
+	<!--설정 목록 -->
+	<select id="selectProgramRsvnSetList" resultType="com.hisco.user.edcatnlc.vo.EdcProgramVO" >
+		/* com.hisco.user.edcatnlc.mapper.EdcProgramMapper.selectProgramRsvnSetList */
+		SELECT
+			*
+		FROM
+			EDC_RSVN_SET_INFO
+		WHERE
+			COMCD=#{comcd} AND EDC_PRGM_NO=#{edcPrgmNo}
+		ORDER BY
+			EDC_RSVNSET_SEQ DESC
+	</select>
+
+	<!--설정 상세 -->
+	<select id="selectProgramRsvnSetDetail" resultType="com.hisco.user.edcatnlc.vo.EdcProgramVO" >
+		/* com.hisco.user.edcatnlc.mapper.EdcProgramMapper.selectProgramRsvnSetDetail */
+		SELECT
+			A.*
+			, B.EDC_RTIME
+			, B.EDC_CAPA_DVD_YN
+			, B.EDC_RSVN_LINK_URL
+		FROM
+			EDC_RSVN_SET_INFO A , EDC_PROGRAM B
+		WHERE
+			A.COMCD=#{comcd}
+			AND A.EDC_PRGM_NO=#{edcPrgmNo}
+			AND A.EDC_RSVNSET_SEQ=#{edcRsvnsetSeq}
+			AND A.COMCD = B.COMCD AND A.EDC_PRGM_NO = B.EDC_PRGM_NO
+	</select>
+
+	<!--마지막 설정 seq -->
+	<select id="selectProgramRsvnSetMax" resultType="String" >
+		/* com.hisco.user.edcatnlc.mapper.EdcProgramMapper.selectProgramRsvnSetMax */
+		SELECT
+			MAX(EDC_RSVNSET_SEQ)
+		FROM
+			EDC_RSVN_SET_INFO
+		WHERE
+			COMCD=#{comcd} AND EDC_PRGM_NO=#{edcPrgmNo}
+	</select>
+
+	<select id="selectRsvnSetNmList" resultType="String" >
+		/* com.hisco.user.edcatnlc.mapper.EdcProgramMapper.selectRsvnSetNmList */
+		SELECT 
+			/*UNIQUE EDC_RSVNSET_NM*/
+			DISTINCT EDC_RSVNSET_NM
+			FROM EDC_RSVN_SET_INFO A
+			WHERE 1 = 1
+				AND EDC_RSVNSET_DATE BETWEEN DATE_FORMAT(DATE_ADD(SYSDATE(), INTERVAL -2 YEAR), '%Y%m%d') AND DATE_FORMAT(SYSDATE(), '%Y%m%d') /*최근2년*/
+				AND EDC_RSVNSET_NM IS NOT NULL
+				AND EXISTS (
+					SELECT 1 FROM EDC_PROGRAM
+						WHERE COMCD = A.COMCD
+							AND EDC_PRGM_NO = A.EDC_PRGM_NO
+							AND ORG_NO = #{orgNo}
+				)
+		ORDER BY EDC_RSVNSET_NM DESC
+	</select>
+</mapper>

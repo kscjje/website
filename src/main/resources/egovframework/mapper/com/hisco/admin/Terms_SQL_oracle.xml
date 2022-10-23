@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 약관 관리
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2020.07.29   	진수진          최초 작성
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="TermsDAO">
+
+
+
+ 	<resultMap id="termsVO" type="com.hisco.admin.terms.service.TermsVO">
+		<result property="comcd" column="COMCD"/>
+		<result property="stplatId" column="STPLAT_ID"/>
+		<result property="stplatName" column="STPLAT_NAME"/>
+		<result property="stplatCn" column="STPLAT_CN"/>
+		<result property="createdate" column="CREATEDATE"/>
+		<result property="creator" column="CREATOR"/>
+		<result property="updatedate" column="UPDATEDATE"/>
+		<result property="updator" column="UPDATOR"/>
+		<result property="useYn" column="USE_YN"/>
+	</resultMap>
+
+	<sql id="where_list">
+		<where>
+			<if test="searchCondition == 0">AND
+               STPLAT_NAME LIKE '%'||#{searchKeyword}||'%'
+           </if>
+          </where>
+	</sql>
+
+ 	<select id="selectTermsList" parameterType="com.hisco.admin.terms.service.TermsVO" resultMap="termsVO">
+			SELECT  *
+              FROM  (
+            	SELECT ROWNUM RNUM, ALL_LIST.*
+                FROM  (
+            		SELECT
+	                   	STPLAT_ID,
+	                    STPLAT_NAME,
+	                   	STPLAT_CN,
+	                   	CREATEDATE,
+	                   	CREATOR,
+	                   	UPDATEDATE ,
+	                   	UPDATOR,
+	                   	USE_YN
+	              FROM CM_STPLAT_INFO
+             		<include refid="where_list"/>
+            <![CDATA[
+            		ORDER BY STPLAT_ID
+                ) ALL_LIST
+			)
+             WHERE  RNUM  > #{firstIndex}
+               AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+               ]]>
+ 	</select>
+
+ 	<select id="selectTermsCount" parameterType="com.hisco.admin.terms.service.TermsVO" resultType="java.lang.Integer">
+    	SELECT
+            COUNT(*)
+       	FROM CM_STPLAT_INFO A
+     		<include refid="where_list"/>
+ 	</select>
+
+ 	<select id="selectTermsDetail" parameterType="com.hisco.admin.terms.service.TermsVO" resultMap="termsVO">
+       		SELECT
+               	STPLAT_ID,
+                STPLAT_NAME,
+               	STPLAT_CN,
+               	CREATEDATE,
+               	CREATOR,
+               	UPDATEDATE ,
+               	UPDATOR,
+               	USE_YN
+          FROM CM_STPLAT_INFO
+        	WHERE
+        		COMCD = #{comcd} AND STPLAT_ID = #{stplatId}
+ 	</select>
+
+ 	 <insert id="inserTerms" parameterType="com.hisco.admin.terms.service.TermsVO">
+		INSERT INTO CM_STPLAT_INFO
+		(COMCD, STPLAT_ID, STPLAT_NAME,STPLAT_CN ,  USE_YN,  CREATOR , CREATEDATE)
+		VALUES
+		(#{comcd} , #{stplatId} ,  #{stplatName} , #{stplatCn} , #{useYn}, #{creator}, SYSDATE )
+ 	</insert>
+
+ 	<update id="updateTerms" parameterType="com.hisco.admin.terms.service.TermsVO">
+		UPDATE CM_STPLAT_INFO
+			SET
+				STPLAT_ID = #{stplatId},
+				STPLAT_NAME = #{stplatName},
+				STPLAT_CN = #{stplatCn},
+				USE_YN = #{useYn},
+				UPDATOR = #{creator},
+				UPDATEDATE = SYSDATE
+		WHERE
+			COMCD = #{comcd} AND STPLAT_ID= #{oldStplatId}
+ 	</update>
+
+ 	 <delete id="deleteTerms" parameterType="com.hisco.admin.terms.service.TermsVO">
+		DELETE FROM CM_STPLAT_INFO
+		WHERE
+			COMCD = #{comcd} AND STPLAT_ID= #{stplatId}
+ 	</delete>
+
+
+</mapper>

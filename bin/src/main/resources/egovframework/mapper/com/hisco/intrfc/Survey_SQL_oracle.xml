@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	수정일         수정자     수정내용
+    =========      =======    =================================================
+    2020.09.09     전영석     설문 Tibero Mapper
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="SurveyDAO">
+
+	<!-- [설문 정보 노출 및 실시 관련 정보를 조회한다][2020-09-09][전영석] -->
+ 	<select id="selectSurveyExecuteList" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnCampDAO.selectSurveyExecuteList */
+	           COMCD
+	         , EDC_PRGMID
+	         , COM_CTGCD
+	         , EDC_PRGMNM
+	         , EDC_PLACENM
+	         , EDC_SDATE
+	         , EDC_EDATE
+	         , EDC_STIME
+	         , EDC_ETIME
+		 FROM EDC_PROGRAM T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="COMCD != null and COMCD != ''">
+		    	T.COMCD = #{COMCD}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+	<!-- [설문 대상 메인 정보를 조회한다][2020-09-09][전영석] -->
+ 	<select id="selectSurveyMainList" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnCampDAO.selectSurveyMainList */
+	           COMCD
+	         , EDC_PRGMID
+	         , COM_CTGCD
+	         , EDC_PRGMNM
+	         , EDC_PLACENM
+	         , EDC_SDATE
+	         , EDC_EDATE
+	         , EDC_STIME
+	         , EDC_ETIME
+		 FROM EDC_PROGRAM T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="COMCD != null and COMCD != ''">
+		    	T.COMCD = #{COMCD}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+	<!-- 설문조사 Detail -->
+ 	<select id="selectSurveySendList" resultType="com.hisco.intrfc.survey.service.SurveySendVO">
+ 		<!-- 
+		SELECT  QENSTAR_SENDSEQ,
+				QENSTAR_SENDDATE,
+				COMCD,
+				QESTNAR_ID,
+				QESTNAR_STDNO,
+				QESTNAR_MEMB_WEBID,
+				QESTNAR_MEMBGBN,
+				QESTNAR_USERTELNO,
+				QESTNAR_USERNAME,
+				QESTNAR_MEMNO,
+				QESTNAR_USEPARTCD,
+				QESTNAR_RSVN_NO,
+				QESTNAR_PROGRMID
+		FROM QESTNAR_SENDLIST
+		WHERE COMCD = #{comcd}
+		AND QESTNAR_RSVN_NO  = #{rsvnId} -->
+		
+        SELECT  /* SurveyDAO.selectSurveySendList */ 
+                T.QENSTAR_SENDSEQ,
+                T.QENSTAR_SENDDATE,
+                T.COMCD,
+                T.QESTNAR_ID,
+                T.QESTNAR_STDNO,
+                T.QESTNAR_MEMB_WEBID,
+                T.QESTNAR_MEMBGBN,
+                T.QESTNAR_USERTELNO,
+                T.QESTNAR_USERNAME,
+                T.QESTNAR_MEMNO,
+                T.QESTNAR_USEPARTCD,
+                T.QESTNAR_RSVN_NO,
+                T.QESTNAR_PROGRMID, 
+                A.QESTNAR_NAME, 
+                A.QESTNAR_GUIDE 
+        FROM QESTNAR_SENDLIST T 
+          INNER JOIN QESTNAR_THEMAMNG A 
+                  ON A.COMCD = T.COMCD 
+                 AND A.QESTNAR_ID = T.QESTNAR_ID 
+                 AND A.QESTNAR_GUIDE IS NOT NULL  
+		WHERE T.COMCD = #{comcd} 
+		AND T.QESTNAR_RSVN_NO  = #{rsvnId}        
+		AND ROWNUM = 1            		
+		
+	</select>
+
+	<!-- 설문조사 Detail -->
+ 	<select id="selectSurveyDetail" resultType="com.hisco.intrfc.survey.service.SurveyMstVO">
+		SELECT  Q.COMCD,
+				Q.QESTNAR_ID,
+				Q.QESTNAR_DATE,
+				Q.QESTNAR_NAME,
+				Q.QESTNAR_IMGFILNB,
+				Q.QESTNAR_GUIDE,
+				Q.USE_YN,
+				Q.REGDATE,
+				Q.REGUSER,
+				F.FILE_PATH,
+                F.FILE_NAME,
+                F.ORGIN_FILE_NAME
+		FROM QESTNAR_THEMAMNG Q
+			LEFT OUTER JOIN ATCH_FILE_LIST F ON Q.QESTNAR_IMGFILNB = F.FILE_GRPINNB AND F.FILE_SN=0
+		WHERE Q.COMCD = #{comcd}
+		AND Q.QESTNAR_ID  = #{qestnarId}
+	</select>
+
+
+	<!-- 설문조사 질문 Detail -->
+ 	<select id="selectSurveyQstList" resultType="com.hisco.intrfc.survey.service.SurveyQstVO">
+		SELECT  QESTNAR_ID,
+				QESTNS_SEQ,
+				QESTNS_NAME,
+				QESTNS_TYPE,
+				QESTNAR_SCORE
+		FROM QESTNAR_QESTN
+		WHERE COMCD = #{comcd}
+		AND QESTNAR_ID  = #{qestnarId}
+		ORDER BY QESTNS_SEQ ASC
+	</select>
+
+	<!-- 설문조사 질문항목 Detail -->
+ 	<select id="selectQstItemList" resultType="com.hisco.intrfc.survey.service.SurveyQstItemVO">
+		SELECT  QESTNAR_ID,
+				QESTNS_SEQ,
+				QESTNAR_ITEMSEQ,
+				QESTNAR_ITEMNM,
+				QESTNAR_SCORE
+		FROM QESTNAR_QESTN_ITEMS
+		WHERE COMCD = #{comcd}
+		AND QESTNAR_ID  = #{qestnarId}
+		ORDER BY QESTNS_SEQ,QESTNAR_ITEMSEQ ASC
+	</select>
+
+	<!-- 설문조사 질문항목 Detail -->
+ 	<select id="countSurveyResult" resultType="java.lang.Integer">
+		SELECT  COUNT(*)
+		FROM QESTNAR_RESULT
+		WHERE COMCD = #{comcd}
+		AND QESTNAR_ID  = #{qestnarId}
+		AND QENSTAR_SENDSEQ = #{qenstarSendseq}
+	</select>
+
+
+	<!-- 설문조사 질문항목 Detail -->
+ 	<select id="selectRsvnDetail" resultType="com.hisco.intrfc.survey.service.SurveyRsvnVO">
+		SELECT * FROM
+		( SELECT	A.EDC_RSVN_NO AS RSVN_ID,
+					A.EDC_MEM_NO AS MEM_NO,
+					B.ID AS WEB_ID,
+					(CASE WHEN A.EDC_RSVN_MEMTYPE = '1001' THEN B.MEM_NM ELSE A.EDC_RSVN_CUSTNM END) AS RSVN_CUST_NM,
+					A.EDC_RSVN_MEMTYPE AS RSVN_MEMBGBN,
+					(CASE WHEN A.EDC_RSVN_MEMTYPE = '1001' THEN CRYPTO.DEcrypt_ARIA(B.HP , #{dbEncKey}) ELSE CRYPTO.DEcrypt_ARIA(A.EDC_RSVN_MOBLPHON , #{dbEncKey}) END) AS RSVN_TELNO,
+					(SELECT EDC_PART_CD FROM EDC_PROGRAM WHERE EDC_PRGMID = A.EDC_RSVN_REQID) AS RSVN_PARTCD,
+					A.EDC_RSVN_REQID AS PROGRAM_ID,
+					TO_DATE(A.EDC_REQ_SDATE, 'yyyy.MM.dd') || '~' || TO_DATE( A.EDC_REQ_EDATE, 'yyyy.MM.dd') AS REGDATE,
+					'EDC' AS TP
+				FROM EDC_RSVN_INFO A INNER JOIN MEMBER B ON A.EDC_MEM_NO = B.MEM_NO
+				WHERE 	A.COMCD = #{comcd}
+						AND A.EDC_RSVN_NO = #{rsvnId}
+				UNION ALL
+		 SELECT C.EXBT_RSVN_NO AS RSVN_ID,
+		 		C.EXBT_RSVN_MEMNO AS MEM_NO,
+		 		D.ID AS WEB_ID,
+				(CASE WHEN C.EXBT_RSVN_MEMTYPE = '1001' THEN D.MEM_NM ELSE C.EXBT_RSVN_CUSTNM END) AS RSVN_CUST_NM,
+				C.EXBT_RSVN_MEMTYPE AS RSVN_MEMBGBN,
+				(CASE WHEN C.EXBT_RSVN_MEMTYPE = '1001' THEN CRYPTO.DEcrypt_ARIA(D.HP , #{dbEncKey}) ELSE CRYPTO.DEcrypt_ARIA(C.EXBT_HP , #{dbEncKey}) END) AS RSVN_TELNO,
+				C.EXBT_PARTCD AS RSVN_PARTCD,
+				C.EXBT_SEQ AS PROGRAM_ID,
+				TO_CHAR(TO_DATE(C.EXBT_VIEINGDATE), 'yyyy.MM.dd') AS REGDATE,
+				'EXBT' AS TP
+		 FROM EXBT_RSVN_MST C INNER JOIN MEMBER D ON C.EXBT_RSVN_MEMNO = D.MEM_NO
+		 WHERE  C.COMCD = #{comcd}
+		 		AND C.EXBT_RSVN_NO =  #{rsvnId}
+		 	UNION ALL
+		 SELECT E.EVT_RSVNNO AS RSVN_ID,
+		 		E.EVT_RSVN_MEMNO AS MEM_NO,
+		 		F.ID AS WEB_ID,
+				(CASE WHEN E.EVT_RSVN_MEMTYPE = '1001' THEN F.MEM_NM ELSE E.EVT_RSVN_CUSTNM END) AS RSVN_CUST_NM,
+				E.EVT_RSVN_MEMTYPE AS RSVN_MEMBGBN,
+				(CASE WHEN E.EVT_RSVN_MEMTYPE = '1001' THEN  CRYPTO.DEcrypt_ARIA(F.HP , #{dbEncKey}) ELSE CRYPTO.DEcrypt_ARIA(E.EVT_RSVN_MOBLPHON , #{dbEncKey}) END) AS RSVN_TELNO,
+				E.EVT_PARTCD AS RSVN_PARTCD,
+				E.EVT_RSVN_IDX AS PROGRAM_ID,
+				TO_CHAR(TO_DATE(E.EVT_VEINGDATE ), 'yyyy.MM.dd')AS REGDATE,
+				'EVT' AS TP
+		 FROM EVT_RSVN_MST E INNER JOIN MEMBER F ON E.EVT_RSVN_MEMNO = F.MEM_NO
+		 WHERE E.COMCD = #{comcd}
+		 AND  E.EVT_RSVNNO = #{rsvnId}
+		) DTL
+	</select>
+
+
+	<!-- 설문조사결과 입력-->
+	<insert id="insertSurveyResult" >
+	<selectKey keyProperty="qestnarResltNo" resultType="java.lang.String" order="BEFORE">
+		SELECT NVL(MAX(QESTNAR_RESLT_NO),0)+1
+		FROM QESTNAR_RESULT
+		WHERE COMCD = #{comcd}
+		AND QESTNAR_ID = #{qestnarId}
+		AND QESTNAR_STDNO = #{qestnarStdno}
+	</selectKey>
+		INSERT INTO
+			QESTNAR_RESULT
+			(
+				COMCD,
+				QESTNAR_ID,
+				QESTNAR_STDNO,
+				QESTNAR_RESLT_NO,
+				QENSTAR_SENDSEQ,
+				QESTNAR_RESLTDATE,
+				QESTNAR_RESLTTIME,
+				QESTNAR_MEMBGBN,
+				QESTNAR_MEMNO,
+				QESTNAR_MEMB_WEBID,
+				QESTNAR_USERNAME,
+				QESTNAR_USERTELNO,
+				QESTNAR_USEPARTCD,
+				QESTNAR_PROGRMID,
+				QESTNAR_TERMINAL_TYPE,
+				REGDATE,
+				REGUSER
+			)
+			VALUES
+			(
+				#{comcd},
+				#{qestnarId},
+				#{qestnarStdno},
+				#{qestnarResltNo},
+				#{qenstarSendseq},
+				TO_CHAR(SYSDATE, 'YYYYMMDD'),
+				TO_CHAR(SYSDATE, 'HHMM'),
+				#{qestnarMembgbn},
+				#{qestnarMemno},
+				#{qestnarMembWebid},
+				#{qestnarUsername},
+				#{qestnarUsertelno},
+				#{qestnarUsepartcd},
+				#{qestnarProgrmid},
+				#{qestnarTerminalType},
+				SYSDATE,
+				#{reguser}
+			)
+	</insert>
+
+	<!-- 설문조사결과 상세 입력-->
+	<insert id="insertSrvResultDtl">
+	    /* insertSrvResultDtl */
+		INSERT INTO  
+			QESTNAR_RELST_DETAIL
+			(
+				COMCD,
+				QESTNAR_ID,
+				QESTNAR_STDNO,
+				QESTNAR_RESLT_NO,
+				QESTNS_SEQ,
+				RESLT_ITEMSEQ,
+				RESLT_ITEMSCORE,
+				RESLT_SBJCT,
+				REGDATE,
+				REGUSER
+			)
+			VALUES
+			(
+				#{comcd},
+				#{qestnarId},
+				#{qestnarStdno},
+				#{qestnarResltNo},
+				#{qestnsSeq},
+				#{resltItemseq},
+				#{resltItemscore},
+				#{resltSbjct},
+				SYSDATE,
+				#{reguser}
+			)
+	</insert>
+
+
+	<!-- 설문조사 Detail file 업데이트 -->
+ 	<select id="updateSurveyDetailImg" >
+		UPDATE
+			QESTNAR_THEMAMNG SET QESTNAR_IMGFILNB=#{fileId}
+		WHERE
+			COMCD = #{comcd}
+			AND QESTNAR_ID  = #{uniqueId}
+	</select>
+</mapper>

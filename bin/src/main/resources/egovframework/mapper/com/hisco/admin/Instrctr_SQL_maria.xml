@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 강사 관리
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2021.11.05   	이기태          최초 작성
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.admin.instrctr.mapper.InstrctrMapper">
+	<select id="selectList" parameterType="com.hisco.admin.instrctr.vo.InstrctrVO" resultType="com.hisco.admin.instrctr.vo.InstrctrVO">
+		SELECT
+			ALL_LIST.*
+			,P.EDC_PRGM_NM
+			,P.EDC_SDATE
+			,P.EDC_EDATE
+		FROM  (
+			SELECT
+				  ROW_NUMBER() OVER (order by A.REGDATE DESC) RNUM
+				, A.COMCD
+				, A.INSTRCTR_NO
+				, A.INSTRCTR_TYPE
+				, A.NAME_KOR
+				, A.NAME_ENG
+				, fn_aes_decrypt(A.EMAIL,#{dbEncKey}) AS EMAIL
+				, fn_aes_decrypt(A.HP_NO,#{dbEncKey}) AS HP_NO
+				, A.PSITN_ORGNAME
+				, A.USE_YN
+				, A.REGDATE
+				, A.MODDATE
+				, B.ORG_NM
+				, (SELECT CD_NM FROM  COT_GRPCD C  WHERE C.COMCD=A.COMCD AND C.GRP_CD='CM_INSTRCTR_TYPE' AND C.CD=A.INSTRCTR_TYPE) AS TYPE_NM
+				, COUNT(*) OVER() AS TOT_CNT
+				, (SELECT MAX(EDC_PRGM_NO) FROM EDC_PROGRAM
+					WHERE COMCD=#{comcd}
+						AND INSTRCTR_NO=A.INSTRCTR_NO
+						AND EDC_SDATE=(SELECT MAX(EDC_SDATE) FROM EDC_PROGRAM
+							WHERE COMCD=#{comcd}
+							AND INSTRCTR_NO=A.INSTRCTR_NO)
+				) AS EDC_PRGM_NO
+			FROM EDC_INSTRCTR_INFO A
+			 	LEFT OUTER JOIN ORG_INFO B ON A.COMCD = B.COMCD AND A.ORG_NO=B.ORG_NO
+			WHERE
+				 A.COMCD = #{comcd}
+				 <if test="searchKeyword !=null and searchKeyword !=''">
+				 	<choose>
+				 		<when test='searchCondition == "name"'>
+							 AND ( A.NAME_KOR LIKE CONCAT('%', #{searchKeyword}, '%') OR A.NAME_ENG LIKE CONCAT('%', #{searchKeyword}, '%'))
+						</when>
+				 	</choose>
+				 </if>
+				 <if test="searchOrgNo !=null and searchOrgNo !=''">AND A.ORG_NO=#{searchOrgNo}</if>
+		) ALL_LIST
+		LEFT OUTER JOIN EDC_PROGRAM P ON  P.COMCD=ALL_LIST.COMCD AND P.EDC_PRGM_NO=ALL_LIST.EDC_PRGM_NO
+		WHERE 1=1
+		<![CDATA[
+             AND  RNUM  > #{firstIndex}
+             AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+        ]]>
+	</select>
+
+	<select id="select" parameterType="com.hisco.admin.instrctr.vo.InstrctrVO" resultType="com.hisco.admin.instrctr.vo.InstrctrVO">
+		SELECT
+			 	 A.INSTRCTR_NO
+			  	, A.COMCD
+			  	, A.ORG_NO
+			  	, A.INSTRCTR_TYPE
+			  	, A.INSTRCTR_IMG_ID
+			  	, A.NAME_KOR
+			  	, A.NAME_ENG
+			  	, A.GENDER_GBN
+			  	,fn_aes_decrypt( A.EMAIL,#{dbEncKey}) AS EMAIL
+			  	,fn_aes_decrypt( A.ADDR,#{dbEncKey}) AS ADDR
+			  	,fn_aes_decrypt( A.HOME_TEL,#{dbEncKey}) AS HOME_TEL
+				,fn_aes_decrypt( A.OFFICE_TEL,#{dbEncKey}) AS OFFICE_TEL
+				,fn_aes_decrypt( A.HP_NO,#{dbEncKey}) AS HP_NO
+				, A.LAST_ACDMCR
+				, A.LAST_SHNAME
+				, A.PSITN_ORGNAME
+				, A.CAREER_INFO
+				, A.SELFINTRCN
+				, A.ETC
+				, A.BANK_NM
+				,fn_aes_decrypt( A.BANK_ACC_NO,#{dbEncKey}) AS BANK_ACC_NO
+				, A.BANK_ACC_NM
+				, A.USE_YN
+				, A.REGDATE
+				, A.REGUSER
+				, A.MODDATE
+				, A.MODUSER
+				, B.ORG_NM
+			  	, F1.FILE_NM AS IMG_FILENM
+              	, F1.ORG_FILE_NM AS IMG_ORIGIN
+              	, F1.FILE_PATH AS IMG_PATH
+		FROM EDC_INSTRCTR_INFO A
+				LEFT OUTER JOIN ORG_INFO B ON A.COMCD = B.COMCD AND A.ORG_NO=B.ORG_NO
+				LEFT OUTER JOIN ATCH_FILE_LIST F1 ON A.COMCD=F1.COMCD AND A.INSTRCTR_IMG_ID = F1.FILE_GRP_NO AND F1.FILE_SEQ=0
+		WHERE
+			 A.COMCD = #{comcd}
+			AND A.INSTRCTR_NO = #{instrctrNo}
+	</select>
+
+	<insert id="insert" parameterType="com.hisco.admin.instrctr.vo.InstrctrVO">
+		INSERT INTO edc_instrctr_info (
+			  INSTRCTR_NO
+			, COMCD
+			, ORG_NO
+			, INSTRCTR_TYPE
+			, INSTRCTR_IMG_ID
+			, NAME_KOR
+			, NAME_ENG
+			, GENDER_GBN
+			, EMAIL
+			, ADDR
+			, HOME_TEL
+			, OFFICE_TEL
+			, HP_NO
+			, LAST_ACDMCR
+			, LAST_SHNAME
+			, PSITN_ORGNAME
+			, CAREER_INFO
+			, SELFINTRCN
+			, ETC
+			, BANK_NM
+			, BANK_ACC_NO
+			, BANK_ACC_NM
+			, USE_YN
+			, REGDATE
+			, REGUSER
+			, MODDATE
+			, MODUSER
+		) VALUES (
+			 NEXTVAL(EDC_INSTRCTR_INFO_SEQ)
+			,#{comcd}
+			,#{orgNo}
+			,#{instrctrTye}
+			,#{instrctrImgid}
+			,#{nameKor}
+			,#{nameEng}
+			,#{genderGbn}
+			,fn_aes_encrypt(#{email},#{dbEncKey})
+			,fn_aes_encrypt(#{addr},#{dbEncKey})
+			,fn_aes_encrypt(#{homeTel},#{dbEncKey})
+			,fn_aes_encrypt(#{officeTel},#{dbEncKey})
+			,fn_aes_encrypt(#{hpNo},#{dbEncKey})
+			,#{lastAcdmcr}
+			,#{lastShname}
+			,#{psitnOrgname}
+			,#{careerInfo}
+			,#{selfintrcn}
+			,#{etc}
+			,#{bankNm}
+			,fn_aes_encrypt(#{bankAccNo},#{dbEncKey})
+			,#{bankAccNm}
+			,'Y'
+			,NOW()
+			,#{reguser}
+			,NOW()
+			,#{reguser}
+		)
+	</insert>
+
+	<update id="update" parameterType="com.hisco.admin.instrctr.vo.InstrctrVO">
+		UPDATE edc_instrctr_info
+		SET
+			  ORG_NO = #{orgNo}
+			, INSTRCTR_TYPE = #{instrctrTye}
+			, INSTRCTR_IMG_ID = #{instrctrImgid}
+			, NAME_KOR = #{nameKor}
+			, NAME_ENG = #{nameEng}
+			, GENDER_GBN = #{genderGbn}
+			, EMAIL = fn_aes_encrypt(#{email},#{dbEncKey})
+			, ADDR = fn_aes_encrypt(#{addr},#{dbEncKey})
+			, HOME_TEL = fn_aes_encrypt(#{homeTel},#{dbEncKey})
+			, OFFICE_TEL = fn_aes_encrypt(#{officeTel},#{dbEncKey})
+			, HP_NO = fn_aes_encrypt(#{hpNo},#{dbEncKey})
+			, LAST_ACDMCR = #{lastAcdmcr}
+			, LAST_SHNAME = #{lastShname}
+			, PSITN_ORGNAME = #{psitnOrgname}
+			, CAREER_INFO = #{careerInfo}
+			, SELFINTRCN = #{selfintrcn}
+			, ETC = #{etc}
+			, BANK_NM = #{bankNm}
+			, BANK_ACC_NO = fn_aes_encrypt(#{bankAccNo},#{dbEncKey})
+			, BANK_ACC_NM = #{bankAccNm}
+			, USE_YN = #{useyn}
+			, MODDATE = NOW()
+			, MODUSER = #{moduser}
+		WHERE 1=1
+		AND COMCD = #{comcd}
+		AND INSTRCTR_NO = #{instrctrNo} 
+	</update>
+
+	<update id="updateSimple" parameterType="com.hisco.admin.instrctr.vo.InstrctrVO">
+		UPDATE edc_instrctr_info
+		SET
+			NAME_KOR = #{nameKor}
+			, HP_NO = fn_aes_encrypt(#{hpNo},#{dbEncKey})
+			, MODDATE = NOW()
+			, MODUSER = #{moduser}
+		WHERE 1=1
+		AND COMCD = #{comcd}
+		AND INSTRCTR_NO = #{instrctrNo}
+	</update>
+
+	<delete id="delete" parameterType="com.hisco.admin.instrctr.vo.InstrctrVO">
+		DELETE FROM edc_instrctr_info
+		WHERE 1=1
+		AND COMCD = #{comcd}
+		AND INSTRCTR_NO = #{instrctrNo}
+	</delete>
+
+	<update id="updateFileid" parameterType="com.hisco.admin.instrctr.vo.InstrctrVO">
+		UPDATE edc_instrctr_info
+		SET
+			 INSTRCTR_IMG_ID = #{atchFileId}
+			, MODDATE = NOW()
+			, MODUSER = #{moduser}
+		WHERE 1=1
+			AND COMCD = #{comcd}
+			AND INSTRCTR_NO = #{instrctrNo}
+	</update>
+
+	<select id="selectLastSeq" resultType="Integer">
+		SELECT LASTVAL(EDC_INSTRCTR_INFO_SEQ)
+	</select>
+
+	<select id="selectEdcList" parameterType="com.hisco.admin.instrctr.vo.InstrctrVO" resultType="com.hisco.admin.instrctr.vo.InstrctrVO">
+		SELECT
+			 P.EDC_PRGM_NM
+			,P.EDC_SDATE
+			,P.EDC_EDATE
+		FROM
+			EDC_PROGRAM P
+		WHERE
+			 	COMCD = #{comcd}
+			AND INSTRCTR_NO = #{instrctrNo}
+		ORDER BY P.EDC_SDATE DESC , P.EDC_PRGM_NO DESC
+		LIMIT 0,5
+	</select>
+</mapper>

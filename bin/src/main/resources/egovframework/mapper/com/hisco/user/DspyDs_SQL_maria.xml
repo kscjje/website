@@ -1,0 +1,905 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2020.8.11   	진수진     	 	관람 기본 정보
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="DspyDsDAO">
+
+	<!--관람 사업장/특별전시 메뉴노출 목록 -->
+	<select id="selectPartMenuList" resultType="cMap">
+			SELECT /* DspyDsDAO.selectPartMenuList */ * FROM (
+				SELECT
+							    P.PART_CD
+							    , P.PART_NM
+							    , P.HP_NO
+							    , P.TEL
+							    , P.SORT_ORDER
+							    , 0 AS EXBT_SEQ
+							  FROM PART_CD P
+							 WHERE
+								P.COMCD = #{comcd} AND PART_GBN='1001' AND USE_YN='Y'
+				UNION ALL
+				SELECT
+					EXBT_PARTCD AS PART_CD
+					, EXBT_NAME AS PART_NM
+					, ''
+					,''
+					, (999 + B2.SORT_ORDER) AS SORT_ORDER
+					, EXBT_SEQ
+				FROM
+					EXBT_BASERULE B , PART_CD B2
+				WHERE
+					B.COMCD =#{comcd} AND B.EXBT_TYPE='3001' AND B.OPENYN='Y' AND B.USE_YN='Y'
+					AND B.COMCD=B2.COMCD AND B.EXBT_PARTCD=B2.PART_CD  AND B2.USE_YN='Y'
+					AND (RSVN_PEROD_TYPE='1001' OR (RSVN_PEROD_TYPE='2001' AND RSVN_APP_EDATE >=DATE_FORMAT(SYSDATE(),'%Y%m%d')))
+				) MAIN ORDER BY MAIN.SORT_ORDER
+	</select>
+
+	<!-- 사업장 정보 -->
+	<select id="selectPartCd" resultType="cMap">
+			SELECT
+			    P.PART_CD AS UNIQUE_ID
+			    , P.PART_NM AS TITLE
+				, P.PART_GBN
+				, P.USE_YN
+			    , P.HP_NO
+			    , P.TEL
+			    , S.PART_IMG_FINNB
+			    , S.PART_GUIDE
+			  FROM PART_CD P
+			  	LEFT OUTER JOIN PARTCD_SYSTEMPREF S ON P.COMCD = S.COMCD AND P.PART_CD =  S.PART_CD
+			 WHERE
+				P.COMCD = #{comcd}
+			   AND P.PART_CD = #{uniqueId}
+	</select>
+
+
+	<select id="selectPartCdPref" resultType="integer">
+			SELECT
+			    COUNT(*)
+			  FROM PARTCD_SYSTEMPREF
+			 WHERE
+				COMCD = #{comcd}
+			   AND PART_CD = #{uniqueId}
+	</select>
+
+	<!-- 파일 아이디 등록 -->
+	<insert id="insertPartCdFile" parameterType="map" >
+		INSERT INTO PARTCD_SYSTEMPREF (COMCD, PART_CD, PART_IMG_FINNB, PART_THMB_IMG_FINNB )
+		
+		VALUES ( #{comcd}, #{uniqueId} , (case #{uploadField} when 'PART_IMG_FINNB' then #{fileId} else '' end) , (case #{uploadField} when 'PART_THMB_IMG_FINNB' then #{fileId} else '' end)) 
+		
+	</insert>
+
+		<!-- 파일 아이디 수정 -->
+	<update id="updatePartCdFile" parameterType="map" >
+		UPDATE PARTCD_SYSTEMPREF
+		SET
+		<choose>
+			<when test='uploadField == "PART_IMG_FINNB"'> PART_IMG_FINNB = #{fileId}</when>
+			<when test='uploadField == "PART_THMB_IMG_FINNB"'> PART_THMB_IMG_FINNB = #{fileId}</when>
+		</choose>
+		WHERE
+			COMCD = #{comcd}
+			   AND PART_CD = #{uniqueId}
+	</update>
+
+	<!-- 관람기준설정 -->
+	<select id="selectBaseRule" resultType="cMap">
+			SELECT
+			    EXBT_SEQ
+			    , EXBT_SEQ UNIQUE_ID
+				, EXBT_PARTCD
+				, EXBT_TYPE
+			     , EXBT_NAME AS TITLE
+			     , RSVN_PEROD_TYPE
+			     , RSVN_START_TIME
+			     , RSVN_APP_EDATE
+			     , RSVN_END_TIME
+			     , RSVN_FROM_DAYS
+			     , RSVN_END_DAYS
+			     , RSVN_LIMIT_CNT
+			     , RSVN_LIMIT_METHOD
+			     , FEE_TYPE
+			     , RSVN_ANUALMEMBYN
+			     , RSVN_SPECLMEMBYN
+			     , RSVN_STDMEMBYN
+			     , RSVN_NONMEBYN
+			     , ONLINE_RESYN
+			     , GRP_MIN_CNT
+			     , GRP_MAX_CNT
+			     , EXBT_PAYWAIT_GBN
+			     , RSVN_PAYWAIT_TIME
+			     , EXBT_TICKET_NOTICE
+			     , EXBT_TICKET_CHKYN
+			     , OPENYN
+			     , EXBT_IMG_FINNB
+			     , EXBT_INTRCN
+			     , EXBT_INTRIMG_FINNB
+			     , EXBT_PLAN_FINNB
+			     , EXBT_GUIDE_TELNO
+			     , USE_YN
+			  FROM EXBT_BASERULE
+			 WHERE
+				COMCD = #{comcd}
+			   AND EXBT_SEQ = #{uniqueId}
+	</select>
+
+
+	<!-- 파일 아이디 수정 -->
+	<update id="updateBaseRule" parameterType="map" >
+		UPDATE EXBT_BASERULE
+		SET
+		<choose>
+			<when test='uploadField == "EXBT_IMG_FINNB"'> EXBT_IMG_FINNB = #{fileId}</when>
+			<when test='uploadField == "EXBT_INTRIMG_FINNB"'> EXBT_INTRIMG_FINNB = #{fileId}</when>
+			<when test='uploadField == "EXBT_PLAN_FINNB"'> EXBT_PLAN_FINNB = #{fileId}</when>
+		</choose>
+		WHERE
+			COMCD = #{comcd}
+			   AND EXBT_SEQ = #{uniqueId}
+	</update>
+
+
+	<!-- 관람  휴관일 체크  -->
+	<select id="selectScheduleList" resultType="com.hisco.user.exbtrsvn.service.CalendarVO">
+	
+	/* selectScheduleList */
+	
+	<![CDATA[
+			
+		with TBMAIN00 as (
+					select TB2.CAL_DATE as CAL_DATE,
+						   MIN(TB2.SCHE_TYPE) as SCHE_TYPE,
+						   DAYOFWEEK(DATE_FORMAT(TB2.CAL_DATE, '%Y%m%d')) WEEK_DT,
+						   (
+								select COUNT(*)
+								  from CALENDAR
+								  where COMCD = #{comcd} 
+								    AND GUBUN IN ('1000' , '1001') 
+								    AND DATE_TYPE = '02' 
+								    AND CAL_DATE = TB2.CAL_DATE
+						   ) HOL_CNT,
+						   '0|0|0' as chkData  
+		
+					from (
+							 select CAL_DATE ,
+								   '00' as SCHE_TYPE
+							       from CALENDAR
+							       where COMCD = #{comcd}  AND GUBUN IN ('1000' , '1001') AND CAL_DATE LIKE CONCAT(#{month}, '%') AND DATE_TYPE = '00'
+						     union all
+							 select CAL_DATE ,
+								    '10' as SCHE_TYPE
+							   from (
+							   
+										SELECT DATE_FORMAT(thisSdt + INTERVAL seq - 1 DAY, '%Y%m%d') as CAL_DATE   
+										  FROM seq_1_to_31 
+										 INNER JOIN
+										       (SELECT CONCAT(#{month}, '01') thisSdt, last_day(CONCAT(#{month}, '01')) thisEdt) thisMonthA  
+										  WHERE seq <= (ABS(DATEDIFF(CONCAT(#{month}, '01'), last_day(CONCAT(#{month}, '01')))) + 1)							        
+								        
+								        
+				                ) TB1 
+			            ) TB2 
+						where CAL_DATE >= DATE_FORMAT(SYSDATE(), '%Y%m%d')
+						group by CAL_DATE 
+		) 
+		
+			select 
+				  EX00.SCHE_TYPE AS scheType
+				, EX00.CAL_DATE  AS ymd 
+				, (case when MAIN03.chkData is null then EX00.chkData else MAIN03.chkData end) AS chkData    
+			 
+			from (	select MAIN02.SCHE_TYPE 
+				     , MAIN02.CAL_DATE   as ymd  
+				     , CONCAT(SUM(MAIN02.THISCOUNT)
+				       , '|'
+				       , SUM(MAIN02.TOT_CAPA)
+				       , '|'
+				       , NVL(SUM(CASE WHEN (MAIN02.TOT_CAPA > MAIN02.RSV_CNT)  
+		 			                  AND DATE_ADD(DATE_FORMAT(fn_DateTime_Convert(3, MAIN02.CAL_DATE, MAIN02.S_TIME),'%Y-%m-%d %H:%i'), interval - MAIN02.EXBT_BEFTIME minute) > DATE_FORMAT(SYSDATE(), '%Y-%m-%d %H:%i') 
+						              AND (MAIN02.ONLINE_RESYN = 'Y' OR  MAIN02.CAL_DATE > DATE_FORMAT(SYSDATE(),'%Y%m%d'))  
+					             THEN 1 ELSE 0 end),0)
+					      ) as chkData    
+		
+				from (select 
+						  NVL(MAIN01.EXBT_BEFTIME, 0) as EXBT_BEFTIME  
+						, MAIN01.S_TIME 
+						, MAIN01.TOT_CAPA 
+						, MAIN01.ONLINE_RESYN 
+						, MAIN01.SCHE_TYPE
+						, MAIN01.CAL_DATE 
+						, 1      as THISCOUNT
+						,
+						(
+							select NVL(SUM(M1.EXBT_VISTNMPR), 0)
+							  from EXBT_RSVN_MST M1, EXBT_RSVN_TIME M2 
+							where M1.COMCD = MAIN01.COMCD
+							  and M1.EXBT_SEQ = MAIN01.EXBT_SEQ
+							  and M1.EXBT_RSVN_IDX = M2.EXBT_RSVN_IDX
+							  and M2.TIME_STD_SEQ = MAIN01.TIME_STD_SEQ
+							  and M2.EXBT_TIMESEQ = MAIN01.EXBT_TIMESEQ
+							  and M1.EXBT_VIEINGDATE = MAIN01.CAL_DATE
+							  and M1.EXBT_APPTYPE in ('11', '20') 
+						) as RSV_CNT 
+						
+					  from (  select A.COMCD ,
+							   A.EXBT_SEQ ,
+							   B.TIME_STD_SEQ ,
+							   B.EXBT_BEFTIME ,
+							   C.EXBT_TIMESEQ ,
+							   C.S_TIME,
+							   C.TOT_CAPA ,
+							   A.ONLINE_RESYN ,
+							   D.CAL_DATE,
+							   D.HOL_CNT,
+							   D.SCHE_TYPE,
+							   dense_rank() over(partition by A.EXBT_SEQ order by B.USE_BETWEEN_YN desc, B.TIME_STD_SEQ ) RNUM
+						  from EXBT_BASERULE A, EXBT_STDMNG B, EXBT_TIME_MNG C, TBMAIN00 D 
+						  where A.COMCD = #{comcd} 
+						    and A.EXBT_PARTCD = #{partCd}
+							and A.COMCD = B.COMCD
+							and A.EXBT_SEQ = B.EXBT_SEQ
+							and B.USE_DAYS like CONCAT('%', (case when D.HOL_CNT > 0 then '8' else WEEK_DT end), '%')
+							and B.COMCD = C.COMCD
+							and B.EXBT_SEQ = C.EXBT_SEQ
+							and B.TIME_STD_SEQ = C.TIME_STD_SEQ
+							and A.OPENYN = 'Y'
+							and A.USE_YN = 'Y'
+							and C.USE_YN = 'Y'
+							and C.WEB_DISPYN = 'Y'
+							
+							and not exists (
+											select EXBT_SEQ
+											  from EXBT_EXCP_DATE
+											 where EXBT_SEQ = A.EXBT_SEQ
+											    and EXCP_DATE = D.CAL_DATE
+							               )
+					                and ( (DATE_FORMAT(DATE_ADD(DATE_FORMAT(D.CAL_DATE, '%Y%m%d'), interval - A.RSVN_FROM_DAYS day), '%Y%m%d') <= DATE_FORMAT(SYSDATE(), '%Y%m%d')
+									   and DATE_FORMAT(DATE_ADD(DATE_FORMAT(D.CAL_DATE, '%Y%m%d'), interval - A.RSVN_END_DAYS day),  '%Y%m%d') >= DATE_FORMAT(SYSDATE(), '%Y%m%d'))
+									   or (
+									   		A.ONLINE_RESYN = 'Y' and CAL_DATE = DATE_FORMAT(SYSDATE(), '%Y%m%d')
+									      ) 
+							       ) 
+							and (A.RSVN_PEROD_TYPE = '1001' or (RSVN_PEROD_TYPE = '2001'
+									                                and DATE_FORMAT(fn_DateTime_Convert(3, RSVN_APP_SDATE, ' ', RSVN_START_TIME), '%Y-%m-%d %H:%i') <= DATE_FORMAT(SYSDATE(), '%Y-%m-%d %H:%i')
+									                                and DATE_FORMAT(fn_DateTime_Convert(3, RSVN_APP_EDATE, ' ', RSVN_END_TIME), '%Y-%m-%d %H:%i')   >  DATE_FORMAT(SYSDATE(), '%Y-%m-%d %H:%i')  
+									                              ) 
+							       )
+							       
+							and (
+							          B.USE_BETWEEN_YN = 'N' or ( B.USE_BETWEEN_YN = 'Y' and B.USE_S_DATE <= D.CAL_DATE and B.USE_E_DATE >= D.CAL_DATE)
+							    ) 
+							  
+						) MAIN01 	               
+					
+				  		where MAIN01.RNUM = 1 
+			  		
+				  	) MAIN02 
+				  	
+				 group by MAIN02.SCHE_TYPE 
+				        , MAIN02.CAL_DATE 
+				 ) MAIN03 
+				 
+		       right join TBMAIN00 EX00 on 
+		                 MAIN03.ymd = EX00.CAL_DATE 
+		             and MAIN03.SCHE_TYPE = EX00.SCHE_TYPE  
+				
+	]]>
+	
+	</select>
+
+	<!-- 선택날짜  휴관일 체크  -->
+	<select id="selectHolidayCheck" resultType="Integer">
+			select COUNT(*)
+			FROM CALENDAR
+			WHERE COMCD=#{comcd}  AND GUBUN IN ('1000' , '1001') AND CAL_DATE = #{ymd} AND DATE_TYPE='00'
+	</select>
+
+
+
+	<!-- 관람 상품 목록  -->
+	<select id="selectExbtBaseList" resultType="com.hisco.user.exbtrsvn.service.ExbtBaseruleVO">
+	
+			select /* selectExbtBaseList */
+				A.EXBT_SEQ AS exbtSeq,
+				A.EXBT_TYPE AS exbtType,
+				B.CD_NM  AS exbtTypeNm,
+				A.EXBT_PARTCD AS exbtPartcd,
+				(SELECT PART_NM FROM PART_CD WHERE COMCD=A.COMCD AND PART_CD=A.EXBT_PARTCD) AS exbtPartNm,
+				A.EXBT_NAME AS exbtName,
+				A.RSVN_PEROD_TYPE AS rsvnPerodType,
+				A.RSVN_APP_SDATE AS rsvnAppSdate,
+				A.RSVN_START_TIME AS rsvnStartTime,
+				A.RSVN_APP_EDATE AS rsvnAppEdate,
+				A.RSVN_END_TIME AS rsvnEndTime,
+				A.RSVN_FROM_DAYS AS rsvnFromDays,
+				A.RSVN_END_DAYS AS rsvnEndDays,
+				A.RSVN_LIMIT_METHOD AS rsvnLimitMethod,
+				A.RSVN_LIMIT_CNT AS rsvnLimitCnt,
+				A.FEE_TYPE AS feeType,
+				A.RSVN_ANUALMEMBYN AS rsvnAnualmembyn,
+				A.RSVN_SPECLMEMBYN AS rsvnSpeclmembyn,
+				A.RSVN_STDMEMBYN AS rsvnStdmembyn,
+				A.RSVN_NONMEBYN AS rsvnNonmebyn,
+				A.ONLINE_RESYN AS onlineResyn,
+				A.GRP_MIN_CNT AS grpMinCnt,
+				A.GRP_MAX_CNT AS grpMaxCnt,
+				A.EXBT_PAYWAIT_GBN AS exbtPaywaitGbn,
+				A.RSVN_PAYWAIT_TIME AS rsvnPaywaitTime,
+				A.EXBT_TICKET_NOTICE AS exbtTicketNotice,
+				A.EXBT_TICKET_CHKYN AS exbtTicketChkyn,
+				A.EXBT_IMG_FINNB AS exbtImgFinnb,
+				A.EXBT_INTRCN AS exbtIntrcn,
+				A.EXBT_PLAN_FINNB AS exbtPlanFinnb,
+				A.EXBT_GUIDE_TELNO AS ExbtGuideTelno
+				<if test="ymd !=null and ymd !=''">
+				
+					<![CDATA[
+						,CASE WHEN
+							((DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{ymd},'%Y%m%d'), INTERVAL -RSVN_FROM_DAYS day), '%Y%m%d') <= DATE_FORMAT(SYSDATE() , '%Y%m%d')
+								AND DATE_FORMAT(DATE_ADD(DATE_FORMAT(#{ymd},'%Y%m%d'), INTERVAL -RSVN_END_DAYS day), '%Y%m%d') >= DATE_FORMAT(SYSDATE() , '%Y%m%d'))
+							 OR (ONLINE_RESYN='Y' AND #{ymd}=DATE_FORMAT(SYSDATE() , '%Y%m%d'))
+							)
+							AND ( RSVN_PEROD_TYPE = '1001'
+								OR (
+									RSVN_PEROD_TYPE = '2001'
+									AND  DATE_FORMAT(fn_DateTime_Convert(3, RSVN_APP_SDATE, RSVN_START_TIME), '%Y-%m-%d %H:%i') <= DATE_FORMAT(SYSDATE(), '%Y-%m-%d %H:%i')
+									AND  DATE_FORMAT(fn_DateTime_Convert(3, RSVN_APP_EDATE, RSVN_END_TIME),'%Y-%m-%d %H:%i') > DATE_FORMAT(SYSDATE(), '%Y-%m-%d %H:%i'))
+							) THEN 'Y' ELSE 'N' END reserveAbleYn
+						 , (CASE WHEN #{ymd} < DATE_FORMAT(SYSDATE(), '%Y%m%d') OR (#{ymd} = DATE_FORMAT(SYSDATE(), '%Y%m%d') AND ONLINE_RESYN='N') THEN 'N' ELSE 'Y' END) AS todayYn
+						 
+						 , NVL((
+						 	
+		                    SELECT 1  + (	SELECT 1 
+											  FROM CALENDAR 
+											 where COMCD = #{comcd} 
+											   AND GUBUN IN ('1001', '1000') 
+											   AND DATE_TYPE = '00' 
+											   AND CAL_DATE=#{ymd}
+							            )  
+						      FROM EXBT_EXCP_DATE 
+						     WHERE COMCD = #{comcd}  
+						       AND EXBT_SEQ = A.EXBT_SEQ 
+						       AND EXCP_DATE=#{ymd} 
+						       
+						   ), 0) as holdCnt 				  	
+						  	
+						 ,(SELECT
+									COUNT(*)
+										FROM  EXBT_STDMNG B  ,  EXBT_TIME_MNG C
+										WHERE
+											 A.COMCD = B.COMCD AND A.EXBT_SEQ=B.EXBT_SEQ AND B.USE_DAYS LIKE CONCAT('%', NVL(#{dayWeek}, ''), '%')
+										AND B.COMCD= C.COMCD AND B.EXBT_SEQ = C.EXBT_SEQ AND B.TIME_STD_SEQ = C.TIME_STD_SEQ
+										AND C.USE_YN='Y'
+										AND C.WEB_DISPYN='Y'
+										AND (B.USE_BETWEEN_YN='N'  OR ( B.USE_BETWEEN_YN='Y' AND B.USE_S_DATE<=#{ymd}  AND B.USE_E_DATE >=#{ymd}))
+							) AS timeCnt
+					]]>
+				
+				</if>
+				,D.DC_REASON_CD AS dcReasonCd
+				,D.DC_RATE AS dcRate
+			FROM EXBT_BASERULE A
+				LEFT OUTER JOIN (
+				  		SELECT
+				  			S.COMCD , S.EXBT_SEQ , S.DC_REASON_CD , S.DC_RATE
+				  		FROM EXBT_DC_STDMNG S
+				  		WHERE S.COMCD=#{comcd} AND S.EXBT_SEQ=#{exbtSeq}
+				  			AND S.DC_REASON_CD IN (SELECT CD FROM COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD='CM_REASON_DC' AND ITEM2='6001')
+				  			AND S.DC_RATE > 0
+							LIMIT 1 
+				  	 ) D ON  A.COMCD = D.COMCD AND A.EXBT_SEQ = D.EXBT_SEQ
+			  , COT_GRPCD B
+			WHERE A.COMCD=#{comcd}  AND A.OPENYN='Y' AND A.USE_YN='Y'
+				AND B.GRP_CD='SM_EXBT_TYPE' AND B.CD=A.EXBT_TYPE
+				
+			<choose>
+				<when test="partCd !=null and partCd !=''">
+					AND A.EXBT_PARTCD=#{partCd}
+				</when>
+				<otherwise>AND A.EXBT_SEQ=#{exbtSeq}</otherwise>
+			</choose>
+			
+			ORDER BY B.SORT_ORDER ,  A.EXBT_SEQ 
+			
+	</select>
+
+	<!-- 선택 날짜 요일 코드   -->
+	<select id="selectExbtTimeDay" resultType="String">
+		SELECT /* selectExbtTimeDay */
+			CASE WHEN MAIN.cnt <![CDATA[>]]> 0 THEN 8 ELSE CAST(MAIN.dd AS INTEGER) END
+		FROM (
+		
+			select dayofweek(DATE_FORMAT(#{ymd}, '%Y%m%d')) dd,
+			
+			(SELECT COUNT(*) FROM CALENDAR WHERE COMCD=#{comcd} AND GUBUN IN ('1000' , '1001')  AND DATE_TYPE='02' AND CAL_DATE=#{ymd}   ) cnt
+			from dual
+		) MAIN 
+	</select>
+
+
+	<!-- 관람 회차  -->
+	<select id="selectExbtTimeList" resultType="com.hisco.user.exbtrsvn.service.ExbtTimeVO">
+		SELECT /* selectExbtTimeList */
+			A.TIME_STD_SEQ AS timeStdSeq,
+			A.EXBT_BEFTIME AS exbtBeftime,
+			A.EXBT_AFTIME  AS exbtAftime,
+			B.EXBT_TIMESEQ AS exbtTimeseq,
+			B.TIME_NAME AS timeName,
+			B.TIME_TITLE AS timeTitle,
+			B.S_TIME AS sTime,
+			B.E_TIME AS eTime,
+			B.TOT_CAPA AS totCapa,
+			(SELECT RSVN_PERSONYN FROM EXBT_DAYOFWEEK_TRGTER WHERE COMCD=B.COMCD AND EXBT_SEQ=B.EXBT_SEQ AND DAYOFWEEK=#{dayWeek}) personyn,
+			(SELECT RSVN_GROUPYN FROM EXBT_DAYOFWEEK_TRGTER WHERE COMCD=B.COMCD AND EXBT_SEQ=B.EXBT_SEQ AND DAYOFWEEK=#{dayWeek}) groupyn,
+			(SELECT NVL(SUM(M1.EXBT_VISTNMPR),0)
+				FROM  EXBT_RSVN_MST M1, EXBT_RSVN_TIME M2
+				WHERE M1.COMCD=#{comcd} AND M1.EXBT_SEQ=B.EXBT_SEQ AND M1.EXBT_RSVN_IDX=M2.EXBT_RSVN_IDX
+					AND M2.TIME_STD_SEQ = B.TIME_STD_SEQ
+					AND M2.EXBT_TIMESEQ = B.EXBT_TIMESEQ
+					AND M1.EXBT_VIEINGDATE=#{ymd}
+					AND M1.EXBT_APPTYPE IN ('11','20')
+			) AS reserveCnt,
+			CASE WHEN DATE_FORMAT(fn_DateTime_Convert(3, #{ymd}, B.S_TIME), '%Y-%m-%d %H:%i') > DATE_FORMAT(SYSDATE(), '%Y-%m-%d %H:%i') THEN 'Y' ELSE 'N' END AS reserveAbleYn
+		FROM (
+			SELECT
+				TIME_STD_SEQ ,  EXBT_BEFTIME , EXBT_AFTIME,COMCD, EXBT_SEQ
+			FROM (
+				SELECT ROW_NUMBER()OVER(ORDER BY USE_BETWEEN_YN DESC , TIME_STD_SEQ) RNUM , TIME_STD_SEQ , EXBT_BEFTIME , EXBT_AFTIME, COMCD, EXBT_SEQ
+				FROM
+					EXBT_STDMNG B
+				WHERE
+				<![CDATA[
+					COMCD=#{comcd} AND EXBT_SEQ=#{exbtSeq}
+					AND USE_DAYS LIKE CONCAT('%', #{dayWeek}, '%') 
+					AND (USE_BETWEEN_YN='N'  OR ( USE_BETWEEN_YN='Y' AND USE_S_DATE <=#{ymd}  AND USE_E_DATE >=#{ymd}))
+					AND USE_YN='Y'
+					AND EXISTS (SELECT EXBT_SEQ FROM EXBT_TIME_MNG C WHERE B.COMCD= C.COMCD AND B.EXBT_SEQ = C.EXBT_SEQ AND B.TIME_STD_SEQ = C.TIME_STD_SEQ
+								AND C.USE_YN='Y'
+								AND C.WEB_DISPYN='Y')
+				]]>
+			) TB00 WHERE RNUM=1
+		) A ,    EXBT_TIME_MNG B
+		WHERE
+			A.COMCD= B.COMCD AND A.EXBT_SEQ = B.EXBT_SEQ AND A.TIME_STD_SEQ = B.TIME_STD_SEQ
+			AND B.USE_YN='Y'
+			AND B.WEB_DISPYN='Y'
+			AND NOT EXISTS (SELECT EXBT_SEQ FROM EXBT_EXCP_TIME E WHERE  E.COMCD=B.COMCD AND E.EXBT_SEQ=B.EXBT_SEQ AND E.TIME_STD_SEQ=B.TIME_STD_SEQ AND E.EXBT_TIMESEQ=B.EXBT_TIMESEQ AND EXCP_DATE=#{ymd})
+			<if test="timeseq !=null and timeseq >0">AND B.EXBT_TIMESEQ=#{timeseq}</if>
+			ORDER BY B.EXBT_TIMESEQ
+	</select>
+
+
+	<!-- 가격  -->
+	<select id="selectExbtChargeList" resultType="com.hisco.user.exbtrsvn.service.ExbtChargeVO">
+	
+		SELECT /* selectExbtChargeList */
+		
+			A.ITEM_CD AS itemCd,
+			CASE WHEN C.FEE_TYPE='2001' THEN 0 ELSE A.PRICE END AS price,
+			B.ITEM_NM AS itemNm,
+			B.GROUPDCYN AS groupdcYn,
+			
+			<![CDATA[ CASE WHEN B.SALE_TRGET_STAGE >= 19 OR B.SALE_TRGET_EDAGE = 0 THEN 'Y' WHEN B.SALE_TRGET_EDAGE <= 7 THEN 'N' END AS adultYn, ]]>
+
+			(SELECT NVL(SUM(T.EXBT_ITEM_CNT),0) FROM  EXBT_RSVN_ITEM T WHERE T.EXBT_RSVN_IDX=#{rsvnIdx} AND A.ITEM_CD= T.EXBT_ITEMCD) AS itemCnt
+		FROM
+			EXBT_BASERULE C , EXBT_CHARGE A, PROGRAM_ITEM B
+		WHERE
+			C.COMCD=#{comcd} AND C.EXBT_SEQ=#{exbtSeq} AND C.OPENYN='Y'
+			AND A.COMCD = B.COMCD AND A.ITEM_CD=B.ITEM_CD AND B.USE_YN='Y'
+			AND A.COMCD = C.COMCD AND A.EXBT_SEQ=C.EXBT_SEQ AND A.USE_YN='Y'
+		<choose>
+			<when test='target=="20" or target=="2001"'>AND B.PERGRGBN IN ('2001' , '3001')</when>
+			<otherwise>AND B.PERGRGBN IN ('1001' , '3001')</otherwise>
+		</choose>
+		ORDER BY
+			B.SORTNO
+	</select>
+
+	<!-- 예약 idkey  -->
+	<select id="selectReserveKey" resultType="String">
+		SELECT
+			NEXTVAL(SEQ_TICKET_REGIDX)
+		FROM
+			DUAL
+	</select>
+
+	<!-- 예약  번호 -->
+	<select id="selectRsvnNumber" resultType="java.lang.String">
+		   SELECT CONCAT('R1', DATE_FORMAT(SYSDATE(), '%y%m%d'), LPAD(NEXTVAL(SEQ_EXBT_RSVNNO), 5, '0')) FROM DUAL
+	</select>
+
+
+	<!-- 예약마스터 등록 -->
+	<update id="insertReserveMaster" >
+		/* insertReserveMaster */
+		INSERT INTO EXBT_RSVN_MST
+		(EXBT_RSVN_IDX, COMCD, EXBT_SEQ, EXBT_PARTCD , EXBT_APPDATE ,
+			EXBT_RSVN_NO, EXBT_RSVN_MEMTYPE , EXBT_RSVN_MEMNO , EXBT_RSVN_WEBID , EXBT_RSVN_CUSTNM,
+			EXBT_PERSN_GBN, EXBT_GRPNM, EXBT_HP, EXBT_EMAIL, EXBT_HPCERTNO,
+			EXBT_VISTNMPR, EXBT_VIEINGDATE, EXBT_ETC, EXBT_APPTYPE, EXBT_SALEAMT,
+			EXBT_PAYAMT, EXBT_RETYN, EXBT_ONOFFINTYPE , EXBT_TRMNL_TYPE ,
+			EXBT_INDVDLINFO_AGRID , EXBT_INDVDLINFO_AGRYN, EXBT_AGREEID, EXBT_AGREEYN, EXBT_REFND_AGRID,
+			EXBT_REFND_AGRYN, EXBT_PAYWAIT_ENDDT, REGDATE, REGUSER,
+			EXBT_VISITCUSNM, EXBT_VISITCUSHPNO
+		)
+		SELECT #{rsvnIdx} , #{comcd} , EXBT_SEQ, EXBT_PARTCD,  DATE_FORMAT(SYSDATE(), '%Y%m%d'),
+			#{rsvnNo} , #{memType}, #{memNo} , #{webId} , #{custNm},
+			CONCAT(#{target}, '01') , #{grpnm} 
+			
+			<!-- for Tibero , CRYPTO.Encrypt_ARIA(#{exbtHp}, #{dbEncKey})
+			, CRYPTO.Encrypt_ARIA(#{exbtEmail}, #{dbEncKey})  -->
+			, #{exbtHp} 
+			, #{exbtEmail} 
+			
+			, #{hpcertno}
+			, #{visitnum} , #{ymd} , #{etc} , (CASE WHEN 1 > #{saleamt} THEN '20' ELSE '11' END) , #{saleamt},
+			#{payamt} , 'N', '10', #{terminalType},
+			'1001' , 'Y' , '2001', 'Y' , '2002',
+			'Y' ,   CASE WHEN #{target}='10' THEN (DATE_FORMAT(fn_DateTime_Convert(2, #{payWaitTime}, ''),'%Y-%m-%d %H:%i')) END, SYSDATE() , #{reguser},
+			#{visitcustNm} 
+			
+			<!-- for Tibero , CRYPTO.Encrypt_ARIA(REPLACE(#{visitcustHpno},'-',''), #{dbEncKey}) -->
+			, #{visitcustHpno}  
+			 
+		FROM
+			EXBT_BASERULE
+		WHERE
+			COMCD=#{comcd} AND EXBT_SEQ=#{exbtSeq}
+	</update>
+
+<!-- 예약 회차 등록 -->
+	<update id="insertReserveTime" >
+		INSERT INTO EXBT_RSVN_TIME
+		(EXBT_RSVN_IDX , EXBT_RSVN_TIMEIDX, COMCD ,EXBT_SEQ , TIME_STD_SEQ,
+			EXBT_TIMESEQ , EXBT_STIME, EXBT_ETIME, EXBT_TIMEETC, REGDATE, REGUSER
+		 )
+		SELECT
+			#{rsvnIdx} , NEXTVAL(SEQ_EXBT_RSVN_TIMEIDX) , #{comcd} , #{exbtSeq}, TIME_STD_SEQ,
+			EXBT_TIMESEQ , S_TIME , E_TIME , '', SYSDATE()  , #{reguser}
+		FROM
+			EXBT_TIME_MNG
+		WHERE
+			COMCD=#{comcd}
+			AND EXBT_SEQ=#{exbtSeq}
+			AND TIME_STD_SEQ=#{stdseq}
+			AND EXBT_TIMESEQ=#{timeseq}
+	</update>
+
+	<!-- 예약 세부내역 등록 -->
+	<insert id="insertReserveItem" >
+		INSERT INTO EXBT_RSVN_ITEM
+		(EXBT_RSVN_IDX , EXBT_SALESEQ,
+			EXBT_ITEMCD, EXBT_ITEMCOST, EXBT_ITEM_CNT,
+			EXBT_AMOUNT, EXBT_DCTYPE , EXBT_EVENT_DCID , EXBT_DCRATE, EXBT_DCCPNNO,
+			EXBT_DCAMOUNT , EXBT_TOTAMOUNT, EXBT_ONOFFINTYPE, TERMINAL_TYPE, REGDATE, REGUSER
+		 )
+		 VALUES(
+		 		#{rsvnIdx} , (SELECT NVL(MAX(EXBT_SALESEQ),0)+1 FROM EXBT_RSVN_ITEM ALIAS_FOR_SUBQUERY WHERE EXBT_RSVN_IDX=#{rsvnIdx}),
+				#{itemCd} , #{price} , #{itemCnt},
+				#{amount} , #{dcType}, #{dcEventId}  , NVL(#{dcRate} ,0), #{dcCpnno},
+				NVL(#{dcAmount} ,0) , #{totAmount} , '10' , #{terminalType} , SYSDATE() , #{reguser}
+		)
+	</insert>
+
+	<!-- 예약 마스터 데이타  -->
+	<select id="selectReserveMaster" resultType="com.hisco.user.exbtrsvn.service.RsvnMasterVO">
+		SELECT
+			M.EXBT_RSVN_IDX AS rsvnIdx,
+			M.COMCD AS comcd,
+			M.EXBT_SEQ AS exbtSeq,
+			M.EXBT_PARTCD AS exbtPartcd ,
+			M.EXBT_APPDATE AS appDate,
+			M.EXBT_RSVN_NO AS rsvnNo,
+			M.EXBT_RSVN_MEMTYPE AS memType ,
+			M.EXBT_RSVN_MEMNO AS memNo,
+			M.EXBT_RSVN_WEBID AS webId ,
+			M.EXBT_RSVN_CUSTNM AS custNm,
+			M.EXBT_PERSN_GBN AS target,
+			M.EXBT_GRPNM AS grpnm,
+			M.EXBT_VIEINGDATE AS ymd,
+			M.EXBT_VISTNMPR AS visitnum,
+			
+			<!-- for Tibero CRYPTO.DEcrypt_ARIA( M.EXBT_HP , #{dbEncKey}) AS exbtHp,
+			CRYPTO.DEcrypt_ARIA(M.EXBT_EMAIL , #{dbEncKey}) AS exbtEmail, -->
+			M.EXBT_HP    AS exbtHp,
+			M.EXBT_EMAIL AS exbtEmail,
+			
+			M.EXBT_HPCERTNO AS hpcertno,
+			M.EXBT_APPTYPE AS apptype,
+			(SELECT CD_NM FROM COT_GRPCD GRP WHERE GRP.GRP_CD = 'SM_RSVN_STAT' AND CD = M.EXBT_APPTYPE) AS EXBT_APPTYPE_NM,
+			M.EXBT_SALEAMT AS saleamt,
+			M.EXBT_PAYAMT AS payamt,
+			M.EXBT_RETYN AS retyn,
+			M.EXBT_TRMNL_TYPE  AS terminalType,
+			M.EXBT_PAYWAIT_ENDDT AS paywaitEnddt,
+			M.EXBT_VISITCUSNM AS visitcustNm,
+			
+			<!-- for Tibero CRYPTO.DEcrypt_ARIA(M.EXBT_VISITCUSHPNO , #{dbEncKey}) AS visitcustHpno, -->
+			M.EXBT_VISITCUSHPNO AS visitcustHpno,
+			
+			M.REGDATE AS regdate,
+			M.REGUSER AS reguser,
+			T.EXBT_STIME AS exbtStime,
+			T.EXBT_ETIME AS exbtEtime,
+			B.EXBT_NAME AS exbtName,
+			B.EXBT_TYPE AS exbtType,
+			B.GRP_MIN_CNT AS grpMinCnt,
+			B.GRP_MAX_CNT AS grpMaxCnt,
+			(SELECT PART_NM FROM PART_CD WHERE COMCD=B.COMCD AND PART_CD=B.EXBT_PARTCD) AS partNm,
+			(SELECT CD_NM FROM COT_GRPCD WHERE GRP_CD='SM_EXBT_TYPE' AND CD=B.EXBT_TYPE) AS exbtTypeNm,
+			CASE WHEN DATE_FORMAT(CONCAT(M.EXBT_VIEINGDATE, T.EXBT_STIME), '%Y%m%d%H%i%S') > SYSDATE() THEN 'Y' ELSE 'N' END AS editYn
+		FROM
+			EXBT_RSVN_MST M
+			, EXBT_RSVN_TIME T
+			, EXBT_BASERULE B
+		WHERE
+			M.EXBT_RSVN_IDX=#{rsvnIdx}
+			AND M.EXBT_RSVN_IDX = T.EXBT_RSVN_IDX
+			AND M.COMCD=B.COMCD AND M.EXBT_SEQ=B.EXBT_SEQ
+	</select>
+
+	<!-- 예약 품목 리스트 데이타  -->
+	<select id="selectReserveItemList" resultType="com.hisco.user.exbtrsvn.service.ExbtChargeVO">
+		SELECT
+			AA.EXBT_ITEMCD AS itemCd,
+			AA.EXBT_ITEMCOST AS price,
+			AA.EXBT_ITEM_CNT AS itemCnt,
+			AA.EXBT_AMOUNT AS amount,
+			AA.EXBT_TOTAMOUNT AS totAmount,
+			B.ITEM_NM AS itemNm,
+			B.PERGRGBN AS groupGbn,
+			B.VAT_YN AS vatYn,
+			B.GROUPDCYN AS groupdcYn,
+			C.EXBT_ITEM_CNT AS itemSubCnt,
+			C.EXBT_DCTYPE AS dcType,
+			C.EXBT_DCCPNNO AS dcCpnno,
+			C.EXBT_EVENT_DCID AS dcEventId,
+			C.EXBT_TOTAMOUNT AS itemAmount,
+			C.EXBT_DCRATE AS dcRate,
+			C.EXBT_DCAMOUNT AS dcAmount,
+			C.EXBT_SALESEQ AS saleSeq,
+			C.SELNG_ID AS selngId,
+			E.EVENT_DCNAME AS dcName,
+			CI.CPN_NAME AS cpnName,
+			G.CD_NM AS dcTypeNm,
+			G.ITEM2 AS dcKindCd,
+			L.RETURN_AMT AS cancelAmt,
+			L.BREAK_AMT AS breakAmt
+		FROM (
+			SELECT
+				A.EXBT_ITEMCD ,
+				MAX(A.EXBT_ITEMCOST) EXBT_ITEMCOST ,
+				SUM(A.EXBT_ITEM_CNT) EXBT_ITEM_CNT,
+				SUM(A.EXBT_AMOUNT) EXBT_AMOUNT,
+				SUM(A.EXBT_TOTAMOUNT) EXBT_TOTAMOUNT
+			FROM
+				EXBT_RSVN_ITEM A
+			WHERE
+				A.EXBT_RSVN_IDX=#{rsvnIdx}
+			GROUP BY
+				A.EXBT_ITEMCD
+		) AA , PROGRAM_ITEM B , EXBT_RSVN_ITEM C
+			LEFT OUTER JOIN EVENT_DC_STDMNG E ON E.EVENT_DCID =C.EXBT_EVENT_DCID
+			LEFT OUTER JOIN CPN_PYMNT_INFO CC ON CC.CPN_UID = C.EXBT_DCCPNNO
+			LEFT OUTER JOIN CPN_ISUMANGE CI ON CC.COMCD = CI.COMCD AND CC.CPN_ID=CI.CPN_ID
+			LEFT OUTER JOIN COT_GRPCD G ON G.COMCD=#{comcd} AND G.GRP_CD='CM_REASON_DC' AND G.CD=C.EXBT_DCTYPE
+			LEFT OUTER JOIN CANCEL L ON L.COMCD=#{comcd} AND L.SALE_SEQ = C.SELNG_ID
+		WHERE
+			AA.EXBT_ITEMCD = B.ITEM_CD
+			AND C.EXBT_RSVN_IDX=#{rsvnIdx}
+			AND AA.EXBT_ITEMCD = C.EXBT_ITEMCD
+			<if test="itemCd != null and itemCd !=''" >
+			AND B.ITEM_CD=#{itemCd}
+			</if>
+		ORDER BY
+			B.SORTNO , B.ITEM_CD
+	</select>
+
+	<!-- 이용 횟수 제한에 따른 이용횟수 조회  -->
+	<select id="selectReserveLimitCount" resultType="integer">
+		SELECT
+			COUNT(*)
+		FROM
+			EXBT_RSVN_MST M1
+		WHERE M1.COMCD=#{comcd} AND
+			<choose>
+				<when test="@egovframework.com.cmm.util.EgovMybaitsUtil@isNotEmpty(hpcertno)">
+					M1.EXBT_HPCERTNO=#{hpcertno}
+				</when>
+				<otherwise>
+					M1.EXBT_RSVN_MEMNO=#{memNo}
+				</otherwise>
+			</choose>
+			AND (
+				(#{limitMethod}='20' AND M1.EXBT_VIEINGDATE=#{ymd})
+				OR
+				(#{limitMethod}='21' AND M1.EXBT_VIEINGDATE LIKE CONCAT(SUBSTR(#{ymd},1,6), '%'))
+				OR
+				(#{limitMethod}='22' AND M1.EXBT_VIEINGDATE LIKE CONCAT(SUBSTR(#{ymd},1,4), '%'))
+			)
+			AND M1.EXBT_APPTYPE IN ('11','20')
+	</select>
+
+	<!-- 약관 목록 -->
+	<select id="selectTermsList" resultType="com.hisco.admin.terms.vo.TermsVO">
+           SELECT
+                  	STPLAT_ID,
+                    STPLAT_NAME,
+                  	STPLAT_CN,
+                  	USE_YN
+             FROM CM_STPLAT_INFO
+             WHERE STPLAT_ID LIKE '20%' OR STPLAT_ID='1001'
+          		ORDER BY STPLAT_ID
+ 	</select>
+
+ 	<!-- 오늘 이후 예약 내역 확인 -->
+ 	<select id="selectMyReserveCnt" resultType="Integer">
+           SELECT
+                  	COUNT(*)
+             FROM EXBT_RSVN_MST
+             WHERE COMCD=#{comcd}
+             	AND EXBT_RSVN_MEMNO=#{uniqId}
+             	AND EXBT_VIEINGDATE>= DATE_FORMAT(SYSDATE(),'%Y%m%d')
+             	AND EXBT_APPTYPE IN ('11','20')
+ 	</select>
+
+
+ 	 	<!-- 수량조절  -->
+	<update id="updateExbtItemCount" >
+		UPDATE
+			EXBT_RSVN_ITEM
+		SET
+			EXBT_ITEM_CNT = #{itemCnt} ,
+			EXBT_AMOUNT= #{amount} ,
+			EXBT_DCAMOUNT = #{dcAmount} ,
+			EXBT_TOTAMOUNT= #{totAmount} ,
+			EXBT_DCTYPE=#{dcType},
+			EXBT_EVENT_DCID = #{dcEventId},
+			EXBT_DCRATE = #{dcRate}
+		WHERE
+			EXBT_RSVN_IDX=#{rsvnIdx}  AND EXBT_SALESEQ=#{saleSeq}
+	</update>
+
+	<!-- 삭제  -->
+	<delete id="deleteExbtItem" >
+		DELETE
+		FROM
+			EXBT_RSVN_ITEM
+		WHERE
+			EXBT_RSVN_IDX=#{rsvnIdx}  AND EXBT_SALESEQ=#{saleSeq}
+	</delete>
+
+	<!-- 삭제  -->
+	<delete id="deleteExbtItemAll" >
+		DELETE
+		FROM
+			EXBT_RSVN_ITEM
+		WHERE
+			EXBT_RSVN_IDX=#{rsvnIdx}
+	</delete>
+
+
+	<!-- 가격 업데이트  -->
+	<update id="updateExbtMstData" >
+		UPDATE
+			EXBT_RSVN_MST
+		SET
+			EXBT_SALEAMT = (SELECT NVL(SUM(EXBT_AMOUNT),0) FROM  EXBT_RSVN_ITEM WHERE EXBT_RSVN_IDX=#{rsvnIdxOne}) ,
+			EXBT_PAYAMT=  (SELECT NVL(SUM(EXBT_TOTAMOUNT),0) FROM  EXBT_RSVN_ITEM WHERE EXBT_RSVN_IDX=#{rsvnIdxOne}),
+			EXBT_VISTNMPR=  (SELECT NVL(SUM(EXBT_ITEM_CNT),0) FROM  EXBT_RSVN_ITEM WHERE EXBT_RSVN_IDX=#{rsvnIdxOne})
+		WHERE
+			EXBT_RSVN_IDX=#{rsvnIdxOne}
+	</update>
+
+
+	 <!-- 티켓번호 -->
+ 	<select id="selectTicketNumber" resultType="String">
+           SELECT
+                  EXBT_TICKET_NO
+             FROM EXBT_TICKET_INFO
+             WHERE EXBT_RSVN_IDX=#{rsvnIdx}
+ 	</select>
+
+ 		 <!-- 예약마감시간 -->
+ 	<select id="selectPayWaitTime" resultType="String">
+           SELECT
+                CONCAT(SUBSTR(DATE_FORMAT((SYSDATE() + #{rsvnPaywaitTime}/24 + 9/1440),'%Y%m%d%H%i%S'),1,11), '0') 
+             FROM DUAL
+ 	</select>
+
+ 	<!-- 예약정보  수정 -->
+	<update id="updateReserveMaster" >
+	
+		/* DspyDsDAO.updateReserveMaster */
+	
+		UPDATE EXBT_RSVN_MST
+		SET
+			<!-- for Tibero EXBT_VISITCUSHPNO = CRYPTO.Encrypt_ARIA(REPLACE(#{visitcustHpno},'-',''), #{dbEncKey}) , -->
+			EXBT_VISITCUSHPNO = REPLACE(#{visitcustHpno},'-',''),
+			
+			EXBT_VISITCUSNM = #{visitcustNm},
+			EXBT_GRPNM = #{grpnm},
+			
+			<!-- for Tibero EXBT_EMAIL = CRYPTO.Encrypt_ARIA(#{exbtEmail}, #{dbEncKey}) -->
+			EXBT_EMAIL = #{exbtEmail} 
+			
+		WHERE
+			COMCD = #{comcd}
+			   AND EXBT_RSVN_IDX = #{rsvnIdx}
+			   AND EXBT_PERSN_GBN = '2001'
+			   AND EXBT_APPTYPE IN ('11','20')
+			<choose>
+				<when test="hpcertno !=null and hpcertno !=''">AND EXBT_HPCERTNO=#{hpcertno}</when>
+				<when test="memNo !=null and memNo !=''">AND EXBT_RSVN_MEMNO=#{memNo}</when>
+				<otherwise>AND M.EXBT_RSVN_MEMNO='-'</otherwise>
+			</choose>
+	</update>
+
+	<select id="selectGroupDiscount" resultType="cMap">
+        SELECT
+  			 S.DC_REASON_CD , S.DC_RATE
+  		FROM EXBT_DC_STDMNG S
+  		WHERE S.COMCD=#{comcd} AND S.EXBT_SEQ=#{exbtSeq}
+  			AND S.DC_REASON_CD IN (SELECT CD FROM COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD='CM_REASON_DC' AND ITEM2='6001')
+  			AND S.DC_RATE > 0
+			LIMIT 1 
+			
+ 	</select>
+
+
+ 	<select id="selectStartYmdByBase" resultType="String">
+ 	<![CDATA[
+        SELECT
+		 MIN(CAL_DATE)
+		FROM (
+				SELECT
+					CAL_DATE,
+					
+					 dayofweek(DATE_FORMAT(CAL_DATE, '%Y%m%d')) WEEK_DT,
+					 
+					(SELECT COUNT(*) FROM CALENDAR WHERE COMCD = 'NOWONGU01' AND GUBUN IN ('1000' , '1001')  AND DATE_TYPE='02' AND CAL_DATE=T.CAL_DATE) HOL_CNT
+				FROM (
+												SELECT DATE_FORMAT(DATE_FORMAT( RSVN_APP_SDATE ,'%Y%m%d') + LEVEL - 1, '%Y%m%d') AS CAL_DATE
+												FROM (
+														SELECT
+												    		CASE WHEN A.RSVN_PEROD_TYPE = '1001' THEN DATE_FORMAT(SYSDATE() + A.RSVN_END_DAYS , '%Y%m%d')  ELSE RSVN_APP_SDATE END RSVN_APP_SDATE,
+												    		CASE WHEN A.RSVN_PEROD_TYPE = '1001' THEN DATE_FORMAT(SYSDATE() + A.RSVN_FROM_DAYS , '%Y%m%d')  ELSE RSVN_APP_EDATE END RSVN_APP_EDATE
+													FROM
+													EXBT_BASERULE A
+													WHERE
+													A.COMCD=#{comcd} AND A.EXBT_SEQ=#{exbtSeq}
+												)
+												CONNECT BY LEVEL <= ( DATE_ADD(DATE_FORMAT(RSVN_APP_EDATE ,'%Y%m%d'), INTERVAL 1 MONTH) - DATE_FORMAT( RSVN_APP_SDATE ,'%Y%m%d') )
+					) T
+					 WHERE CAL_DATE > = DATE_FORMAT(SYSDATE(),'%Y%m%d')
+					AND NOT EXISTS (
+						SELECT
+											 CAL_DATE ,'00' AS SCHE_TYPE
+										FROM CALENDAR
+										WHERE COMCD=#{comcd}  AND GUBUN IN ('1000' , '1001') AND CAL_DATE=T.CAL_DATE AND DATE_TYPE='00'
+					)
+				 AND NOT EXISTS (
+				 	SELECT EXBT_SEQ FROM EXBT_EXCP_DATE WHERE EXBT_SEQ=#{exbtSeq} AND EXCP_DATE=T.CAL_DATE
+					)
+		) T2
+		WHERE EXISTS (SELECT *
+										FROM  EXBT_STDMNG B  ,  EXBT_TIME_MNG C
+										WHERE
+											B.COMCD = #{comcd} AND B.EXBT_SEQ=#{exbtSeq}
+										AND B.USE_DAYS LIKE CONCAT('%', (CASE WHEN T2.HOL_CNT>0 THEN '8' ELSE WEEK_DT END), '%') 
+										AND B.COMCD= C.COMCD AND B.EXBT_SEQ = C.EXBT_SEQ AND B.TIME_STD_SEQ = C.TIME_STD_SEQ
+										AND C.USE_YN='Y'
+										AND C.WEB_DISPYN='Y'
+										AND (B.USE_BETWEEN_YN='N'  OR ( B.USE_BETWEEN_YN='Y' AND B.USE_S_DATE<= T2.CAL_DATE AND B.USE_E_DATE >= T2.CAL_DATE))
+							)
+		]]>
+ 	</select>
+
+
+
+</mapper>

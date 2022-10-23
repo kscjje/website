@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 카테고리 관리
+
+   수정일                  수정자           수정내용
+  =========     =======    =================================================
+  2021.03.19   	전영석            최초 작성
+  2021.10.21 	진수진		노원평생학습관 수정
+  -->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hisco.admin.comctgr.mapper.ComCtgrMapper">
+
+	<select id="selectComCtgrList" resultType="cMap">
+		/* com.hisco.admin.comctgr.mapper.ComctgrMapper.selectComctgrList */
+		SELECT  *
+              FROM  (
+				SELECT ROW_NUMBER() OVER (order by CTG_NM ASC) RNUM, ALL_LIST.*
+                FROM  (
+						SELECT
+							  CTG_CD
+							, CTG_NM
+							, CTG_DESC
+							, CTG_LVL
+							, PARENT_CTG_CD
+							, TOP_CTG_CD
+							, SORT_ORDER
+							, USE_YN
+							, REGDATE
+							, REGUSER
+							, MODDATE
+							, MODUSER
+							, COUNT(*) OVER() AS TB_ALL_COUNT
+						  FROM COM_CTGR
+						<where>
+						 <if test="searchCondition == 1" >
+						 	AND CTG_NM LIKE CONCAT('%', #{searchKeyword}, '%')
+						 </if>
+						 </where>
+	                ) ALL_LIST
+				) MAIN
+
+				<![CDATA[
+
+		             WHERE  RNUM  > #{firstIndex}
+		               AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+
+	            ]]>
+
+	</select>
+
+	<resultMap id="comCtgrMap" type="com.hisco.admin.comctgr.vo.ComCtgrVO">
+	    <id     column="TOP_CTG_CD"           jdbcType="VARCHAR" property="parentCtgCd" />
+	    <result column="COMCD"     jdbcType="VARCHAR" property="comcd" />
+	    <result column="CTG_CD"     jdbcType="VARCHAR" property="ctgCd" />
+	    <result column="CTG_NM"     jdbcType="VARCHAR" property="ctgNm" />
+	    <result column="CTG_LVL"     jdbcType="NUMERIC" property="ctgLvl" />
+	     <collection property="subCtgrList" column="TOP_CTG_CD"  javaType="ArrayList"  ofType="com.hisco.admin.comctgr.vo.ComCtgrVO">
+	    	  	<id     column="PARENT_CTG_CD"           jdbcType="VARCHAR" property="parentCtgCd" />
+			   <result column="COMCD"     jdbcType="VARCHAR" property="comcd" />
+			    <result column="CTG_CD_L1"     jdbcType="VARCHAR" property="ctgCd" />
+			    <result column="CTG_NM_L1"     jdbcType="VARCHAR" property="ctgNm" />
+			    <result column="CTG_LVL_L1"     jdbcType="NUMERIC" property="ctgLvl" />
+			     <collection property="subCtgrList" column="PARENT_CTG_CD"  javaType="ArrayList"  ofType="com.hisco.admin.comctgr.vo.ComCtgrVO">
+			    	<result column="COMCD"     jdbcType="VARCHAR" property="comcd" />
+			    	<result column="CTG_CD_L2"     jdbcType="VARCHAR" property="ctgCd" />
+			    	<result column="CTG_NM_L2"     jdbcType="VARCHAR" property="ctgNm" />
+			    	<result column="CTG_LVL_L2"     jdbcType="NUMERIC" property="ctgLvl" />
+			    </collection>
+	    </collection>
+	</resultMap>
+
+
+	<select id="selectComCtgrListForTree" parameterType="com.hisco.admin.comctgr.vo.ComCtgrVO" resultMap="comCtgrMap">
+		/* com.hisco.admin.comctgr.mapper.ComCtgrMapper.selectComctgrListForTree */
+		SELECT
+		    A.COMCD
+			, A.CTG_CD
+			, A.CTG_NM
+			, A.CTG_DESC
+			, A.CTG_LVL
+		    , NVL(B.TOP_CTG_CD , A.CTG_CD) AS TOP_CTG_CD
+			, B.CTG_CD AS CTG_CD_L1
+			, B.CTG_NM AS CTG_NM_L1
+			, B.CTG_DESC AS CTG_DESC_L1
+			, B.CTG_LVL  AS CTG_LVL_L1
+			, NVL(C.PARENT_CTG_CD , B.CTG_CD) AS PARENT_CTG_CD
+			, C.CTG_CD AS CTG_CD_L2
+			, C.CTG_NM AS CTG_NM_L2
+			, C.CTG_DESC AS CTG_DESC_L2
+			, C.CTG_LVL  AS CTG_LVL_L2
+		  FROM
+		  	COM_CTGR A
+		  	LEFT OUTER JOIN COM_CTGR B
+		  		ON B.COMCD = A.COMCD AND B.CTG_LVL=1 AND A.CTG_CD = B.TOP_CTG_CD <if test="useYn != null and useYn !=''">AND B.USE_YN = #{useYn}</if>
+		   LEFT OUTER JOIN COM_CTGR C
+		  		ON C.COMCD = A.COMCD AND C.CTG_LVL=2 AND B.CTG_CD = C.PARENT_CTG_CD <if test="useYn != null and useYn !=''">AND C.USE_YN = #{useYn}</if>
+		  WHERE
+		    A.COMCD = #{comcd}
+		    <if test="useYn != null and useYn !=''">
+		  	AND A.USE_YN = #{useYn}
+		  	</if>
+		  	AND A.CTG_LVL = 0
+		  ORDER BY
+		  	A.SORT_ORDER , B.SORT_ORDER , C.SORT_ORDER
+
+	</select>
+
+
+	<select id="selectComCtgrDetail" resultType="com.hisco.admin.comctgr.vo.ComCtgrVO">
+		/* com.hisco.admin.comctgr.mapper.ComctgrMapper.selectComCtgrDetail */
+		SELECT
+			COMCD
+			, CTG_CD
+			, CTG_NM
+			, CTG_DESC
+			, CTG_LVL
+			, PARENT_CTG_CD
+			, TOP_CTG_CD
+			, SORT_ORDER
+			, USE_YN
+			, REGDATE
+			, REGUSER
+			, MODDATE
+			, MODUSER
+			, (SELECT CTG_NM FROM COM_CTGR ALIAS_FOR_SUBQUERY WHERE COMCD=A.COMCD AND CTG_CD=A.TOP_CTG_CD) COM_TOPCTGNM
+			, (SELECT CTG_NM FROM COM_CTGR ALIAS_FOR_SUBQUERY WHERE COMCD=A.COMCD AND CTG_CD=A.PARENT_CTG_CD) COM_PRNCTGNM
+		  FROM
+		  	COM_CTGR A
+		 WHERE
+		 	A.COMCD=#{comcd}
+		 	AND A.CTG_CD = #{ctgCd}
+	</select>
+
+
+	<!-- [카테고리 정보를 신규 저장한다][2021-03-19][전영석] -->
+ 	<insert id="insertComCtgr" parameterType="com.hisco.admin.comctgr.vo.ComCtgrVO" useGeneratedKeys="true">
+ 		<selectKey keyProperty="ctgCd" resultType="String" order="BEFORE">
+ 			select
+ 			<choose>
+ 				<when test="ctgLvl == 0">
+ 					CONCAT(LPAD(NVL(MAX(CAST(SUBSTR(CTG_CD, 1, 3) as INTEGER)), 0) + 1, 3, '0'), '0000000')
+ 				</when>
+ 				<when test="ctgLvl == 1">
+ 					CONCAT(SUBSTR(#{topCtgCd}, 1, 3), LPAD(NVL(MAX(CAST(SUBSTR(CTG_CD, 4, 3) as INTEGER)), 0) + 1, 3, '0'), '0000')
+ 				</when>
+ 				<when test="ctgLvl == 2">
+ 					CONCAT(SUBSTR(#{parentCtgCd}, 1, 6), LPAD(NVL(MAX(CAST(SUBSTR(CTG_CD, 7, 4) as INTEGER)), 0) + 1, 4, '0'))
+ 				</when>
+ 			</choose>
+			from COM_CTGR
+			WHERE
+				COMCD=#{comcd}
+				AND CTG_LVL = #{ctgLvl}
+				<choose>
+	 				<when test="ctgLvl == 1">
+	 					AND TOP_CTG_CD=#{topCtgCd}
+	 				</when>
+	 				<when test="ctgLvl == 2">
+	 					AND PARENT_CTG_CD=#{parentCtgCd}
+	 				</when>
+	 			</choose>
+		</selectKey>
+ 		/* com.hisco.admin.comctgr.mapper.ComctgrMapper.insertComctgr */
+ 		INSERT INTO COM_CTGR (
+ 				COMCD
+				, CTG_CD
+				, CTG_NM
+				, CTG_DESC
+				, CTG_LVL
+				, PARENT_CTG_CD
+				, TOP_CTG_CD
+				, SORT_ORDER
+				, USE_YN
+				, REGDATE
+				, REGUSER
+				, MODDATE
+				, MODUSER
+			) VALUES (
+			    #{comcd}
+			  , #{ctgCd}
+			  , #{ctgNm}
+			  , #{ctgDesc}
+			  , #{ctgLvl}
+			  , #{parentCtgCd}
+			  , #{topCtgCd}
+			  , (SELECT NVL(MAX(SORT_ORDER),0)+1
+			  		FROM COM_CTGR ALIAS_FOR_SUBQUERY
+			  		WHERE
+			  			COMCD= #{comcd} AND CTG_LVL = #{ctgLvl}
+				  		<choose>
+			 				<when test="ctgLvl == 1">
+			 					AND TOP_CTG_CD=#{topCtgCd}
+			 				</when>
+			 				<when test="ctgLvl == 2">
+			 					AND PARENT_CTG_CD=#{parentCtgCd}
+			 				</when>
+			 			</choose>
+			   )
+			  , #{useYn}
+			  , SYSDATE()
+			  , #{reguser}
+			  , SYSDATE()
+			  , #{reguser}
+			)
+
+ 	</insert>
+
+
+	<!-- [카테고리 정보를 영구 삭제한다][2021-03-19][전영석] -->
+ 	<delete id="deleteComCtgrTop" parameterType="com.hisco.admin.comctgr.vo.ComCtgrVO">
+ 		/* com.hisco.admin.comctgr.mapper.ComctgrMapper.deleteComctgr. */
+ 		DELETE FROM COM_CTGR WHERE
+ 			COMCD = #{comcd}
+ 		 	AND TOP_CTG_CD = #{ctgCd} AND CTG_LVL=2
+ 	</delete>
+
+ 	<delete id="deleteComCtgrPrnct" parameterType="com.hisco.admin.comctgr.vo.ComCtgrVO">
+ 		/* com.hisco.admin.comctgr.mapper.ComctgrMapper.deleteComctgr. */
+ 		DELETE FROM COM_CTGR WHERE
+ 			COMCD = #{comcd}
+ 		 	AND PARENT_CTG_CD = #{ctgCd}
+ 	</delete>
+
+ 	<delete id="deleteComCtgr" parameterType="com.hisco.admin.comctgr.vo.ComCtgrVO">
+ 		/* com.hisco.admin.comctgr.mapper.ComctgrMapper.deleteComctgr. */
+ 		DELETE FROM COM_CTGR WHERE
+ 			COMCD = #{comcd}
+ 		 	AND CTG_CD = #{ctgCd}
+ 	</delete>
+
+	<!-- [카테고리 정보를 수정한다][2021-03-19][전영석] -->
+ 	<update id="updateComCtgr" parameterType="com.hisco.admin.comctgr.vo.ComCtgrVO" >
+ 		/* com.hisco.admin.comctgr.mapper.ComctgrMapper.updateComctgr */
+ 		UPDATE COM_CTGR
+ 		   SET
+ 		      CTG_NM  = #{ctgNm}
+			 , USE_YN = #{useYn}
+			 , CTG_DESC   = #{ctgDesc}
+			 , MODDATE=SYSDATE()
+			 , MODUSER=#{moduser}
+ 		 WHERE
+ 		 	COMCD = #{comcd}
+ 		 	AND CTG_CD = #{ctgCd}
+ 	</update>
+
+
+ 	<!-- [카테고리 정렬 순서를 수정한다][2021-10-26][진수진] -->
+ 	<update id="updateComCtgrSortDefault" parameterType="com.hisco.admin.comctgr.vo.ComCtgrVO" >
+ 		/* com.hisco.admin.comctgr.mapper.ComctgrMapper.updateComCtgrSort */
+ 		UPDATE COM_CTGR
+ 		   SET
+ 		      SORT_ORDER  = #{sortOrder}
+ 		       ,MODDATE=SYSDATE()
+			   ,MODUSER=#{moduser}
+ 		 WHERE
+ 		 	COMCD = #{comcd}
+ 		 	<if test="ctgCd != null and ctgCd !=''">AND CTG_CD = #{ctgCd}</if>
+ 	</update>
+
+ 	<!-- [카테고리 정렬 순서를 수정한다][2021-10-26][진수진] -->
+ 	<update id="updateComCtgrSortAuto" parameterType="com.hisco.admin.comctgr.vo.ComCtgrVO" >
+ 		/* com.hisco.admin.comctgr.mapper.ComctgrMapper.updateComCtgrSort */
+ 		UPDATE COM_CTGR A
+ 		   SET
+ 		      SORT_ORDER  = (SELECT NVL(MAX(SUB.SORT_ORDER),0)+1
+			  		FROM COM_CTGR SUB
+			  		WHERE
+			  			SUB.COMCD= #{comcd}
+			  			AND SUB.CTG_LVL = A.CTG_LVL
+			  			AND CASE WHEN A.CTG_LVL=0 THEN SUB.CTG_LVL=0 WHEN  A.CTG_LVL=1 THEN SUB.TOP_CTG_CD=A.TOP_CTG_CD WHEN  A.CTG_LVL=2 THEN SUB.PARENT_CTG_CD=A.PARENT_CTG_CD END
+			   )
+			   ,MODDATE=SYSDATE()
+			   ,MODUSER=#{moduser}
+ 		 WHERE
+ 		 	COMCD = #{comcd}
+ 		 	AND CTG_CD = #{ctgCd}
+ 	</update>
+
+
+
+</mapper>

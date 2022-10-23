@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2020.9.24   	진수진     	 	예약 할인 정보
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.user.mypage.mapper.RsvnCommMapper">
+
+	<select id="selectOrgOptInfo" resultType="com.hisco.user.mypage.vo.RsvnCommVO">
+		SELECT  /* RsvnCommMapper.selectOptData */
+				PAYMENT_UPDOWN_UNIT AS payUpdownUnit, /*수납금액(절상절사단위설정)*/
+				PAYMENT_UPDOWN      AS payUpdown, /*수납금액(절상절사설정)*/
+				REFUND_UPDOWN_UNIT  AS refundUpdownUnit, /*환불금액(절상절사단위설정)*/
+				REFUND_UPDOWN       AS refundUpdown /*환불금액(절상절사설정)*/
+		    FROM ORG_OPTINFO /*운영사업자옵션정보*/
+		   WHERE COMCD = #{comcd}
+		   		AND ORG_NO = #{orgNo}
+	</select>
+
+	<!-- 이벤트 할인 가능 내역 -->
+	<select id="selectEventStdmngList" resultType="com.hisco.user.mypage.vo.RsvnCommVO">
+	         SELECT /* RsvnCommMapper.selectEventStdmngList */
+				S.EVENT_DCID AS eventDcid,
+				S.EVENT_REASONCD AS eventReasoncd ,
+				S.EVENT_DCNAME AS eventDcname ,
+				S.EVENT_DC_RATE AS eventDcRate,
+				S.EVENT_MEMBERYN AS eventMemberyn,
+				S.EVENT_NONMEBYN AS eventNonmebyn
+		<choose>
+ 			<when test='gubun == "EDC"'>
+		 		,CASE WHEN (SELECT COUNT(*) FROM EDC_RSVN_INFO WHERE EDC_RSVN_REQID=#{rsvnIdxOne} AND EDC_REQ_ITEM_CD=#{itemCd} AND EDC_EVENT_DCID=S.EVENT_DCID)>0 THEN 'Y' ELSE 'N' END AS useYn
+			</when>
+		</choose>
+			FROM
+				 EVENT_DC_TARGETPARTCD P ,  EVENT_DC_STDMNG S , COT_GRPCD C
+			WHERE
+				P.COMCD = #{comcd}
+				AND P.EVENT_DC_PARTCD=#{partCd}
+				AND C.COMCD = S.COMCD 
+				AND C.GRP_CD = 'CM_REASON_DC' 
+				AND S.EVENT_REASONCD=C.CD 
+				AND C.ITEM2='4010'
+				AND S.COMCD=P.COMCD 
+				AND S.EVENT_DCID=P.EVENT_DCID  
+				AND S.EVENT_OPENYN='Y' 
+				AND S.USE_YN='Y'
+		<choose>
+ 			<when test='PGM_GUBUN == "EDC"'>
+ 				AND EXISTS (SELECT EDC_PRGMID FROM EDC_DC_STDMNG WHERE COMCD=#{COMCD} AND EDC_PRGMID=#{PGM_CD} AND DC_REASON_CD=C.CD)
+ 			</when> 			
+ 		</choose>
+				AND (
+					(EVENT_PDGBN='1001' AND EVENT_REPT_MON LIKE CONCAT('%', SUBSTR(#{YMD}, 5, 2), '%')) OR
+					(EVENT_PDGBN='2001' AND EVENT_ST_DATE <![CDATA[<=]]> #{YMD} AND EVENT_END_DATE >= #{YMD} )
+				)
+			  	AND (
+				
+			  	 	(EVENT_REPTGBN='1001'
+			  	 		AND (
+	  	 					EVENT_REPT_WEEK LIKE concat('%', WEEKDAY(DATE_FORMAT(#{YMD},'%Y%m%d')), '%')
+	  	 					OR
+	  	 					(EVENT_REPT_WEEK LIKE '%0%' AND WEEKDAY(fn_getLDayEqulWeekDay(1, #{YMD})) = WEEKDAY(DATE_FORMAT(#{YMD},'%Y%m%d')) )
+	  	 				)
+			  	 		AND EVENT_REPT_WEEKDAY LIKE concat('%', dayofweek(DATE_FORMAT(#{YMD},'%Y%m%d')), '%'))
+			  	 	OR
+			  	 	(EVENT_REPTGBN='1002' AND EVENT_REPT_DD=DATE_FORMAT(DATE_FORMAT(#{YMD},'%Y%m%d'), '%d'))
+			  	 	OR
+			  	 	(EVENT_REPTGBN='1003'
+			  	 		AND EVENT_REPT_WEEKDAY LIKE concat('%', dayofweek(DATE_FORMAT(#{YMD},'%Y%m%d')), '%'))
+					
+			  	)
+			  	AND NOT EXISTS
+				 (SELECT EVENT_DCID FROM EVENT_DCEXCL_PROGRAM M
+				 	WHERE
+				 	 	M.EVENT_DCID= P.EVENT_DCID
+				 	 	AND M.COMCD=P.COMCD
+				 	 	AND M.EVENT_PROGM_PARTCD=P.EVENT_DC_PARTCD
+				 		AND M.EVENT_DCEXCL_PROGRMCD=#{PGM_CD}
+				 )
+				 ORDER BY
+				 EVENT_DC_RATE DESC 
+ 	</select>
+
+	<!--해당 프로그램에 적용가능한 할인코드 목록-->
+ 	<select id="selectDcReasonList" resultType="com.hisco.user.mypage.vo.RsvnCommVO">
+ 		<choose>
+ 			<when test='gubun == "EDC"'>
+		 		SELECT /* RsvnCommMapper.selectDcReasonList :: EDC */
+		 			DC_REASON_CD AS eventReasoncd 
+		 			, DC_RATE AS eventDcRate
+		 		FROM EDC_DC_STDMNG /*교육프로그램별 감면기준*/
+		 		WHERE COMCD = #{comcd} 
+		 			AND EDC_PRGMID = #{edcPrgmid}
+ 			</when>
+ 		</choose>
+ 	</select>
+
+ 	
+
+ 	<!--해당 프로그램에 단체 할인 여부 조회 -->
+ 	<!-- TODO:2021.10.30 불필요하나 일단 유지-->
+ 	<select id="selectGroupDcCheck" resultType="com.hisco.user.mypage.vo.RsvnCommVO">
+ 		<choose>
+ 			<when test='gubun == "EDC"'>
+		 		SELECT /* RsvnCommMapper.selectGroupDcCheck :: EDC */
+		 			DC_REASON_CD, DC_RATE, '단체할인' AS DC_NAME,
+		 			CASE WHEN (SELECT COUNT(*) FROM EDC_RSVN_INFO WHERE EDC_RSVN_REQID=#{rsvnIdxOne} AND EDC_REQ_ITEM_CD=#{itemCd} AND EDC_REASONDC=D.DC_REASON_CD)>0 THEN 'Y' ELSE 'N' END AS useYn
+		 		FROM EDC_DC_STDMNG D
+		 		WHERE COMCD = #{comcd} 
+		 			AND EDC_PRGMID = #{programCd}
+		 			AND DC_REASON_CD IN (SELECT CD FROM COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD='CM_REASON_DC' AND ITEM2='6001')
+		 			/*1001 : 국가유공자 
+						1002 : 장애인
+						1003 : 기초생활수급자
+						2001 : 65세이상경로우대
+						3001 : 단체할인
+						4001 : 연회원할인
+						5001 : 이벤트할인
+						6001 : 쿠폰할인
+						7001 : 노원PAY(20%)*/
+				  	AND DC_RATE <![CDATA[>]]> 0
+					LIMIT 1 
+ 			</when>
+ 		</choose>
+ 	</select>
+
+ 	<update id="updateMyCouponDataUse">
+ 		UPDATE CPN_PYMNT_INFO 
+ 			SET CPN_USEYN='Y'
+ 		WHERE CPN_UID = #{cpnUid}
+ 			AND COMCD = #{comcd}
+ 	</update>
+
+	<!--예약목록조회 -->
+	<select id="selectEdcItemCharge" resultType="cMap">
+	/* EDC_PRGM_ITEM 조인을 왜하지? */
+     SELECT /* RsvnCommMapper.selectEdcItemCharge */
+            C.EDC_REQ_SDATE
+          , B.EDC_PROGM_TYPE
+          , C.EDC_PRGMID
+          , C.EDC_VISTNMPR
+          , C.EDC_PROGM_COST
+          , C.EDC_STAT
+          , B.EDC_PART_CD          
+		  , CASE WHEN 
+		  		(SELECT COUNT(*) FROM EDC_DC_STDMNG WHERE COMCD=C.COMCD AND EDC_PRGMID=C.EDC_PRGMID AND DC_REASON_CD='6001') <![CDATA[>]]> 0 
+		  		THEN 'Y' 
+		  		ELSE 'N' 
+		  	END CPN_YN
+       FROM  EDC_RSVN_INFO/*교육프로그램예약신청정보*/ C
+       		, EDC_PRGM_ITEM/*교육프로그램별 상품요금*/ A
+       		, EDC_PROGRAM B
+      WHERE C.COMCD = #{comcd}
+            AND C.EDC_RSVN_REQID = #{rsvnIdxOne} /*교육신청고유번호시퀀스 : SEQ_EDC_REQID*/
+            AND A.COMCD = C.COMCD
+            AND A.EDC_PRGMID = C.EDC_PRGMID
+            AND A.COMCD  = B.COMCD 
+            AND A.EDC_PRGMID = B.EDC_PRGMID
+	</select>
+
+ 	<update id="updateEucRsvnInfoCoupon">
+ 		UPDATE /* RsvnCommMapper.updateEucRsvnInfoCoupon */
+ 		      EDC_RSVN_INFO
+ 		  SET EDC_TOTAMT     = #{payAmt}
+ 		    , EDC_DCAMT      = #{dcAmt}
+ 		    , EDC_DCCPNNO	 = #{couponIdOne}
+ 		    , EDC_REASONDC	 = #{discReasonDc}
+ 		    , EDC_EVENT_DCID  = #{eventReasonCd}
+ 		WHERE COMCD = '${comcd}'
+		  AND EDC_RSVN_REQID = '${rsvnIdxOne}'
+ 	</update>
+
+ 	<update id="updateEucRsvnCouponCancel">
+ 		UPDATE /* RsvnCommMapper.updateEucRsvnCouponCancel */
+ 		      EDC_RSVN_INFO
+ 		  SET EDC_TOTAMT     = EDC_PROGM_COST
+ 		    , EDC_DCAMT      = 0
+ 		    , EDC_DCCPNNO	 = ''
+ 		    , EDC_REASONDC	 = ''
+ 		WHERE COMCD          = #{comcd}
+		  AND EDC_RSVN_REQID = #{rsvnIdxOne}
+ 	</update>
+
+</mapper>

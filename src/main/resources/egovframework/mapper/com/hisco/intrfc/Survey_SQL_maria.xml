@@ -1,0 +1,936 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	수정일         수정자     수정내용
+    =========      =======    =================================================
+    2020.09.09     전영석     설문 Tibero Mapper
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hisco.intrfc.survey.mapper.SurveyMapper">
+
+	<update id="insertThema" parameterType="com.hisco.intrfc.survey.vo.SurveyMstVO">
+		<selectKey keyProperty="qestnarId" resultType="integer" order="BEFORE">
+			SELECT NEXTVAL(SEQ_QESTNAR_THEMA_SEQ) FROM DUAL
+		</selectKey>
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.insertSurveyThema */
+		INSERT INTO QESTNAR_THEMAMNG (
+			COMCD /*운영사업자고유번호*/
+			, QESTNAR_ID /*설문주제고유번호*/
+			, ORG_NO /*평생학습포털을 강좌를 운영하는 등록된 기관의 고유번호로. 시퀀스(SEQ_ORGNO) 를 사용*/
+			, QESTNAR_DATE /*설문주제등록일자*/
+			, QESTNAR_GBN
+			, QESTNAR_NAME /*설문주제명*/
+			, QESTNAR_IMGFILNB /*설문주제이미지파일첨부ID*/
+			, QESTNAR_GUIDE /*설문안내설명*/
+			, USE_YN /*사용여부*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		VALUES (
+			#{comcd}
+			, #{qestnarId}
+			, #{orgNo}
+			, REPLACE(#{qestnarDate}, '-', '')
+			, #{qestnarGbn}
+			, #{qestnarName}
+			, #{qestnarImgfilnb}
+			, #{qestnarGuide}
+			, 'Y'
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser}
+		)
+	</update>
+
+	<update id="deleteThema" parameterType="com.hisco.intrfc.survey.vo.SurveyMstVO">
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.deleteSurveyThema */
+		DELETE QESTNAR_THEMAMNG
+		WHERE 1 = 1
+			AND COMCD = #{comcd}
+			AND QESTNAR_ID = #{qestnarId}
+	</update>
+
+	<update id="updateThema" parameterType="com.hisco.intrfc.survey.vo.SurveyMstVO">
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.updateSurveyThema */
+		UPDATE QESTNAR_THEMAMNG
+			SET
+				ORG_NO = #{orgNo} /*평생학습포털을 강좌를 운영하는 등록된 기관의 고유번호로. 시퀀스(SEQ_ORGNO) 를 사용*/
+				, QESTNAR_DATE = REPLACE(#{qestnarDate}, '-', '') /*설문주제등록일자*/
+				, QESTNAR_GBN = #{qestnarGbn}
+				, QESTNAR_NAME = #{qestnarName} /*설문주제명*/
+				<if test="qestnarImgfilnb != null and qestnarImgfilnb != ''">
+				, QESTNAR_IMGFILNB = #{qestnarImgfilnb} /*설문주제이미지파일첨부ID*/
+				</if>
+				, QESTNAR_GUIDE = #{qestnarGuide} /*설문안내설명*/
+				, MODDATE = SYSDATE() /*수정일시*/
+				, MODUSER = #{moduser} /*수정자*/
+		WHERE 1 = 1
+			AND COMCD = #{comcd}
+			AND QESTNAR_ID = #{qestnarId}
+	</update>
+
+	<update id="stdrmngFieldUpdate" parameterType="com.hisco.intrfc.survey.vo.SurveyMstVO">
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.stdrmngFieldUpdate */
+		UPDATE QESTNAR_STDRMNG
+			SET
+				MODDATE = SYSDATE() /*수정일시*/
+				, MODUSER = #{moduser} /*수정자*/
+				<if test="openYn != null and openYn != ''">
+				, OPEN_YN = #{openYn}
+				</if>
+				<if test="useYn != null and useYn != ''">
+				, USE_YN = #{useYn}
+				</if>
+		WHERE 1 = 1
+			AND COMCD = #{comcd}
+			AND QESTNAR_ID = #{qestnarId}
+			AND QESTNAR_STDNO = #{qestnarStdno}
+	</update>
+
+
+	<select id="selectThemaList" resultType="com.hisco.intrfc.survey.vo.SurveyMstVO">
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.selectSurveyThemaList */
+		SELECT *
+			FROM (
+				SELECT ROW_NUMBER() OVER(ORDER BY QESTNAR_ID DESC) AS RNUM
+					, COUNT(*) OVER() AS TOT_CNT
+					, Q.COMCD
+					, Q.QESTNAR_ID
+					, Q.ORG_NO
+					, CONCAT(SUBSTR(Q.QESTNAR_DATE, 1, 4), '-', SUBSTR(Q.QESTNAR_DATE, 5, 2), '-', SUBSTR(Q.QESTNAR_DATE, 7, 2)) AS QESTNAR_DATE
+					, Q.QESTNAR_NAME
+					, Q.QESTNAR_GBN
+					, C.CD_NM AS QESTNAR_GBN_NM
+					, Q.QESTNAR_IMGFILNB
+					, Q.QESTNAR_GUIDE
+					, Q.USE_YN
+					, Q.REGDATE
+					, Q.REGUSER
+					, Q.MODDATE
+					, Q.MODUSER
+					, (select count(*) from QESTNAR_QESTN QQ where QQ.COMCD =Q.COMCD and QQ.QESTNAR_ID =Q.QESTNAR_ID ) as QUESTION_CNT
+					, (select count(*) from QESTNAR_STDRMNG QS where QS.COMCD =Q.COMCD and QS.QESTNAR_ID =Q.QESTNAR_ID and QS.USE_YN ='Y') as PUBLISH_CNT
+				FROM QESTNAR_THEMAMNG Q
+						LEFT JOIN COT_GRPCD C ON (C.COMCD = Q.COMCD AND C.GRP_CD = 'SM_QESTNAR_GBN' AND C.CD = Q.QESTNAR_GBN)
+				WHERE Q.COMCD = #{comcd}
+					<if test="qestnarName != null and qestnarName != ''">
+					AND Q.QESTNAR_NAME LIKE CONCAT('%', #{qestnarName}, '%')
+					</if>
+					<if test="searchKeyword != null and searchKeyword != ''">
+					AND Q.QESTNAR_NAME LIKE CONCAT('%', #{searchKeyword}, '%')
+					</if>
+				/*ORDER BY Q.QESTNAR_DATE DESC*/
+			) Q
+			WHERE RNUM BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+			ORDER BY RNUM
+	</select>
+
+
+	<select id="selectThemaDetailList" resultType="com.hisco.intrfc.survey.vo.SurveyMstVO">
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.selectThemaDetailList */
+		SELECT *
+			FROM (
+				SELECT ROW_NUMBER() OVER(ORDER BY QESTNAR_ID DESC) AS RNUM
+					, COUNT(*) OVER() AS TOT_CNT
+					, Q.COMCD
+					, Q.QESTNAR_ID
+					, Q.ORG_NO
+					, O.COM_NM AS ORG_NM
+					, CONCAT(SUBSTR(Q.QESTNAR_DATE, 1, 4), '-', SUBSTR(Q.QESTNAR_DATE, 5, 2), '-', SUBSTR(Q.QESTNAR_DATE, 7, 2)) AS QESTNAR_DATE
+					, Q.QESTNAR_NAME
+					, Q.QESTNAR_GBN
+					, C.CD_NM AS QESTNAR_GBN_NM
+					, Q.QESTNAR_IMGFILNB
+					, Q.QESTNAR_GUIDE
+					, DATE_FORMAT(Q.REGDATE, '%Y-%m-%d') REGDATE
+					, Q.REGUSER
+					, DATE_FORMAT(Q.MODDATE, '%Y-%m-%d') MODDATE
+					, Q.MODUSER
+					, QS.QESTNAR_STDNO /*설문조사기준고유번호*/
+					, QS.QESTNAR_STDRNM /*설문조사기준명*/
+					, QS.QESTNAR_OPERTYPE /*설문조사기간운영방법. . 설문조사운영기간방법을 분류하는 시스템 분류코드 . . 코드구성 : 9999 (1001 - 9999 까지 사용). 코드부여규칙 : 시스템엔지니어에 의한 수동부여 . 코드목록. 1001 : 상시운영. 2001 : 기간설정*/
+					, QS.QESTNAR_METHOD /*설문조사방법. 설문조사운영방법을 분류하는 시스템 분류코드 . COT_GRPCD.GPR_CD = 'SM_QESTNAR_METHOD*/
+					, QS.QESTNAR_SEND_LIMITPDTYPE /*설문조사운영방법이 발송대상 상품이용 자동발송인경우 . 동일 설문조사내용을 대상 이용기간에 상품이용 예약  회원에게 발송 횟수기준을  설정한다.. . 교육사업장예약상품       : 교육종료일 기준으로발송. 전시관람예약상품          : 관람일 기준으로 발송. 공연행사예약상품          : 관람일 기준으로 발송 . . . 1001 : 일별1회 발송. 2001 : 월별1회 발송. 3001 : 년간1회 발송*/
+					, QS.QESTNAR_OPEN_DATE /*설문조사오픈시작일*/
+					, QS.QESTNAR_OPEN_TIME /*설문조사오픈시간*/
+					, QS.QESTNAR_OPERSDATE /*설문조사운영시작일. 설문운영시작일은 조사기간 운영방법이 기간지정운영 인경우 기록한다.*/
+					, QS.QESTNAR_OPEREDATE /*설문조사운영종료일. 설문운영종료일은 조사기간 운영방법이 기간지정운영 인경우 기록한다.*/
+					, QS.USE_YN
+					, QS.OPEN_YN /*공개여부*/
+					, (select count(*) from QESTNAR_QESTN QQ where QQ.COMCD =Q.COMCD and QQ.QESTNAR_ID =Q.QESTNAR_ID ) as QUESTION_CNT
+					, (select count(*) from QESTNAR_RESULT QR where QR.COMCD =QS.COMCD and QR.QESTNAR_ID =QS.QESTNAR_ID and QR.QESTNAR_STDNO =QS.QESTNAR_STDNO ) as SUBMIT_CNT
+					, case
+						when QS.QESTNAR_OPERTYPE='1001' then /* 상시운영  공개상태이고 오픈 날짜가 현재시간 이후 */
+							case when QS.USE_YN='Y' and QS.OPEN_YN='Y' and STR_TO_DATE(CONCAT(QS.QESTNAR_OPEN_DATE ,QS.QESTNAR_OPEN_TIME), '%Y%m%d%H%i')&lt;=now() then 'Y' else 'N' end
+						when QS.QESTNAR_OPERTYPE='2001' then
+							case when QS.USE_YN='Y' and STR_TO_DATE(QS.QESTNAR_OPERSDATE, '%Y%m%d')&lt;=now() and STR_TO_DATE(QS.QESTNAR_OPEREDATE, '%Y%m%d')&gt;=now() then 'Y' else 'N' end
+						else 'N' end as ACTIVE_YN
+				FROM QESTNAR_THEMAMNG Q
+					JOIN QESTNAR_STDRMNG QS ON Q.QESTNAR_ID = QS.QESTNAR_ID
+					JOIN ORG_INFO O ON Q.COMCD=O.COMCD AND Q.ORG_NO=O.ORG_NO
+					LEFT JOIN COT_GRPCD C ON (C.COMCD = Q.COMCD AND C.GRP_CD = 'SM_QESTNAR_GBN' AND C.CD = Q.QESTNAR_GBN)
+				WHERE Q.COMCD = #{comcd}
+					AND Q.USE_YN='Y'
+					<if test="searchKeyword != null and searchKeyword != ''">
+					AND Q.QESTNAR_NAME LIKE CONCAT('%', #{searchKeyword}, '%')
+					</if>
+					<if test="orgNm != null and orgNm != ''">
+					AND Q.ORG_NO = #{orgNm}
+					</if>
+					<if test="myOrgList != null and myOrgList.size != 0">
+						AND Q.ORG_NO IN <foreach collection="myOrgList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+					</if>
+					<if test="searchStartDts != null and searchStartDts != ''">
+					AND DATE_FORMAT(Q.REGDATE, '%Y-%m-%d') &gt;= #{searchStartDts}
+					</if>
+					<if test="searchEndDts != null and searchEndDts != ''">
+					AND DATE_FORMAT(Q.REGDATE, '%Y-%m-%d') &lt;= #{searchStartDts}
+					</if>
+					<if test="activeYn != null and activeYn != ''">
+					AND	case
+							when QS.QESTNAR_OPERTYPE='1001' then /* 상시운영  공개상태이고 오픈 날짜가 현재시간 이후 */
+								case when QS.USE_YN='Y' and QS.OPEN_YN='Y' and STR_TO_DATE(CONCAT(QS.QESTNAR_OPEN_DATE ,QS.QESTNAR_OPEN_TIME), '%Y%m%d%H%i')&lt;=now() then 'Y' else 'N' end
+							when QS.QESTNAR_OPERTYPE='2001' then
+								case when QS.USE_YN='Y' and STR_TO_DATE(QS.QESTNAR_OPERSDATE, '%Y%m%d')&lt;=now() and STR_TO_DATE(QS.QESTNAR_OPEREDATE, '%Y%m%d')&gt;=now() then 'Y' else 'N' end
+							else 'N' end = #{activeYn}
+					</if>
+
+			) Q
+			WHERE RNUM BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+			ORDER BY RNUM
+	</select>
+
+	<select id="selectThemaDetail" resultType="com.hisco.intrfc.survey.vo.SurveyMstVO">
+		SELECT Q.COMCD
+			, Q.QESTNAR_ID
+			, Q.ORG_NO
+			, O.COM_NM AS ORG_NM
+			, CONCAT(SUBSTR(Q.QESTNAR_DATE, 1, 4), '-', SUBSTR(Q.QESTNAR_DATE, 5, 2), '-', SUBSTR(Q.QESTNAR_DATE, 7, 2)) AS QESTNAR_DATE
+			, Q.QESTNAR_NAME
+			, Q.QESTNAR_IMGFILNB
+			, Q.QESTNAR_GUIDE
+			, Q.QESTNAR_GBN
+			, Q.USE_YN
+			, DATE_FORMAT(Q.REGDATE, '%Y-%m-%d') REGDATE
+			, Q.REGUSER
+			, DATE_FORMAT(Q.MODDATE, '%Y-%m-%d') MODDATE
+			, Q.MODUSER
+			, F.FILE_PATH
+			, F.FILE_NAME
+			, F.ORGIN_FILE_NAME
+		FROM QESTNAR_THEMAMNG Q
+			JOIN ORG_INFO O ON Q.COMCD=O.COMCD AND Q.ORG_NO=O.ORG_NO
+				LEFT OUTER JOIN ATCH_FILE_LIST F
+					ON (Q.COMCD = F.COMCD AND Q.QESTNAR_IMGFILNB = F.FILE_GRPINNB AND F.FILE_SN = 0)
+		WHERE Q.COMCD = #{comcd}
+			AND Q.QESTNAR_ID = #{qestnarId}
+			<if test="myOrgList != null and myOrgList.size != 0">
+				AND Q.ORG_NO IN <foreach collection="myOrgList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+			</if>
+	</select>
+
+	<update id="insertQuestion" parameterType="com.hisco.intrfc.survey.vo.SurveyQstVO">
+		<selectKey keyProperty="qestnsSeq" resultType="integer" order="BEFORE">
+			SELECT NVL(MAX(Q.QESTNS_SEQ), 0) + 1 FROM QESTNAR_QESTN Q WHERE Q.COMCD = #{comcd} AND Q.QESTNAR_ID = #{qestnarId}
+		</selectKey>
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.insertSurveyQuestion */
+		INSERT INTO QESTNAR_QESTN (
+				COMCD /*운영사업자고유번호*/
+				, QESTNAR_ID /*설문주제고유번호*/
+				, QESTNS_SEQ /*설문조사질문순번. 설문주제별 항목순번(MAX+1) 를 기록한다.*/
+				, QESTNS_NAME /*설문조사질문명*/
+				, QESTNS_TYPE /*질문유형. 설문유형을 관리하는 시스템 분류코드 . COT_GRPCD.GRP_CD 'SM_QESTNAR_TYPE'. */
+				, QESTNAR_SCORE /*설문항목기준점수*/
+				, REGDATE /*등록일시*/
+				, REGUSER /*등록자*/
+				, MODDATE /*수정일시*/
+				, MODUSER /*수정자*/
+			)
+			SELECT
+				#{comcd}
+				, #{qestnarId}
+				, #{qestnsSeq}
+				, #{qestnsName}
+				, #{qestnsType}
+				, #{qestnarScore}
+				, SYSDATE()
+				, #{reguser}
+				, SYSDATE()
+				, #{moduser}
+			FROM DUAL
+	</update>
+
+	<update id="deleteQuestion" parameterType="com.hisco.intrfc.survey.vo.SurveyQstVO">
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.deleteSurveyQuestion */
+		DELETE FROM QESTNAR_QESTN
+		WHERE 1 = 1
+			AND COMCD = #{comcd}
+			AND QESTNAR_ID = #{qestnarId}
+	</update>
+
+	<update id="updateQuestion" parameterType="com.hisco.intrfc.survey.vo.SurveyQstVO">
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.deleteSurveyQuestion */
+		UPDATE QESTNAR_QESTN
+			QESTNS_NAME = #{qestnsName} /*설문조사질문명*/
+			, QESTNS_TYPE = #{qestnsType} /*질문유형. 설문유형을 관리하는 시스템 분류코드 . COT_GRPCD.GRP_CD 'SM_QESTNAR_TYPE'. */
+			, QESTNAR_SCORE = #{qestnarScore} /*설문항목기준점수*/
+			, MODDATE = SYSDATE() /*수정일시*/
+			, MODUSER = #{moduser} /*수정자*/
+		WHERE 1 = 1
+			AND COMCD = #{comcd}
+			AND QESTNAR_ID = #{qestnarId}
+			AND QESTNS_SEQ = #{qestnsSeq}
+	</update>
+
+	<!-- 설문조사 질문 목록 -->
+ 	<select id="selectQuestionList" resultType="com.hisco.intrfc.survey.vo.SurveyQstVO">
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.selectQuestionList */
+		SELECT  QESTNAR_ID
+			, QESTNS_SEQ
+			, QESTNS_NAME
+			, QESTNS_TYPE
+			, QESTNAR_SCORE
+			, REGUSER
+			, DATE_FORMAT(REGDATE, '%Y-%m-%d') REGDATE
+			, MODUSER
+			, DATE_FORMAT(MODDATE, '%Y-%m-%d') MODDATE
+		FROM QESTNAR_QESTN
+		WHERE COMCD = #{comcd}
+			AND QESTNAR_ID  = #{qestnarId}
+			ORDER BY QESTNS_SEQ ASC
+	</select>
+
+	<!-- 설문조사 질문 상세 -->
+ 	<select id="selectQuestionDetail" resultType="com.hisco.intrfc.survey.vo.SurveyQstVO">
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.selectQuestionDetail */
+		SELECT  QESTNAR_ID,
+				QESTNS_SEQ,
+				QESTNS_NAME,
+				QESTNS_TYPE,
+				QESTNAR_SCORE
+		FROM QESTNAR_QESTN
+		WHERE COMCD = #{comcd}
+			AND QESTNAR_ID  = #{qestnarId}
+			ORDER BY QESTNS_SEQ ASC
+	</select>
+
+	<update id="insertQuestionItem" parameterType="com.hisco.intrfc.survey.vo.SurveyQstItemVO">
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.insertQuestionItem */
+		INSERT INTO QESTNAR_QESTN_ITEMS (
+				COMCD /*운영사업자고유번호*/
+				, QESTNAR_ID /*설문주제고유번호*/
+				, QESTNS_SEQ /*설문조사질문순번. 설문주제별 항목순번(MAX+1) 를 기록한다.*/
+				, QESTNAR_ITEMSEQ /*설문조사질문항목순번. 설문주제별 항목순번(MAX+1) 를 기록한다.*/
+				, QESTNAR_ITEMNM /*설문조사질문항목명*/
+				, QESTNAR_SCORE /*설문항목기준점수*/
+				, REGDATE /*등록일시*/
+				, REGUSER /*등록자*/
+				, MODDATE /*수정일시*/
+				, MODUSER /*수정자*/
+			)
+			SELECT
+				#{comcd}
+				, #{qestnarId}
+				, #{qestnsSeq}
+				, (SELECT NVL(MAX(Q.QESTNAR_ITEMSEQ), 0) + 1 FROM QESTNAR_QESTN_ITEMS Q WHERE Q.COMCD = #{comcd} AND Q.QESTNAR_ID = #{qestnarId} AND Q.QESTNS_SEQ = #{qestnsSeq})
+				, #{qestnarItemnm}
+				, #{qestnarScore}
+				, SYSDATE()
+				, #{reguser}
+				, SYSDATE()
+				, #{moduser}
+			FROM DUAL
+	</update>
+
+	<update id="deleteQuestionItem" parameterType="com.hisco.intrfc.survey.vo.SurveyQstItemVO">
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.deleteQuestionItem */
+		DELETE FROM QESTNAR_QESTN_ITEMS
+		WHERE 1 = 1
+			AND COMCD = #{comcd}
+			AND QESTNAR_ID = #{qestnarId}
+	</update>
+
+	<update id="updateQuestionItem" parameterType="com.hisco.intrfc.survey.vo.SurveyQstItemVO">
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.updateSurveyQuestionItem */
+		UPDATE QESTNAR_QESTN_ITEMS
+			SET COMCD = #{comcd}
+			, QESTNAR_ID = #{qestnarId} /*설문주제고유번호*/
+			, QESTNS_SEQ = #{qestnsSeq} /*설문조사질문순번. 설문주제별 항목순번(MAX+1) 를 기록한다.*/
+			, QESTNAR_ITEMSEQ = #{qestnarItemseq} /*설문조사질문항목순번. 설문주제별 항목순번(MAX+1) 를 기록한다.*/
+			, QESTNAR_ITEMNM = #{qestnarItemnm} /*설문조사질문항목명*/
+			, QESTNAR_SCORE = #{qestnarScore} /*설문항목기준점수*/
+			, REGDATE = SYSDATE() /*등록일시*/
+			, REGUSER = #{reguser} /*등록자*/
+			, MODDATE = SYSDATE() /*수정일시*/
+			, MODUSER = #{moduser} /*수정자*/
+		WHERE 1 != 1
+	</update>
+
+	<!-- 설문조사 질문 선택항목 목록 -->
+ 	<select id="selectQuestionItemList" resultType="com.hisco.intrfc.survey.vo.SurveyQstItemVO">
+ 		/* com.hisco.intrfc.survey.mapper.SurveyMapper.selectQuestionItemList */
+		SELECT  QQI.QESTNAR_ID,
+				QQI.QESTNS_SEQ,
+				QQI.QESTNAR_ITEMSEQ,
+				QQI.QESTNAR_ITEMNM,
+				QQI.QESTNAR_SCORE
+		<if test="showResult != null and showResult = 'Y'">
+				,(SELECT COUNT(*) FROM QESTNAR_RELST_DETAIL QRD
+					WHERE QRD.COMCD =QQI.COMCD AND QRD.QESTNAR_ID=QQI.QESTNAR_ID AND QRD.QESTNS_SEQ=QQI.QESTNS_SEQ AND QRD.RESLT_ITEMSEQ=QQI.QESTNAR_ITEMSEQ
+					<if test="qestnarStdno != null and qestnarStdno != ''">
+					AND QRD.QESTNAR_STDNO=#{qestnarStdno}
+					</if>
+				) AS RESULT_CNT
+				, #{resultTotal} AS RESULT_TOTAL
+				,(SELECT IFNULL(SUM(RESLT_ITEMSCORE),0) FROM QESTNAR_RELST_DETAIL QRD
+					WHERE QRD.COMCD =QQI.COMCD AND QRD.QESTNAR_ID=QQI.QESTNAR_ID AND QRD.QESTNS_SEQ=QQI.QESTNS_SEQ AND QRD.RESLT_ITEMSEQ=QQI.QESTNAR_ITEMSEQ
+					<if test="qestnarStdno != null and qestnarStdno != ''">
+					AND QRD.QESTNAR_STDNO=#{qestnarStdno}
+					</if>
+				) AS RESULT_SCORE
+		</if>
+		FROM QESTNAR_QESTN_ITEMS QQI
+		WHERE QQI.COMCD = #{comcd}
+			AND QQI.QESTNAR_ID = #{qestnarId}
+			AND QQI.QESTNS_SEQ = #{qestnsSeq}
+			ORDER BY QQI.QESTNS_SEQ, QQI.QESTNAR_ITEMSEQ ASC
+	</select>
+
+	<update id="insertExposeStandard" parameterType="com.hisco.intrfc.survey.vo.SurveyStdrmngVO">
+		<selectKey keyProperty="qestnarStdno" resultType="integer" order="BEFORE">
+			SELECT NEXTVAL(SEQ_QESTNAR_STDNO) FROM DUAL
+		</selectKey>
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.insertSurveyStdrmng */
+		INSERT INTO QESTNAR_STDRMNG (
+			COMCD /*운영사업자고유번호*/
+			, QESTNAR_ID /*설문주제고유번호*/
+			, QESTNAR_STDNO /*설문조사기준고유번호*/
+			, QESTNAR_STDRNM /*설문조사기준명*/
+			, QESTNAR_OPERTYPE /*설문조사기간운영방법. . 설문조사운영기간방법을 분류하는 시스템 분류코드 . . 코드구성 : 9999 (1001 - 9999 까지 사용). 코드부여규칙 : 시스템엔지니어에 의한 수동부여 . 코드목록. 1001 : 상시운영. 2001 : 기간설정*/
+			, QESTNAR_METHOD /*설문조사방법. 설문조사운영방법을 분류하는 시스템 분류코드 . COT_GRPCD.GPR_CD = 'SM_QESTNAR_METHOD*/
+			, QESTNAR_SEND_LIMITPDTYPE /*설문조사운영방법이 발송대상 상품이용 자동발송인경우 . 동일 설문조사내용을 대상 이용기간에 상품이용 예약  회원에게 발송 횟수기준을  설정한다.. . 교육사업장예약상품       : 교육종료일 기준으로발송. 전시관람예약상품          : 관람일 기준으로 발송. 공연행사예약상품          : 관람일 기준으로 발송 . . . 1001 : 일별1회 발송. 2001 : 월별1회 발송. 3001 : 년간1회 발송*/
+			, QESTNAR_OPEN_DATE /*설문조사오픈시작일*/
+			, QESTNAR_OPEN_TIME /*설문조사오픈시간*/
+			, QESTNAR_OPERSDATE /*설문조사운영시작일. 설문운영시작일은 조사기간 운영방법이 기간지정운영 인경우 기록한다.*/
+			, QESTNAR_OPEREDATE /*설문조사운영종료일. 설문운영종료일은 조사기간 운영방법이 기간지정운영 인경우 기록한다.*/
+			, OPEN_YN /*공개여부*/
+			, USE_YN /*사용여부*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		VALUES (
+			#{comcd}
+			, #{qestnarId}
+			, #{qestnarStdno}
+			, #{qestnarStdrnm}
+			, #{qestnarOpertype}
+			, #{qestnarMethod}
+			, #{qestnarSendLimitpdtype}
+			, #{qestnarOpenDate}
+			, #{qestnarOpenTime}
+			, #{qestnarOpersdate}
+			, #{qestnarOperedate}
+			, #{openYn}
+			, 'Y'
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser}
+		)
+	</update>
+
+	<update id="deleteExposeStandard" parameterType="com.hisco.intrfc.survey.vo.SurveyStdrmngVO">
+		DELETE QESTNAR_STDRMNG
+		WHERE 1 != 1
+	</update>
+
+	<update id="updateExposeStandard" parameterType="com.hisco.intrfc.survey.vo.SurveyStdrmngVO">
+		UPDATE QESTNAR_STDRMNG
+			SET QESTNAR_STDRNM = #{qestnarStdrnm} /*설문조사기준명*/
+			, QESTNAR_OPERTYPE = #{qestnarOpertype} /*설문조사기간운영방법. . 설문조사운영기간방법을 분류하는 시스템 분류코드 . . 코드구성 : 9999 (1001 - 9999 까지 사용). 코드부여규칙 : 시스템엔지니어에 의한 수동부여 . 코드목록. 1001 : 상시운영. 2001 : 기간설정*/
+			, QESTNAR_METHOD = #{qestnarMethod} /*설문조사방법. 설문조사운영방법을 분류하는 시스템 분류코드 . COT_GRPCD.GPR_CD = 'SM_QESTNAR_METHOD*/
+			, QESTNAR_SEND_LIMITPDTYPE = #{qestnarSendLimitpdtype} /*설문조사운영방법이 발송대상 상품이용 자동발송인경우 . 동일 설문조사내용을 대상 이용기간에 상품이용 예약  회원에게 발송 횟수기준을  설정한다.. . 교육사업장예약상품       : 교육종료일 기준으로발송. 전시관람예약상품          : 관람일 기준으로 발송. 공연행사예약상품          : 관람일 기준으로 발송 . . . 1001 : 일별1회 발송. 2001 : 월별1회 발송. 3001 : 년간1회 발송*/
+			, QESTNAR_OPEN_DATE = #{qestnarOpenDate} /*설문조사오픈시작일*/
+			, QESTNAR_OPEN_TIME = #{qestnarOpenTime} /*설문조사오픈시간*/
+			, QESTNAR_OPERSDATE = #{qestnarOpersdate} /*설문조사운영시작일. 설문운영시작일은 조사기간 운영방법이 기간지정운영 인경우 기록한다.*/
+			, QESTNAR_OPEREDATE = #{qestnarOperedate} /*설문조사운영종료일. 설문운영종료일은 조사기간 운영방법이 기간지정운영 인경우 기록한다.*/
+			, OPEN_YN = #{openYn} /*공개여부*/
+			, USE_YN = #{useYn} /*사용여부*/
+			, MODDATE = SYSDATE() /*수정일시*/
+			, MODUSER = #{moduser} /*수정자*/
+		WHERE
+			COMCD = #{comcd}
+			AND QESTNAR_ID = #{qestnarId} /*설문주제고유번호*/
+			AND QESTNAR_STDNO = #{qestnarStdno} /*설문조사기준고유번호*/
+	</update>
+
+	<select id="selectExposeStandardList" resultType="com.hisco.intrfc.survey.vo.SurveyStdrmngVO">
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.selectExposeStandardList */
+		SELECT *
+			FROM (
+				SELECT ROW_NUMBER() OVER(PARTITION BY COMCD ORDER BY QESTNAR_ID DESC) AS RNUM
+					, COUNT(*) OVER() AS TOT_CNT
+					, COMCD /*운영사업자고유번호*/
+					, QESTNAR_ID /*설문주제고유번호*/
+					, QESTNAR_STDNO /*설문조사기준고유번호*/
+					, QESTNAR_STDRNM /*설문조사기준명*/
+					, QESTNAR_OPERTYPE /*설문조사기간운영방법. . 설문조사운영기간방법을 분류하는 시스템 분류코드 . . 코드구성 : 9999 (1001 - 9999 까지 사용). 코드부여규칙 : 시스템엔지니어에 의한 수동부여 . 코드목록. 1001 : 상시운영. 2001 : 기간설정*/
+					, QESTNAR_METHOD /*설문조사방법. 설문조사운영방법을 분류하는 시스템 분류코드 . COT_GRPCD.GPR_CD = 'SM_QESTNAR_METHOD*/
+					, QESTNAR_SEND_LIMITPDTYPE /*설문조사운영방법이 발송대상 상품이용 자동발송인경우 . 동일 설문조사내용을 대상 이용기간에 상품이용 예약  회원에게 발송 횟수기준을  설정한다.. . 교육사업장예약상품       : 교육종료일 기준으로발송. 전시관람예약상품          : 관람일 기준으로 발송. 공연행사예약상품          : 관람일 기준으로 발송 . . . 1001 : 일별1회 발송. 2001 : 월별1회 발송. 3001 : 년간1회 발송*/
+					, QESTNAR_OPEN_DATE /*설문조사오픈시작일*/
+					, QESTNAR_OPEN_TIME /*설문조사오픈시간*/
+					, QESTNAR_OPERSDATE /*설문조사운영시작일. 설문운영시작일은 조사기간 운영방법이 기간지정운영 인경우 기록한다.*/
+					, QESTNAR_OPEREDATE /*설문조사운영종료일. 설문운영종료일은 조사기간 운영방법이 기간지정운영 인경우 기록한다.*/
+					, OPEN_YN /*공개여부*/
+					, USE_YN /*사용여부*/
+					, REGDATE /*등록일시*/
+					, REGUSER /*등록자*/
+					, MODDATE /*수정일시*/
+					, MODUSER /*수정자*/
+				FROM QESTNAR_STDRMNG Q
+				WHERE 1 = 1
+			) Q
+		WHERE RNUM BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+	</select>
+
+	<select id="selectExposeStandardDetail" resultType="com.hisco.intrfc.survey.vo.SurveyStdrmngVO">
+		/* com.hisco.intrfc.survey.mapper.SurveyMapper.selectExposeStandardDetail */
+		SELECT COMCD /*운영사업자고유번호*/
+			, QESTNAR_ID /*설문주제고유번호*/
+			, QESTNAR_STDNO /*설문조사기준고유번호*/
+			, QESTNAR_STDRNM /*설문조사기준명*/
+			, QESTNAR_OPERTYPE /*설문조사기간운영방법. . 설문조사운영기간방법을 분류하는 시스템 분류코드 . . 코드구성 : 9999 (1001 - 9999 까지 사용). 코드부여규칙 : 시스템엔지니어에 의한 수동부여 . 코드목록. 1001 : 상시운영. 2001 : 기간설정*/
+			, QESTNAR_METHOD /*설문조사방법. 설문조사운영방법을 분류하는 시스템 분류코드 . COT_GRPCD.GPR_CD = 'SM_QESTNAR_METHOD*/
+			, QESTNAR_SEND_LIMITPDTYPE /*설문조사운영방법이 발송대상 상품이용 자동발송인경우 . 동일 설문조사내용을 대상 이용기간에 상품이용 예약  회원에게 발송 횟수기준을  설정한다.. . 교육사업장예약상품       : 교육종료일 기준으로발송. 전시관람예약상품          : 관람일 기준으로 발송. 공연행사예약상품          : 관람일 기준으로 발송 . . . 1001 : 일별1회 발송. 2001 : 월별1회 발송. 3001 : 년간1회 발송*/
+			, case when length(QESTNAR_OPEN_DATE)&gt;0 then DATE_FORMAT(STR_TO_DATE(QESTNAR_OPEN_DATE, '%Y%m%d'),'%Y-%m-%d ') else '' end as QESTNAR_OPEN_DATE /*설문조사오픈시작일*/
+			, QESTNAR_OPEN_TIME /*설문조사오픈시간*/
+			, SUBSTR(QESTNAR_OPEN_TIME,1,2) as QESTNAR_OPEN_TIME_HH
+			, SUBSTR(QESTNAR_OPEN_TIME,3,2) as QESTNAR_OPEN_TIME_MM
+			, case when length(QESTNAR_OPERSDATE)&gt;0 then DATE_FORMAT(STR_TO_DATE(QESTNAR_OPERSDATE, '%Y%m%d'),'%Y-%m-%d ') else '' end as QESTNAR_OPERSDATE /*설문조사운영시작일. 설문운영시작일은 조사기간 운영방법이 기간지정운영 인경우 기록한다.*/
+			, case when length(QESTNAR_OPEREDATE)&gt;0 then DATE_FORMAT(STR_TO_DATE(QESTNAR_OPEREDATE, '%Y%m%d'),'%Y-%m-%d ') else '' end as QESTNAR_OPEREDATE /*설문조사운영종료일. 설문운영종료일은 조사기간 운영방법이 기간지정운영 인경우 기록한다.*/
+			, OPEN_YN /*공개여부*/
+			, USE_YN /*사용여부*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+			, (select count(*) from QESTNAR_RESULT QR where QR.COMCD =Q.COMCD and QR.QESTNAR_ID =Q.QESTNAR_ID and QR.QESTNAR_STDNO =Q.QESTNAR_STDNO ) as SUBMIT_CNT
+			, case
+				when Q.QESTNAR_OPERTYPE='1001' then /* 상시운영  공개상태이고 오픈 날짜가 현재시간 이후 */
+					case when Q.USE_YN='Y' and Q.OPEN_YN='Y' and STR_TO_DATE(CONCAT(Q.QESTNAR_OPEN_DATE ,Q.QESTNAR_OPEN_TIME), '%Y%m%d%H%i')&lt;=now() then 'Y' else 'N' end
+				when Q.QESTNAR_OPERTYPE='2001' then
+					case when Q.USE_YN='Y' and STR_TO_DATE(Q.QESTNAR_OPERSDATE, '%Y%m%d')&lt;=now() and STR_TO_DATE(Q.QESTNAR_OPEREDATE, '%Y%m%d')&gt;=now() then 'Y' else 'N' end
+				else 'N' end as ACTIVE_YN
+		FROM QESTNAR_STDRMNG Q
+		WHERE 1 = 1
+			AND COMCD = #{comcd}
+			AND QESTNAR_ID = #{qestnarId}
+			<if test="qestnarStdno != null and qestnarStdno != ''">
+			AND QESTNAR_STDNO = #{qestnarStdno}
+			</if>
+	</select>
+
+
+	<!-- [설문 정보 노출 및 실시 관련 정보를 조회한다][2020-09-09][전영석] -->
+ 	<select id="selectSurveyExecuteList" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnCampDAO.selectSurveyExecuteList */
+	           COMCD
+	         , EDC_PRGMID
+	         , COM_CTGCD
+	         , EDC_PRGMNM
+	         , EDC_PLACENM
+	         , EDC_SDATE
+	         , EDC_EDATE
+	         , EDC_STIME
+	         , EDC_ETIME
+		 FROM EDC_PROGRAM T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="COMCD != null and COMCD != ''">
+		    	T.COMCD = #{COMCD}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+	<!-- [설문 대상 메인 정보를 조회한다][2020-09-09][전영석] -->
+ 	<select id="selectSurveyMainList" parameterType="Map" resultType="cMap">
+
+		SELECT /* EdcarsvnCampDAO.selectSurveyMainList */
+	           COMCD
+	         , EDC_PRGMID
+	         , COM_CTGCD
+	         , EDC_PRGMNM
+	         , EDC_PLACENM
+	         , EDC_SDATE
+	         , EDC_EDATE
+	         , EDC_STIME
+	         , EDC_ETIME
+		 FROM EDC_PROGRAM T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="COMCD != null and COMCD != ''">
+		    	T.COMCD = #{COMCD}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+	<!-- 설문조사 Detail -->
+ 	<select id="selectSurveySendList" resultType="com.hisco.intrfc.survey.vo.SurveySendVO">
+ 		<!--
+		SELECT  QENSTAR_SENDSEQ,
+				QENSTAR_SENDDATE,
+				COMCD,
+				QESTNAR_ID,
+				QESTNAR_STDNO,
+				QESTNAR_MEMB_WEBID,
+				QESTNAR_MEMBGBN,
+				QESTNAR_USERTELNO,
+				QESTNAR_USERNAME,
+				QESTNAR_MEMNO,
+				QESTNAR_USEPARTCD,
+				QESTNAR_RSVN_NO,
+				QESTNAR_PROGRMID
+		FROM QESTNAR_SENDLIST
+		WHERE COMCD = #{comcd}
+		AND QESTNAR_RSVN_NO  = #{rsvnId} -->
+
+        SELECT  /* SurveyDAO.selectSurveySendList */
+                T.QENSTAR_SENDSEQ,
+                T.QENSTAR_SENDDATE,
+                T.COMCD,
+                T.QESTNAR_ID,
+                T.QESTNAR_STDNO,
+                T.QESTNAR_MEMB_WEBID,
+                T.QESTNAR_MEMBGBN,
+                T.QESTNAR_USERTELNO,
+                T.QESTNAR_USERNAME,
+                T.QESTNAR_MEMNO,
+                T.QESTNAR_USEPARTCD,
+                T.QESTNAR_RSVN_NO,
+                T.QESTNAR_PROGRMID,
+                A.QESTNAR_NAME,
+                A.QESTNAR_GUIDE
+        FROM QESTNAR_SENDLIST T
+          INNER JOIN QESTNAR_THEMAMNG A
+                  ON A.COMCD = T.COMCD
+                 AND A.QESTNAR_ID = T.QESTNAR_ID
+                 AND A.QESTNAR_GUIDE IS NOT NULL
+		WHERE T.COMCD = #{comcd}
+		AND T.QESTNAR_RSVN_NO  = #{rsvnId}
+
+		/* AND ROWNUM = 1 */
+		LIMIT 1
+
+	</select>
+
+	<!-- 설문조사 Detail -->
+ 	<select id="selectSurveyDetail" resultType="com.hisco.intrfc.survey.vo.SurveyMstVO">
+		SELECT  Q.COMCD,
+				Q.QESTNAR_ID,
+				Q.QESTNAR_DATE,
+				Q.QESTNAR_NAME,
+				Q.QESTNAR_IMGFILNB,
+				Q.QESTNAR_GUIDE,
+				Q.USE_YN,
+				Q.REGDATE,
+				Q.REGUSER,
+				F.FILE_PATH,
+                F.FILE_NAME,
+                F.ORGIN_FILE_NAME
+		FROM QESTNAR_THEMAMNG Q
+			LEFT OUTER JOIN ATCH_FILE_LIST F ON Q.QESTNAR_IMGFILNB = F.FILE_GRPINNB AND F.FILE_SN=0
+		WHERE Q.COMCD = #{comcd}
+		AND Q.QESTNAR_ID  = #{qestnarId}
+	</select>
+
+
+	<!-- 설문조사 질문 Detail -->
+ 	<select id="selectSurveyQstList" resultType="com.hisco.intrfc.survey.vo.SurveyQstVO">
+		SELECT  QESTNAR_ID,
+				QESTNS_SEQ,
+				QESTNS_NAME,
+				QESTNS_TYPE,
+				QESTNAR_SCORE
+		FROM QESTNAR_QESTN
+		WHERE COMCD = #{comcd}
+		AND QESTNAR_ID  = #{qestnarId}
+		ORDER BY QESTNS_SEQ ASC
+	</select>
+
+	<!-- 설문조사 질문항목 Detail -->
+ 	<select id="selectQstItemList" resultType="com.hisco.intrfc.survey.vo.SurveyQstItemVO">
+		SELECT  QESTNAR_ID,
+				QESTNS_SEQ,
+				QESTNAR_ITEMSEQ,
+				QESTNAR_ITEMNM,
+				QESTNAR_SCORE
+		FROM QESTNAR_QESTN_ITEMS
+		WHERE COMCD = #{comcd}
+		AND QESTNAR_ID  = #{qestnarId}
+		ORDER BY QESTNS_SEQ,QESTNAR_ITEMSEQ ASC
+	</select>
+
+	<!-- 설문조사 질문항목 Detail -->
+ 	<select id="countSurveySendResult" resultType="java.lang.Integer">
+		SELECT  COUNT(*)
+		FROM QESTNAR_RESULT
+		WHERE COMCD = #{comcd}
+		AND QESTNAR_ID  = #{qestnarId}
+		AND QENSTAR_SENDSEQ = #{qenstarSendseq}
+	</select>
+
+	<!-- 설문조사 참여 여부 -->
+ 	<select id="countSurveyResult" resultType="java.lang.Integer">
+		SELECT  COUNT(*)
+		FROM QESTNAR_RESULT
+		WHERE COMCD = #{comcd}
+		AND QESTNAR_ID  = #{qestnarId}
+		<if test="qestnarStdno != null and qestnarStdno != ''">
+		AND QESTNAR_STDNO = #{qestnarStdno}
+		</if>
+		<if test="qestnarMemno != null and qestnarMemno != ''">
+		AND QESTNAR_MEMNO = #{qestnarMemno}
+		</if>
+	</select>
+
+	<!-- 설문조사 참여 목록 -->
+ 	<select id="selectSurveyResultList" resultType="com.hisco.intrfc.survey.vo.SurveyResultVO">
+ 		/* com.hisco.intrfc.survey.mapper.SurveyMapper.selectSurveyResultList */
+		SELECT
+			QR.COMCD
+			,QR.QESTNAR_ID
+			,QR.QESTNAR_STDNO
+			,QR.QESTNAR_RESLT_NO
+			,QR.QENSTAR_SENDSEQ
+			,QR.QESTNAR_RESLTDATE
+			,QR.QESTNAR_RESLTTIME
+			,QR.QESTNAR_MEMBGBN
+			,QR.QESTNAR_MEMNO
+			,QR.QESTNAR_MEMB_WEBID
+			,IFNULL(M.MEM_NM, QR.QESTNAR_USERNAME)  AS QESTNAR_USERNAME
+			,QR.QESTNAR_USERTELNO
+			,QR.QESTNAR_USEPARTCD
+			,QR.QESTNAR_PROGRMID
+			,QR.QESTNAR_TERMINAL_TYPE
+			,DATE_FORMAT(QR.REGDATE, '%Y-%m-%d %H:%i') as REGDATE
+			,QR.REGUSER
+			,DATE_FORMAT(QR.MODDATE, '%Y-%m-%d %H:%i') as MODDATE
+			,QR.MODUSER
+		FROM QESTNAR_RESULT QR
+			LEFT JOIN MEMBER M ON QR.QESTNAR_MEMNO =M.MEM_NO
+		WHERE
+			QR.COMCD = #{comcd}
+			AND QR.QESTNAR_ID  = #{qestnarId}
+		<if test="qestnarStdno != null and qestnarStdno != ''">
+			AND QR.QESTNAR_STDNO = #{qestnarStdno}
+		</if>
+		<if test="qestnarMemno != null and qestnarMemno != ''">
+			AND QR.QESTNAR_MEMNO = #{qestnarMemno}
+		</if>
+		ORDER BY
+			QESTNAR_USERNAME
+	</select>
+
+
+	<!-- 설문조사 참여 목록 -->
+ 	<select id="selectSurveyResultDetailList" resultType="com.hisco.intrfc.survey.vo.SurveyResultDetailVO">
+ 		/* com.hisco.intrfc.survey.mapper.SurveyMapper.selectSurveyResultDetailList */
+		SELECT
+			QQ.COMCD
+			,QQ.QESTNAR_ID
+			,QQ.QESTNS_SEQ
+			,QRD.QESTNAR_STDNO
+			,QRD.QESTNAR_RESLT_NO
+			,QRD.RESLT_ITEMSEQ
+			,QRD.RESLT_ITEMSCORE
+			,QRD.RESLT_SBJCT
+			,QRD.REGDATE
+			,QRD.REGUSER
+			,QRD.MODDATE
+			,QRD.MODUSER
+			,QQ.QESTNS_NAME
+			,QQ.QESTNS_TYPE
+			,QQ.QESTNAR_SCORE
+			,QQI.QESTNAR_ITEMNM
+			,QQI.QESTNAR_SCORE AS QESTNAR_ITEM_SCORE
+		FROM
+			QESTNAR_QESTN QQ
+			LEFT JOIN QESTNAR_RELST_DETAIL QRD ON QQ.COMCD =QRD.COMCD  AND QQ.QESTNAR_ID =QRD.QESTNAR_ID AND QQ.QESTNS_SEQ =QRD.QESTNS_SEQ
+				AND QRD.QESTNAR_RESLT_NO =#{qestnarResltNo}
+			LEFT JOIN QESTNAR_QESTN_ITEMS QQI ON QRD.COMCD =QQI.COMCD AND QRD.QESTNAR_ID =QQI.QESTNAR_ID AND QRD.QESTNS_SEQ =QQI.QESTNS_SEQ AND QRD.RESLT_ITEMSEQ =QQI.QESTNAR_ITEMSEQ
+		WHERE
+			QQ.COMCD = #{comcd}
+			AND QQ.QESTNAR_ID  = #{qestnarId}
+		ORDER BY
+			QQ.QESTNS_SEQ
+	</select>
+
+	<!-- 설문조사 질문항목 Detail -->
+ 	<select id="selectRsvnDetail" resultType="com.hisco.intrfc.survey.vo.SurveyRsvnVO">
+		SELECT * FROM
+		( SELECT	A.EDC_RSVN_NO AS RSVN_ID,
+					A.EDC_MEM_NO AS MEM_NO,
+					B.ID AS WEB_ID,
+					(CASE WHEN A.EDC_RSVN_MEMTYPE = '1001' THEN B.MEM_NM ELSE A.EDC_RSVN_CUSTNM END) AS RSVN_CUST_NM,
+					A.EDC_RSVN_MEMTYPE AS RSVN_MEMBGBN,
+
+					<!-- for Tibero (CASE WHEN A.EDC_RSVN_MEMTYPE = '1001' THEN CRYPTO.DEcrypt_ARIA(B.HP , #{dbEncKey}) ELSE CRYPTO.DEcrypt_ARIA(A.EDC_RSVN_MOBLPHON , #{dbEncKey}) END) AS RSVN_TELNO, -->
+					(CASE WHEN A.EDC_RSVN_MEMTYPE = '1001' THEN B.HP ELSE A.EDC_RSVN_MOBLPHON END) AS RSVN_TELNO,
+
+					(SELECT EDC_PART_CD FROM EDC_PROGRAM WHERE EDC_PRGMID = A.EDC_RSVN_REQID) AS RSVN_PARTCD,
+					A.EDC_RSVN_REQID AS PROGRAM_ID,
+					DATE_FORMAT(CONCAT(A.EDC_REQ_SDATE, '%Y.%m.%d'), '~', DATE_FORMAT( A.EDC_REQ_EDATE, '%Y.%m.%d')) AS REGDATE,
+					'EDC' AS TP
+				FROM EDC_RSVN_INFO A INNER JOIN MEMBER B ON A.EDC_MEM_NO = B.MEM_NO
+				WHERE 	A.COMCD = #{comcd}
+						AND A.EDC_RSVN_NO = #{rsvnId}
+				UNION ALL
+		 SELECT C.EXBT_RSVN_NO AS RSVN_ID,
+		 		C.EXBT_RSVN_MEMNO AS MEM_NO,
+		 		D.ID AS WEB_ID,
+				(CASE WHEN C.EXBT_RSVN_MEMTYPE = '1001' THEN D.MEM_NM ELSE C.EXBT_RSVN_CUSTNM END) AS RSVN_CUST_NM,
+				C.EXBT_RSVN_MEMTYPE AS RSVN_MEMBGBN,
+
+				<!-- for Tibero (CASE WHEN C.EXBT_RSVN_MEMTYPE = '1001' THEN CRYPTO.DEcrypt_ARIA(D.HP , #{dbEncKey}) ELSE CRYPTO.DEcrypt_ARIA(C.EXBT_HP , #{dbEncKey}) END) AS RSVN_TELNO, -->
+				(CASE WHEN C.EXBT_RSVN_MEMTYPE = '1001' THEN D.HP ELSE C.EXBT_HP) AS RSVN_TELNO,
+
+				C.EXBT_PARTCD AS RSVN_PARTCD,
+				C.EXBT_SEQ AS PROGRAM_ID,
+				DATE_FORMAT(C.EXBT_VIEINGDATE, '%Y.%m.%d') AS REGDATE,
+				'EXBT' AS TP
+		 FROM EXBT_RSVN_MST C INNER JOIN MEMBER D ON C.EXBT_RSVN_MEMNO = D.MEM_NO
+		 WHERE  C.COMCD = #{comcd}
+		 		AND C.EXBT_RSVN_NO =  #{rsvnId}
+		 	UNION ALL
+		 SELECT E.EVT_RSVNNO AS RSVN_ID,
+		 		E.EVT_RSVN_MEMNO AS MEM_NO,
+		 		F.ID AS WEB_ID,
+				(CASE WHEN E.EVT_RSVN_MEMTYPE = '1001' THEN F.MEM_NM ELSE E.EVT_RSVN_CUSTNM END) AS RSVN_CUST_NM,
+				E.EVT_RSVN_MEMTYPE AS RSVN_MEMBGBN,
+
+				<!-- for Tibero (CASE WHEN E.EVT_RSVN_MEMTYPE = '1001' THEN  CRYPTO.DEcrypt_ARIA(F.HP , #{dbEncKey}) ELSE CRYPTO.DEcrypt_ARIA(E.EVT_RSVN_MOBLPHON , #{dbEncKey}) END) AS RSVN_TELNO, -->
+				(CASE WHEN E.EVT_RSVN_MEMTYPE = '1001' THEN F.HP ELSE E.EVT_RSVN_MOBLPHON) AS RSVN_TELNO,
+
+				E.EVT_PARTCD AS RSVN_PARTCD,
+				E.EVT_RSVN_IDX AS PROGRAM_ID,
+				DATE_FORMAT(E.EVT_VEINGDATE, '%Y.%m.%d')AS REGDATE,
+				'EVT' AS TP
+		 FROM EVT_RSVN_MST E INNER JOIN MEMBER F ON E.EVT_RSVN_MEMNO = F.MEM_NO
+		 WHERE E.COMCD = #{comcd}
+		 AND  E.EVT_RSVNNO = #{rsvnId}
+		) DTL
+	</select>
+
+
+	<!-- 설문조사결과 입력-->
+	<insert id="insertSurveyResult" >
+	<selectKey keyProperty="qestnarResltNo" resultType="java.lang.String" order="BEFORE">
+		SELECT NVL(MAX(QESTNAR_RESLT_NO),0)+1
+		FROM QESTNAR_RESULT
+		WHERE COMCD = #{comcd}
+		AND QESTNAR_ID = #{qestnarId}
+		AND QESTNAR_STDNO = #{qestnarStdno}
+	</selectKey>
+		INSERT INTO
+			QESTNAR_RESULT
+			(
+				COMCD,
+				QESTNAR_ID,
+				QESTNAR_STDNO,
+				QESTNAR_RESLT_NO,
+				QENSTAR_SENDSEQ,
+				QESTNAR_RESLTDATE,
+				QESTNAR_RESLTTIME,
+				QESTNAR_MEMBGBN,
+				QESTNAR_MEMNO,
+				QESTNAR_MEMB_WEBID,
+				QESTNAR_USERNAME,
+				QESTNAR_USERTELNO,
+				QESTNAR_USEPARTCD,
+				QESTNAR_PROGRMID,
+				QESTNAR_TERMINAL_TYPE,
+				REGDATE,
+				REGUSER
+			)
+			VALUES
+			(
+				#{comcd},
+				#{qestnarId},
+				#{qestnarStdno},
+				#{qestnarResltNo},
+				#{qenstarSendseq},
+				DATE_FORMAT(SYSDATE(), '%Y%m%d'),
+				DATE_FORMAT(SYSDATE(), '%H%i'),
+				#{qestnarMembgbn},
+				#{qestnarMemno},
+				#{qestnarMembWebid},
+				#{qestnarUsername},
+				#{qestnarUsertelno},
+				#{qestnarUsepartcd},
+				#{qestnarProgrmid},
+				#{qestnarTerminalType},
+				SYSDATE(),
+				#{reguser}
+			)
+	</insert>
+
+	<!-- 설문조사결과 상세 입력-->
+	<insert id="insertSrvResultDtl">
+	    /* insertSrvResultDtl */
+		INSERT INTO
+			QESTNAR_RELST_DETAIL
+			(
+				COMCD,
+				QESTNAR_ID,
+				QESTNAR_STDNO,
+				QESTNAR_RESLT_NO,
+				QESTNS_SEQ,
+				<if test="resltItemseq != null and resltItemseq != ''">
+				RESLT_ITEMSEQ,
+				</if>
+				RESLT_ITEMSCORE,
+				RESLT_SBJCT,
+				REGDATE,
+				REGUSER
+			)
+			VALUES
+			(
+				#{comcd},
+				#{qestnarId},
+				#{qestnarStdno},
+				#{qestnarResltNo},
+				#{qestnsSeq},
+				<if test="resltItemseq != null and resltItemseq != ''">
+				#{resltItemseq},
+				</if>
+				#{resltItemscore},
+				#{resltSbjct},
+				SYSDATE(),
+				#{reguser}
+			)
+	</insert>
+
+
+	<!-- 설문조사 Detail file 업데이트 -->
+ 	<select id="updateSurveyDetailImg" >
+		UPDATE
+			QESTNAR_THEMAMNG SET QESTNAR_IMGFILNB=#{fileId}
+		WHERE
+			COMCD = #{comcd}
+			AND QESTNAR_ID  = #{uniqueId}
+	</select>
+</mapper>

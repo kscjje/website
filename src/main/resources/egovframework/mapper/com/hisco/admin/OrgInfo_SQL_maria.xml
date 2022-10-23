@@ -1,0 +1,591 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 이용기관 정보 관리
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2021.10.26   	진수진          최초 작성
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.admin.orginfo.mapper.OrgInfoMapper">
+
+
+ 	<select id="selectOrgInfoList" parameterType="com.hisco.admin.orginfo.vo.OrgInfoVO" resultType="com.hisco.admin.orginfo.vo.OrgInfoVO">
+ 			/*selectOrgInfoList*/
+            SELECT
+            	 A.*
+            	 ,NVL(B.EDC_RSVNLIMIT_YN,'N') AS EDC_RSVNLIMIT_YN
+            	 <if test='searchCondition !="" and searchCondition =="location"'>
+	            	 ,(SELECT CD_NM FROM cot_grpcd where COMCD=A.COMCD AND grp_cd='SM_ORG_LTYPE' AND CD=A.ORG_LTYPE) ORG_LTYPE_NM
+	            	 ,(SELECT CD_NM FROM cot_grpcd where COMCD=A.COMCD AND grp_cd='SM_ORG_MTYPE' AND CD=A.ORG_MTYPE) ORG_MTYPE_NM
+	            	 ,(SELECT AREA_NM FROM AREA_CD where AREA_CD=A.AREA_CD) AREA_NM
+	            	 ,C.ORG_PLACEURL
+	            	 ,F.FILE_NM AS ORG_FILE_NAME
+	            	 ,F.ORG_FILE_NM AS ORG_FILE_ORIGIN
+	            	 ,F.FILE_PATH AS ORG_FILE_PATH
+            	 </if>
+			FROM
+				ORG_INFO A
+				LEFT OUTER JOIN EDC_PROGRAM_LIMIT B ON A.COMCD=B.COMCD AND A.ORG_NO=B.ORG_NO
+				<if test='searchCondition !="" and searchCondition =="location"'>
+					LEFT OUTER JOIN ORG_CONTENTS C ON A.COMCD=C.COMCD AND A.ORG_NO=C.ORG_NO
+					LEFT OUTER JOIN ATCH_FILE_LIST F ON C.COMCD=F.COMCD AND C.ORG_FILE_ID = F.FILE_GRP_NO AND F.FILE_SEQ=0
+				</if>
+			WHERE
+				A.COMCD=#{comcd}
+			<if test="level !=null and level == '1'">AND PARENT_ORG_NO IS NULL</if>
+			<if test="searchStat !=null and searchStat !=''">AND A.ORG_LTYPE=#{searchStat}</if>
+			<if test="searchUseYn !=null and searchUseYn !=''">AND A.ORG_MTYPE=#{searchUseYn}</if>
+			<if test="orgKind !=null and orgKind !=''">AND A.ORG_KIND=#{orgKind}</if>
+			<if test="searchKeyword !=null and searchKeyword !=''">
+				<choose>
+					<when test="searchCondition != null and searchCondition == 'orgNm'">AND ORG_NM LIKE CONCAT('%', #{searchKeyword}, '%')</when>
+				</choose>
+			</if>
+			<if test="myOrgList != null and myOrgList.size != 0">
+				AND A.ORG_NO IN <foreach collection="myOrgList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+			</if>
+			ORDER BY
+			<choose>
+				<when test='searchCondition !="" and searchCondition =="location"'> A.ORG_NM</when>
+				<otherwise>A.SORT_ORDER , A.ORG_NM</otherwise>
+			</choose>
+ 	</select>
+
+ 	<select id="selectOrgInfoListPaging" parameterType="com.hisco.admin.orginfo.vo.OrgInfoVO" resultType="com.hisco.admin.orginfo.vo.OrgInfoVO">
+		SELECT  /* OrgInfoMapper.selectOrgInfoListPaging */
+      		MAIN.*
+      		,(SELECT ORG_NM FROM ORG_INFO WHERE COMCD=MAIN.COMCD AND ORG_NO=MAIN.PARENT_ORG_NO) AS PRNT_ORGNM
+      		,(SELECT CD_NM FROM cot_grpcd where COMCD=MAIN.COMCD AND grp_cd='SM_ORG_LTYPE' AND CD=MAIN.ORG_LTYPE) ORG_LTYPE_NM
+      		,(SELECT CD_NM FROM cot_grpcd where COMCD=MAIN.COMCD AND grp_cd='SM_ORG_MTYPE' AND CD=MAIN.ORG_MTYPE) ORG_MTYPE_NM
+      		,(SELECT AREA_NM FROM AREA_CD where AREA_CD=MAIN.AREA_CD) AREA_NM
+        FROM  ( 
+			SELECT
+				ROW_NUMBER() OVER (order by SORT_ORDER , ORG_NM) RNUM,
+				ALL_LIST.*
+            FROM  (
+	            SELECT
+	            		 COMCD
+						, ORG_NO
+						, PARENT_COMCD
+						, PARENT_ORG_NO
+						, AREA_CD
+						, ORG_KIND
+						, ORG_LTYPE
+						, ORG_MTYPE
+						, ORG_NM
+						, ORG_TEL
+						, EMAIL
+						, ORG_URL
+						, SORT_ORDER
+						, REGDATE
+						, REGUSER
+						, ORG_CNTSACTIVE_YN
+	            	 , COUNT(*) OVER() AS TOT_CNT
+				FROM
+					ORG_INFO
+				WHERE
+					COMCD=#{comcd}
+					<if test="searchKeyword !=null and searchKeyword !=''">
+						<choose>
+							<when test="searchCondition != null and searchCondition == 'orgNm'">AND ORG_NM LIKE CONCAT('%', #{searchKeyword}, '%')</when>
+						</choose>
+					</if>
+					<if test="myOrgList != null and myOrgList.size != 0">
+						AND ORG_NO IN <foreach collection="myOrgList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+					</if>
+					<if test="orgLtype !=null and orgLtype !=''">
+						AND ORG_LTYPE=#{orgLtype}
+					</if>
+					<if test="orgMtype !=null and orgMtype !=''">
+						AND ORG_MTYPE=#{orgMtype}
+					</if>
+			) ALL_LIST
+		) MAIN
+		<![CDATA[
+             WHERE  RNUM  > #{firstIndex}
+               AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+           ]]>
+ 	</select>
+
+ 	<select id="selectOrgInfoDetail" parameterType="com.hisco.admin.orginfo.vo.OrgInfoVO" resultType="com.hisco.admin.orginfo.vo.OrgInfoVO">
+		SELECT
+            	 *
+			FROM
+				ORG_INFO
+		WHERE
+			COMCD = #{comcd}
+			AND ORG_NO = #{orgNo}
+ 	</select>
+
+
+ 	<insert id="insertOrgInfo" parameterType="com.hisco.admin.orginfo.vo.OrgInfoVO">
+ 		INSERT INTO ORG_INFO (
+			COMCD
+			, ORG_NO
+			<if test="parentOrgNo > 0">
+			, PARENT_COMCD
+			, PARENT_ORG_NO
+			</if>
+			, AREA_CD
+			, ORG_KIND
+			, ORG_LTYPE
+			, ORG_MTYPE
+			, ORG_NM
+			, ORG_TEL
+			, FAX
+			, ADDR
+			, EMAIL
+			, BOSS_NM
+			, BIZ_NO
+			, UPTAE
+			, JONGMOK
+			, ORG_URL
+			, CHARGER
+			, CHARGER_TEL
+			, ORG_CNTSACTIVE_YN
+			, SORT_ORDER
+			, REGDATE
+			, REGUSER
+			, MODDATE
+			, MODUSER
+		)
+		VALUES (
+			#{comcd}
+			, #{orgNo}
+			<if test="parentOrgNo > 0">
+			, #{prntComcd}
+			, #{parentOrgNo}
+			</if>
+			, #{areaCd}
+			, #{orgKind}
+			, #{orgLtype}
+			, #{orgMtype}
+			, #{orgNm}
+			, #{orgTel}
+			, #{fax}
+			, #{addr}
+			, #{email}
+			, #{bossNm}
+			, #{bizNo}
+			, #{uptae}
+			, #{jongmok}
+			, #{orgUrl}
+			, #{charger}
+			, #{chargertel}
+			, #{orgCntsactiveyn}
+			, #{sortOrder}
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{reguser}
+		)
+ 	</insert>
+
+
+ 	<update id="updateOrgInfo" parameterType="com.hisco.admin.orginfo.vo.OrgInfoVO">
+		UPDATE
+			ORG_INFO
+		SET
+			 AREA_CD = #{areaCd}
+			, ORG_KIND = #{orgKind}
+			, ORG_LTYPE = #{orgLtype}
+			, ORG_MTYPE = #{orgMtype}
+			, ORG_NM = #{orgNm}
+			, ORG_TEL = #{orgTel}
+			, FAX = #{fax}
+			, ADDR = #{addr}
+			, EMAIL = #{email}
+			, BOSS_NM = #{bossNm}
+			, BIZ_NO = #{bizNo}
+			, UPTAE = #{uptae}
+			, JONGMOK = #{jongmok}
+			, ORG_URL = #{orgUrl}
+			, CHARGER = #{charger}
+			, CHARGER_TEL = #{chargertel}
+			, ORG_CNTSACTIVE_YN = #{orgCntsactiveyn}
+			, SORT_ORDER = #{sortOrder}
+			<choose>
+				<when test="parentOrgNo > 0"> 
+				, PARENT_COMCD = #{prntComcd}
+				, PARENT_ORG_NO = #{parentOrgNo}
+				</when>
+				<otherwise>
+				, PARENT_COMCD = ''
+				, PARENT_ORG_NO = null
+				</otherwise>
+			</choose>
+			, MODDATE = SYSDATE()
+			, MODUSER = #{moduser}
+		WHERE
+			COMCD = #{comcd}
+			AND ORG_NO = #{orgNo}
+ 	</update>
+
+
+ 	<delete id="deleteOrgInfo" parameterType="com.hisco.admin.orginfo.vo.OrgInfoVO">
+		DELETE
+		FROM
+			ORG_INFO
+		WHERE
+			COMCD = #{comcd}
+			AND ORG_NO = #{orgNo}
+ 	</delete>
+
+ 	<select id="selectOrgContents" resultType="com.hisco.admin.orginfo.vo.OrgContentsVO">
+		SELECT
+            	 A.*,
+            	 B.FILE_NM AS ORG_FILE_NAME,
+            	 B.ORG_FILE_NM AS ORG_FILE_ORIGIN,
+            	 B.FILE_PATH AS ORG_FILE_PATH
+			FROM
+				ORG_CONTENTS A
+				LEFT OUTER JOIN ATCH_FILE_LIST B ON A.COMCD=B.COMCD AND A.ORG_FILE_ID = B.FILE_GRP_NO AND B.FILE_SEQ=0
+		WHERE
+			A.COMCD = #{comcd}
+			AND A.ORG_NO = #{orgNo}
+ 	</select>
+
+ 	<insert id="insertOrgContents" parameterType="com.hisco.admin.orginfo.vo.OrgContentsVO">
+ 			INSERT INTO ORG_CONTENTS (
+				COMCD
+				, ORG_NO
+				, ORG_PLACE_URL
+				, ORG_FILE_ID
+				, ORG_GUIDE
+				, ORG_CLASSMNG_GUIDE
+				, REGDATE
+				, REGUSER
+				, MODDATE
+				, MODUSER
+				, ORG_RETDC_GUIDE
+				, ORG_SUBWAY_GUIDE
+				, ORG_BUS_GUIDE
+			)
+			VALUES (
+				#{comcd}
+				, #{orgNo}
+				, #{orgPlaceurl}
+				, #{orgFileid}
+				, #{orgGuide}
+				, #{orgClassmngGuide}
+				, SYSDATE()
+				, #{reguser}
+				, SYSDATE()
+				, #{reguser}
+				, #{orgRetdcGuide}
+				, #{orgSubwayGuide}
+				, #{orgBusGuide}
+			)
+ 	</insert>
+
+ 	<update id="updateOrgContents" parameterType="com.hisco.admin.orginfo.vo.OrgContentsVO">
+ 			UPDATE ORG_CONTENTS
+			SET
+				 ORG_PLACE_URL = #{orgPlaceurl}
+				, ORG_FILE_ID = #{orgFileid}
+				, ORG_GUIDE = #{orgGuide}
+				, ORG_RETDC_GUIDE = #{orgRetdcGuide}
+				, ORG_SUBWAY_GUIDE = #{orgSubwayGuide}
+				, ORG_BUS_GUIDE = #{orgBusGuide}
+				, MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+		WHERE
+			COMCD = #{comcd}
+			AND ORG_NO = #{orgNo}
+ 	</update>
+
+
+ 	<update id="updateOrgContentsGude" parameterType="com.hisco.admin.orginfo.vo.OrgContentsVO">
+ 			UPDATE ORG_CONTENTS
+			SET
+				 ORG_CLASSMNG_GUIDE = #{orgClassmngGuide}
+				, MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+		WHERE
+			COMCD = #{comcd}
+			AND ORG_NO = #{orgNo}
+ 	</update>
+
+ 	<update id="updateOrgContentsFileid" >
+ 			UPDATE ORG_CONTENTS
+			SET
+			<choose>
+				<when test="inputid == 'orgFileid'">ORG_FILE_ID = #{atchFileId}</when>
+				<when test="inputid == 'orgGuideImage'">ORG_GUIDE_IMAGE = #{atchFileId}</when>
+			</choose>
+				, MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+		WHERE
+			COMCD = #{comcd}
+			AND ORG_NO = #{orgNo}
+ 	</update>
+
+ 	<delete id="deleteOrgContents" parameterType="com.hisco.admin.orginfo.vo.OrgInfoVO">
+		DELETE
+		FROM
+			ORG_CONTENTS
+		WHERE
+			COMCD = #{comcd}
+			AND ORG_NO = #{orgNo}
+ 	</delete>
+
+ 	<select id="selectOrgOptinfo" resultType="com.hisco.admin.orginfo.vo.OrgOptinfoVO">
+		SELECT
+            	 A.*,
+            	 fn_aes_decrypt(A.EDC_PRNM_ALARM_HPNO ,#{dbEncKey}) AS ALARM_HPNO,
+            	 B.FILE_NM AS STAMP_FILE_NM,
+            	 B.ORG_FILE_NM AS STAMP_FILE_ORIGIN,
+            	 B.FILE_PATH AS STAMP_FILE_PATH
+			FROM
+				ORG_OPTINFO A
+				LEFT OUTER JOIN ATCH_FILE_LIST B ON A.COMCD=B.COMCD AND A.ORG_STAMPIMG_FFINNB = B.FILE_GRP_NO AND B.FILE_SEQ=0
+		WHERE
+			A.COMCD = #{comcd}
+			AND A.ORG_NO = #{orgNo}
+ 	</select>
+
+ 	<insert id="insertOrgOptinfo" parameterType="com.hisco.admin.orginfo.vo.OrgOptinfoVO">
+ 		INSERT INTO ORG_OPTINFO (
+			COMCD
+			, ORG_NO 
+			, RECEIPT_TYPE
+			, PRT_COMPANY
+			, PRT_President 
+			, PRT_BIZ_NO
+			, PRT_Phone_No
+			, PRT_Fax_no
+			, PRT_Office_Addr
+			, PRT_BCONTEXT
+			, MEMBER_CARD_TYPE
+			, AGE_APPGBN
+			, PAYMENT_UPDOWN_UNIT
+			, PAYMENT_UPDOWN
+			, REFUND_UPDOWN_UNIT
+			, REFUND_UPDOWN
+			, ORG_STAMPIMG_FFINNB
+			, RECEIPT_PRNCNT
+			, MOBILE_PAYMENT_METHOD
+			, WEB_PAYMENT_METHOD
+			, Payment_Server_Ip
+			, Payment_Server_Port
+			, Payment_id
+			, Payment_pwd
+			, Web_Payment_Server_Ip
+			, WEb_Payment_Server_Port
+			, WEb_Payment_id
+			, WEB_PAYMENT_PWd
+			, WEB_PAYAPI_KEY
+			, AREA_PAY_ID
+			, AREA_PAY_PWD 
+			, AREA_PAYAPI_KEY
+			, EDC_PRNM_ALARM_HPNO
+			, ORG_PAY_ACCNO
+			, ORG_PAY_ACCNAME
+			, ORG_PAY_BANKNM
+			, REGDATE
+			, REGUSER
+			, MODDATE
+			, MODUSER
+		)
+		VALUES (
+			#{comcd}
+			, #{orgNo}
+			, #{receiptType}
+			, #{prtCompany}
+			, #{prtPresident}
+			, #{prtBusinessno}
+			, #{prtPhoneno}
+			, #{prtFaxno}
+			, #{prtOfficeaddr}
+			, #{prtBcontext}
+			, #{memberCardType}
+			, #{ageAppgbn}
+			, #{paymentUpdownUnit}
+			, #{paymentUpdown}
+			, #{refundUpdownUnit}
+			, #{refundUpdown}
+			, #{orgStampimgFfinnb}
+			, #{receiptPrncnt}
+			, #{mobilePaymentMethod}
+			, #{webPaymentMethod}
+			, #{paymentserverip}
+			, #{paymentserverport}
+			, #{paymentid}
+			, #{paymentpw}
+			, #{webpaymentserverip}
+			, #{webpaymentserverport}
+			, #{webpaymentid}
+			, #{webpaymentpwd}
+			, #{webpayapiKey}
+			, #{areaPayId}
+			, #{areaPayPwd}
+			, #{areaPayapiKey}
+			, <choose><when test="edcPrnmAlarmHpno!=null and edcPrnmAlarmHpno!=''">fn_aes_encrypt(REPLACE(#{edcPrnmAlarmHpno},'-','') ,#{dbEncKey})</when><otherwise>''</otherwise></choose>
+			, #{orgPayAccno}
+			, #{orgPayAccname}
+			, #{orgPayBanknm}
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{reguser}
+		)
+ 	</insert>
+
+ 	<update id="updateOrgOptinfo" parameterType="com.hisco.admin.orginfo.vo.OrgOptinfoVO">
+ 		UPDATE
+ 			ORG_OPTINFO
+		SET
+			 RECEIPT_TYPE = #{receiptType}
+			, PRT_COMPANY = #{prtCompany}
+			, PRT_President = #{prtPresident}
+			, PRT_BIZ_NO = #{prtBusinessno}
+			, PRT_Phone_No = #{prtPhoneno}
+			, PRT_Fax_no = #{prtFaxno}
+			, PRT_Office_Addr = #{prtOfficeaddr}
+			, PRT_BCONTEXT = #{prtBcontext}
+			, MEMBER_CARD_TYPE = #{memberCardType}
+			, AGE_APPGBN = #{ageAppgbn}
+			, PAYMENT_UPDOWN_UNIT = #{paymentUpdownUnit}
+			, PAYMENT_UPDOWN = #{paymentUpdown}
+			, REFUND_UPDOWN_UNIT = #{refundUpdownUnit}
+			, REFUND_UPDOWN = #{refundUpdown}
+			, ORG_STAMPIMG_FFINNB = #{orgStampimgFfinnb}
+			, RECEIPT_PRNCNT = #{receiptPrncnt}
+			, MOBILE_PAYMENT_METHOD = #{mobilePaymentMethod}
+			, WEB_PAYMENT_METHOD = #{webPaymentMethod}
+			, Payment_Server_Ip = #{paymentserverip}
+			, Payment_Server_Port = #{paymentserverport}
+			, Payment_id = #{paymentid}
+			, Payment_pwD = #{paymentpw}
+			, Web_Payment_Server_Ip = #{webpaymentserverip}
+			, WEb_Payment_Server_Port = #{webpaymentserverport}
+			, WEb_Payment_id = #{webpaymentid}
+			, WEB_PAYMENT_PWD = #{webpaymentpwd}
+			, WEB_PAYAPI_KEY = #{webpayapiKey}
+			, AREA_PAY_ID = #{areaPayId}
+			, AREA_PAY_PWD = #{areaPayPwd}
+			, AREA_PAYAPI_KEY = #{areaPayapiKey}
+			, EDC_PRNM_ALARM_HPNO =<choose><when test="edcPrnmAlarmHpno!=null and edcPrnmAlarmHpno!=''">fn_aes_encrypt(REPLACE(#{edcPrnmAlarmHpno},'-','') ,#{dbEncKey})</when><otherwise>''</otherwise></choose>
+			, ORG_PAY_ACCNO = #{orgPayAccno}
+			, ORG_PAY_ACCNAME = #{orgPayAccname}
+			, ORG_PAY_BANKNM = #{orgPayBanknm}
+			, MODDATE = SYSDATE()
+			, MODUSER = #{moduser}
+		WHERE
+			COMCD = #{comcd}
+			AND ORG_NO = #{orgNo}
+ 	</update>
+
+ 	<update id="updateOrgOptinfoFileid" >
+ 			UPDATE
+ 				ORG_OPTINFO
+			SET
+				ORG_STAMPIMG_FFINNB = #{atchFileId}
+				, MODDATE = SYSDATE()
+				, MODUSER = #{moduser}
+		WHERE
+			COMCD = #{comcd}
+			AND ORG_NO = #{orgNo}
+ 	</update>
+
+
+ 	<delete id="deleteOrgOptinfo" parameterType="com.hisco.admin.orginfo.vo.OrgInfoVO">
+		DELETE
+		FROM
+			ORG_OPTINFO
+		WHERE
+			COMCD = #{comcd}
+			AND ORG_NO = #{orgNo}
+ 	</delete>
+
+ 	<select id="selectDcList" resultType="com.hisco.admin.orginfo.vo.OrgDcVO">
+			SELECT
+				C.CD_NM AS DC_NM,
+				NVL(S.DC_RATE,C.ITEM4) AS DC_RATE ,
+				C.CD AS DC_REASON_CD ,
+				CASE WHEN S.ORG_NO > 0 THEN C.CD END AS DC_YN,
+				C.ITEM1 AS DC_TYPE
+			FROM
+				COT_GRPCD C
+				LEFT OUTER JOIN ORG_DC_STDMNG S ON C.COMCD=S.COMCD AND C.CD=S.DC_REASON_CD AND S.ORG_NO=#{orgNo}
+			WHERE
+				C.COMCD = #{comcd}
+			AND
+				C.GRP_CD = 'CM_REASON_DC'
+			AND
+				C.USE_YN = 'Y'
+			ORDER BY NVL(S.DC_RATE,C.ITEM4) DESC,C.SORT_ORDER , C.CD
+ 	</select>
+
+ 	<delete id="deleteOrgDc" parameterType="com.hisco.admin.orginfo.vo.OrgInfoVO">
+		DELETE
+		FROM
+			ORG_DC_STDMNG
+		WHERE
+			COMCD = #{comcd}
+			AND ORG_NO = #{orgNo}
+ 	</delete>
+
+ 	<insert id="insertOrgDc" parameterType="com.hisco.admin.orginfo.vo.OrgDcVO">
+		INSERT INTO ORG_DC_STDMNG (
+				COMCD
+				, ORG_NO
+				, DC_REASON_CD
+				, DC_RATE
+				, REGDATE
+				, REGUSER
+				, MODDATE
+				, MODUSER
+			)
+			VALUES (
+				#{comcd}
+				, #{orgNo}
+				, #{dcYn}
+				, #{dcRate}
+				, SYSDATE()
+				, #{reguser}
+				, SYSDATE()
+				, #{reguser}
+			)
+ 	</insert>
+
+
+ 	<select id="selectOrgInfoUserList"  resultType="com.hisco.admin.orginfo.vo.OrgInfoVO">
+            SELECT
+            	 A.*
+			FROM
+				ORG_INFO A
+			WHERE
+				A.COMCD=#{comcd}
+				AND ORG_LTYPE=#{orgLtype}
+				<if test="orgMtype !=null and orgMtype !=''">AND ORG_MTYPE = #{orgMtype}</if>
+				<if test="orgCntsactiveyn !=null and orgCntsactiveyn !=''">AND ORG_CNTSACTIVE_YN = #{orgCntsactiveyn}</if>
+			ORDER BY
+				A.SORT_ORDER , A.ORG_NM
+ 	</select>
+
+	<!-- [회원 감면 목록을 조회한다. ORG_DC_STDMNG 기준] -->
+	<select id="selectOrgMemberDcList" resultType="com.hisco.admin.orginfo.vo.OrgMemberDcVO">
+		/*OrgInfoMapper.selectOrgMemberDcList*/
+		SELECT A.ORG_NO
+			, A.DC_REASON_CD
+			, C.CD_NM AS DC_NM 
+			, A.DC_RATE
+			, A.DC_LIMITYN
+			, A.DC_LIMIT_CNT
+			, A.DC_LIMIT_POLICY
+			, B.MEM_NO
+			, B.DISCOUNT_CD
+			, B.DCCONFIRM_YN
+			, B.DCCONF_SDATE
+			, B.DCCONF_EDATE
+			FROM ORG_DC_STDMNG A
+				LEFT OUTER JOIN MEMBER_DISCOUNT_INFO B ON (A.COMCD = B.COMCD AND A.DC_REASON_CD = B.DISCOUNT_CD AND B.MEM_NO = #{memNo})
+				INNER JOIN COT_GRPCD C ON  C.COMCD=A.COMCD AND C.GRP_CD = 'CM_REASON_DC' AND C.CD=A.DC_REASON_CD
+			WHERE A.COMCD = #{comcd}
+				AND A.ORG_NO = #{orgNo}
+		ORDER BY B.MEM_NO , A.DC_RATE DESC
+	</select>
+
+</mapper>

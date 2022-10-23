@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 공통 파일 관리
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2020.08.20   	진수진          최초 작성
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.cmm.mapper.FileCmmManageMapper">
+
+	<resultMap id="fileDetail" type="com.hisco.cmm.vo.FileVO">
+		<result property="fileGrpinnb" column="FILE_GRP_NO"/>
+		<result property="fileSn" column="FILE_SEQ"/>
+		<result property="fileName" column="FILE_NM"/>
+		<result property="orginFileName" column="ORG_FILE_NM"/>
+		<result property="filePath" column="FILE_PATH"/>
+		<result property="fileSize" column="FILE_SIZE"/>
+		<result property="fileExtsn" column="FILE_EXTSN"/>
+		<result property="createDate" column="REGDATE"/>
+		<result property="creator" column="REGUSER"/>
+		<result property="updateDate" column="MODDATE"/>
+		<result property="updator" column="MODUSER"/>
+	</resultMap>
+
+
+ 	<select id="selectFileList" parameterType="com.hisco.cmm.vo.FileVO" resultMap="fileDetail">
+
+			SELECT
+				a.FILE_GRP_NO, b.FILE_SEQ, b.FILE_NM, b.ORG_FILE_NM, b.FILE_PATH,
+				b.FILE_SIZE, b.FILE_EXTSN, b.REGDATE, a.REGUSER
+			FROM
+				CM_FILE_GRP a, ATCH_FILE_LIST b
+			WHERE
+				a.COMCD = #{comcd}
+			AND
+				a.FILE_GRP_NO = #{fileGrpinnb}
+			AND
+				a.FILE_GRP_NO = b.FILE_GRP_NO
+			AND
+				a.USE_YN = 'Y'
+			ORDER BY b.FILE_SEQ
+
+ 	</select>
+
+	<insert id="insertFileMaster" parameterType="com.hisco.cmm.vo.FileVO">
+
+			INSERT INTO CM_FILE_GRP
+			(COMCD, FILE_GRP_NO, FILE_GRP_NM,  REGDATE, REGUSER, USE_YN)
+			VALUES
+			( #{comcd}, #{fileGrpinnb},#{fileGrpinnb}, SYSDATE(), #{creator}, 'Y')
+
+	</insert>
+
+	<insert id="insertFileDetail" parameterType="com.hisco.cmm.vo.FileVO">
+
+			INSERT INTO ATCH_FILE_LIST
+			( COMCD , FILE_GRP_NO, FILE_SEQ, FILE_NM, ORG_FILE_NM, FILE_PATH,
+			  FILE_SIZE, FILE_EXTSN, FILE_CAPTION, REGDATE, REGUSER )
+			VALUES
+			( #{comcd}, #{fileGrpinnb}, #{fileSn}, #{fileName}, #{orginFileName},  #{filePath},
+			  #{fileSize}, #{fileExtsn}, #{fileCaption}, SYSDATE(), #{creator} )
+
+	</insert>
+
+	<update id="updateFileDetail" parameterType="com.hisco.cmm.vo.FileVO">
+			UPDATE ATCH_FILE_LIST
+			SET
+				 FILE_NM=#{fileName},
+				 ORG_FILE_NM=#{orginFileName},
+				 FILE_PATH=#{filePath},
+				 FILE_SIZE=#{fileSize},
+			  	 FILE_EXTSN=#{fileExtsn}
+			 WHERE
+			 	FILE_GRP_NO=#{fileGrpinnb} AND FILE_SEQ=#{fileSn}
+	</update>
+
+	<delete id="deleteFileDetail" parameterType="com.hisco.cmm.vo.FileVO">
+
+			DELETE FROM ATCH_FILE_LIST
+			WHERE
+				FILE_GRP_NO = #{fileGrpinnb}
+			AND
+				FILE_SEQ = #{fileSn}
+
+	</delete>
+
+	<select id="getMaxFileSN" parameterType="com.hisco.cmm.vo.FileVO" resultType="java.lang.Integer">
+
+			SELECT NVL(MAX(FILE_SEQ),0)+1 AS FILE_SEQ
+			FROM ATCH_FILE_LIST
+			WHERE FILE_GRP_NO =  #{fileGrpinnb}
+
+	</select>
+
+ 	<select id="selectFileInf" parameterType="com.hisco.cmm.vo.FileVO" resultMap="fileDetail">
+
+			SELECT
+				FILE_GRP_NO, FILE_SEQ, FILE_NM, ORG_FILE_NM, FILE_PATH,
+				FILE_SIZE, FILE_EXTSN, REGDATE, REGUSER
+			FROM
+				ATCH_FILE_LIST
+			WHERE
+				FILE_GRP_NO = #{fileGrpinnb}
+			AND
+				FILE_SEQ = #{fileSn}
+
+ 	</select>
+
+	<update id="deleteFileGroup" parameterType="com.hisco.cmm.vo.FileVO">
+
+			UPDATE CM_FILE_GRP
+			SET USE_YN = 'N'
+			WHERE FILE_GRP_NO = #{fileGrpinnb}
+
+	</update>
+
+ 	<select id="selectFileListByFileNm" parameterType="FileVO" resultMap="fileDetail">
+
+ 		<!--  SELECT * FROM ( SELECT rownum rn, TB.* FROM ( -->
+		SELECT * FROM ( SELECT ROW_NUMBER() OVER () rn, TB.* FROM (
+			SELECT
+				a.FILE_GRP_NO, b.FILE_SEQ, b.FILE_NM, b.ORG_FILE_NM, b.FILE_PATH,
+				b.FILE_SIZE, b.FILE_EXTSN, b.REGDATE, a.REGUSER
+			FROM
+				CM_FILE_GRP a, ATCH_FILE_LIST b
+			WHERE
+				a.COMCD = #{comcd}
+			AND
+				a.FILE_GRP_NO = b.FILE_GRP_NO
+			AND
+				a.USE_YN = 'Y'
+
+			<if test="searchCnd == 'streFileNm'">AND
+					b.STRE_FILE_NM LIKE CONCAT('%', #{searchWrd}, '%')
+			</if>
+			<if test="searchCnd == 'orignlFileNm'">AND
+					b.ORIGNL_FILE_NM LIKE CONCAT('%', #{searchWrd}, '%')
+			</if>
+
+			ORDER BY a.FILE_GRP_NO, b.FILE_SEQ
+			) TB ) WHERE rn BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+
+ 	</select>
+
+ 	<select id="selectFileListCntByFileNm" parameterType="FileVO" resultType="java.lang.Integer">
+
+			SELECT
+				COUNT(a.FILE_GRP_NO)
+			FROM
+				CM_FILE_GRP a, ATCH_FILE_LIST b
+			WHERE
+				a.FILE_GRP_NO = b.FILE_GRP_NO
+			AND
+				a.USE_YN = 'Y'
+
+			<if test="searchCnd == 'streFileNm'">AND
+					b.STRE_FILE_NM LIKE CONCAT('%', #{searchWrd}, '%')
+			</if>
+			<if test="searchCnd == 'orignlFileNm'">AND
+					b.ORIGNL_FILE_NM LIKE CONCAT('%', #{searchWrd}, '%')
+			</if>
+ 	</select>
+
+  	<select id="selectImageFileList" parameterType="FileVO" resultMap="fileDetail">
+
+			SELECT
+				a.FILE_GRP_NO, b.FILE_SEQ, b.FILE_NM, b.ORG_FILE_NM, b.FILE_PATH,
+				b.FILE_SIZE, b.FILE_EXTSN, b.REGDATE, a.REGUSER
+			FROM
+				CM_FILE_GRP a, ATCH_FILE_LIST b
+			WHERE
+				a.FILE_GRP_NO = #{fileGrpinnb}
+			AND
+				a.FILE_GRP_NO = b.FILE_GRP_NO
+			AND
+				UPPER(b.FILE_EXTSN) IN ('GIF','JPG','BMP','PNG')
+			AND
+				a.USE_YN = 'Y'
+			ORDER BY b.FILE_SEQ
+
+ 	</select>
+
+</mapper>

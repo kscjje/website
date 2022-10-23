@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	수정일         수정자     수정내용
+    =========      =======    =================================================
+    2021.07.14     전영석     문자 메시지 전송 Tibero Mapper
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="SmsUmsDAO">
+
+	<resultMap id="egovMap" type="egovframework.rte.psl.dataaccess.util.EgovMap"></resultMap>
+
+    <insert id="sendSmsMessage">
+
+	    INSERT INTO CUSTOMER_SMS_SEND
+	            (  	USER_ID
+	              , SCHEDULE_TYPE
+	              , TITLE
+	              , MSG_CONTENT
+	              , CALLING_NUM
+	              , TGT_NM
+	              , PHONE_NUM
+	              , RESERV_DTTM
+	              , REG_DTTM
+	              
+	            ) VALUES (
+	                'mono_customer'
+	              , '0'
+	              , #{MSG_TITLE}
+	              , #{SND_MSG}
+	              , #{SND_PHN_NUM}
+	              , #{SEND_USER}
+	              , #{RCV_PHN_NUM}
+				  , NULL	              
+	              , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+	            )
+
+    </insert>
+
+</mapper>

@@ -1,0 +1,455 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2020.9.24   	진수진     	 	예약 할인 정보
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="RsvnCommDAO">
+
+	<select id="selectOptData" resultType="com.hisco.user.mypage.service.RsvnCommVO">
+		SELECT  /* RsvnCommDAO.selectOptData */
+				PAYMENT_UPDOWN_UNIT AS payUpdownUnit,
+				PAYMENT_UPDOWN      AS payUpdown,
+				REFUND_UPDOWN_UNIT  AS refundUpdownUnit,
+				REFUND_UPDOWN       AS refundUpdown
+		    FROM OPT
+		   WHERE COMCD = #{COMCD}
+	</select>
+
+	<!-- 이벤트 할인 가능 내역 -->
+	<select id="selectEventStdmngList" resultType="com.hisco.user.mypage.service.RsvnCommVO">
+	         SELECT /* RsvnCommDAO.selectEventStdmngList */
+				S.EVENT_DCID AS eventDcid,
+				S.EVENT_REASONCD AS eventReasoncd ,
+				S.EVENT_DCNAME AS eventDcname ,
+				S.EVENT_DC_RATE AS eventDcRate,
+				S.EVENT_MEMBERYN AS eventMemberyn,
+				S.EVENT_NONMEBYN AS eventNonmebyn
+<choose>
+ 			<when test='gubun == "EXBT"'>
+				,CASE WHEN (SELECT COUNT(*) FROM EXBT_RSVN_ITEM WHERE EXBT_RSVN_IDX=#{rsvnIdxOne} AND EXBT_ITEMCD=#{itemCd} AND EXBT_EVENT_DCID=S.EVENT_DCID)>0 THEN 'Y' ELSE 'N' END AS useYn
+			</when>
+			<when test='gubun == "EVT"'>
+				,CASE WHEN (SELECT COUNT(*) FROM EVT_RSVN_ITEM WHERE EVT_RSVN_IDX=#{rsvnIdxOne} AND EVT_RSVN_ITEMCD=#{itemCd} AND EVT_EVENT_DCID=S.EVENT_DCID)>0 THEN 'Y' ELSE 'N' END AS useYn
+			</when>
+			<when test='gubun == "EDC"'>
+		 		,CASE WHEN (SELECT COUNT(*) FROM EDC_RSVN_INFO WHERE EDC_RSVN_REQID=#{rsvnIdxOne} AND EDC_REQ_ITEM_CD=#{itemCd} AND EDC_EVENT_DCID=S.EVENT_DCID)>0 THEN 'Y' ELSE 'N' END AS useYn
+			</when>
+</choose>
+			FROM
+				 EVENT_DC_TARGETPARTCD P ,  EVENT_DC_STDMNG S , COT_GRPCD C
+			WHERE
+				P.COMCD = #{COMCD}
+				AND P.EVENT_DC_PARTCD=#{PART_CD}
+				AND C.COMCD = S.COMCD AND C.GRP_CD = 'CM_REASON_DC' AND S.EVENT_REASONCD=C.CD AND C.ITEM2='4010'
+				AND S.COMCD=P.COMCD AND S.EVENT_DCID=P.EVENT_DCID  AND S.EVENT_OPENYN='Y' AND S.USE_YN='Y'
+<choose>
+ 			<when test='PGM_GUBUN == "EDC"'>
+ 				AND EXISTS (SELECT EDC_PRGMID FROM EDC_DC_STDMNG WHERE COMCD=#{COMCD} AND EDC_PRGMID=#{PGM_CD} AND DC_REASON_CD=C.CD)
+ 			</when>
+ 			 <when test='PGM_GUBUN == "EXBT"'>
+ 				AND EXISTS (SELECT EXBT_SEQ FROM EXBT_DC_STDMNG WHERE COMCD=#{COMCD} AND EXBT_SEQ=#{PGM_CD} AND DC_REASON_CD=C.CD)
+ 			</when>
+ 			<when test='PGM_GUBUN == "EVT"'>
+ 				AND EXISTS (SELECT EVT_NO FROM EVT_DC_STDMNG WHERE COMCD=#{COMCD} AND EVT_NO=#{PGM_CD} AND DC_REASON_CD=C.CD)
+ 			</when>
+ </choose>
+				AND (
+					(EVENT_PDGBN='1001' AND EVENT_REPT_MON LIKE '%'||SUBSTR(#{YMD},5,2)||'%') OR
+					(EVENT_PDGBN='2001' AND EVENT_ST_DATE <![CDATA[<=]]> #{YMD} AND EVENT_END_DATE  >= #{YMD} )
+				)
+			  	AND (
+			  	 	(EVENT_REPTGBN='1001'
+			  	 		AND (
+	  	 					EVENT_REPT_WEEK LIKE '%'||TO_CHAR(TO_DATE(#{YMD},'YYYYMMDD') , 'w')||'%'
+	  	 					OR
+	  	 					(EVENT_REPT_WEEK LIKE '%0%' AND  TO_CHAR(next_day((last_day(TO_DATE(#{YMD},'YYYYMMDD'))-7),TO_CHAR(TO_DATE(#{YMD},'YYYYMMDD') , 'd') ) , 'w')  = TO_CHAR(TO_DATE(#{YMD},'YYYYMMDD') , 'w') )
+	  	 				)
+			  	 		AND EVENT_REPT_WEEKDAY LIKE '%'||TO_CHAR(TO_DATE(#{YMD},'YYYYMMDD') , 'd')||'%')
+			  	 	OR
+			  	 	(EVENT_REPTGBN='1002'  AND EVENT_REPT_DD=TO_CHAR(TO_DATE(#{YMD},'YYYYMMDD') , 'DD'))
+			  	 	OR
+			  	 	(EVENT_REPTGBN='1003'
+			  	 		AND EVENT_REPT_WEEKDAY LIKE '%'||TO_CHAR(TO_DATE(#{YMD},'YYYYMMDD') , 'd')||'%')
+			  	)
+			  	AND NOT EXISTS
+				 (SELECT EVENT_DCID FROM EVENT_DCEXCL_PROGRAM M
+				 	WHERE
+				 	 	M.EVENT_DCID= P.EVENT_DCID
+				 	 	AND M.COMCD=P.COMCD
+				 	 	AND M.EVENT_PROGM_PARTCD=P.EVENT_DC_PARTCD
+				 		AND M.EVENT_DCEXCL_PROGRMCD=#{PGM_CD}
+				 )
+				 ORDER BY
+				 EVENT_DC_RATE DESC
+ 	</select>
+
+	<!--해당 프로그램에 적용가능한 할인코드 목록-->
+ 	<select id="selectDcReasonList" resultType="com.hisco.user.mypage.service.RsvnCommVO">
+ 		<choose>
+ 			<when test='gubun == "EXBT"'>
+		 		SELECT /* RsvnCommDAO.selectDcReasonList :: EXBT */
+		 			DC_REASON_CD AS eventReasoncd , DC_RATE AS eventDcRate
+		 		FROM EXBT_DC_STDMNG
+		 		WHERE COMCD=#{comcd} AND EXBT_SEQ=#{programCd}
+ 			</when>
+ 			<when test='gubun == "EVT"'>
+		 		SELECT /* RsvnCommDAO.selectDcReasonList :: EVT */
+		 			DC_REASON_CD AS eventReasoncd , DC_RATE AS eventDcRate
+		 		FROM EVT_DC_STDMNG
+		 		WHERE COMCD=#{comcd} AND EVT_NO=#{programCd}
+ 			</when>
+ 			<when test='gubun == "EDC"'>
+		 		SELECT /* RsvnCommDAO.selectDcReasonList :: EDC */
+		 			DC_REASON_CD AS eventReasoncd , DC_RATE AS eventDcRate
+		 		FROM EDC_DC_STDMNG
+		 		WHERE COMCD=#{comcd} AND EDC_PRGMID=#{programCd}
+ 			</when>
+ 		</choose>
+ 	</select>
+
+	<!--  연간회원 적용가능한 할인 조회-->
+ 	<select id="selectAnnualDcData" resultType="com.hisco.user.mypage.service.RsvnCommVO">
+ 		<choose>
+ 			<when test='gubun == "EXBT"'>
+		 		SELECT /* RsvnCommDAO.selectAnnualDcData :: EXBT */
+		 			D.DC_REASON AS eventReasoncd ,
+		 			D.DC_LIMITCNT AS limitCnt ,
+		 			D.DC_LIMIT_QTY AS limitQty ,
+		 			CASE WHEN P.DC_RATE>0 THEN  P.DC_RATE ELSE D.DC_RATE END AS eventDcRate,
+		 			NVL((SELECT COUNT(UNIQUE M.EXBT_RSVN_IDX)
+		 				FROM
+		 					EXBT_RSVN_ITEM T , EXBT_RSVN_MST M
+		 				WHERE
+		 					M.EXBT_RSVN_MEMNO=#{uniqId} AND T.EXBT_RSVN_IDX=M.EXBT_RSVN_IDX AND T.EXBT_DCTYPE=D.DC_REASON
+		 					AND M.EXBT_APPDATE LIKE TO_CHAR(SYSDATE,'YYYY')||'%'
+		 					AND M.EXBT_APPTYPE IN ('11','20')
+		 					AND M.EXBT_RSVN_IDX != #{rsvnIdxOne}
+		 			),0) AS applyCnt,
+		 			CASE WHEN (SELECT COUNT(*)
+		 				FROM
+		 					EXBT_RSVN_ITEM T
+		 				WHERE
+		 					T.EXBT_RSVN_IDX=#{rsvnIdxOne} AND T.EXBT_DCTYPE=D.DC_REASON AND EXBT_ITEMCD=#{itemCd}
+		 			)>0 THEN 'Y' ELSE 'N' END AS useYn
+		 		FROM
+		 			ANULMEMB_DCSTDMNG D , EXBT_DC_STDMNG P
+		 		WHERE
+		 			D.COMCD=#{comcd} AND D.DC_MEMBGBN=#{memberGbn} AND D.DC_PARTGBN='1001'
+		 			AND P.EXBT_SEQ=#{programCd} AND D.COMCD=P.COMCD AND D.DC_REASON = P.DC_REASON_CD
+ 			</when>
+ 			<when test='gubun == "EVT"'>
+		 		SELECT /* RsvnCommDAO.selectAnnualDcData :: EVT */
+		 			D.DC_REASON AS eventReasoncd ,
+		 			D.DC_LIMITCNT AS limitCnt ,
+		 			D.DC_LIMIT_QTY AS limitQty ,
+		 			CASE WHEN P.DC_RATE>0 THEN  P.DC_RATE ELSE D.DC_RATE END AS eventDcRate,
+		 			NVL((SELECT COUNT(UNIQUE M.EVT_RSVN_IDX)
+		 				FROM
+		 					EVT_RSVN_ITEM T , EVT_RSVN_MST M
+		 				WHERE
+		 					M.EVT_RSVN_MEMNO=#{uniqId} AND T.EVT_RSVN_IDX=M.EVT_RSVN_IDX  AND T.EVT_DC_TYPE=D.DC_REASON
+		 					AND M.EVT_APPDATE LIKE TO_CHAR(SYSDATE,'YYYY')||'%'
+		 					AND M.EVT_RSVN_APPTYPE IN ('11','20')
+		 					AND M.EVT_RSVN_IDX != #{rsvnIdxOne}
+		 			),0) AS applyCnt,
+		 			CASE WHEN (SELECT COUNT(*)
+		 				FROM
+		 					EVT_RSVN_ITEM T
+		 				WHERE
+		 					T.EVT_RSVN_IDX=#{rsvnIdxOne} AND T.EVT_DC_TYPE=D.DC_REASON AND EVT_RSVN_ITEMCD=#{itemCd}
+		 			)>0 THEN 'Y' ELSE 'N' END AS useYn
+		 		FROM
+		 			ANULMEMB_DCSTDMNG D , EVT_DC_STDMNG P
+		 		WHERE
+		 			D.COMCD=#{comcd} AND D.DC_MEMBGBN=#{memberGbn} AND D.DC_PARTGBN='3001'
+		 			AND P.EVT_NO=#{programCd} AND D.COMCD=P.COMCD AND D.DC_REASON = P.DC_REASON_CD
+ 			</when>
+ 			<when test='gubun == "EDC"'>
+		 		SELECT /* RsvnCommDAO.selectAnnualDcData :: EDC */
+		 			D.DC_REASON AS eventReasoncd ,
+		 			D.DC_LIMITCNT AS limitCnt ,
+		 			D.DC_LIMIT_QTY AS limitQty ,
+		 			CASE WHEN P.DC_RATE>0 THEN  P.DC_RATE ELSE D.DC_RATE END AS eventDcRate,
+		 			(SELECT COUNT(*)
+		 				FROM
+		 					EDC_RSVN_INFO T
+		 				WHERE
+		 					T.EDC_MEM_NO=#{uniqId} AND T.EDC_REASONDC=D.DC_REASON
+		 					AND T.EDC_REQ_DATE LIKE TO_CHAR(SYSDATE,'YYYY')||'%'
+		 					AND T.EDC_STAT IN ('11','20')
+		 			) AS applyCnt,
+		 			CASE WHEN (SELECT COUNT(*)
+		 				FROM
+		 					EDC_RSVN_INFO T
+		 				WHERE
+		 					T.EDC_RSVN_REQID=#{rsvnIdxOne} AND T.EDC_REASONDC=D.DC_REASON
+		 			)>0 THEN 'Y' ELSE 'N' END AS useYn
+		 		FROM
+		 			ANULMEMB_DCSTDMNG D , EDC_DC_STDMNG P
+		 		WHERE
+		 			D.COMCD=#{comcd} AND D.DC_MEMBGBN=#{memberGbn} AND D.DC_PARTGBN='2001'
+		 			AND P.EDC_PRGMID=#{programCd} AND D.COMCD=P.COMCD AND D.DC_REASON = P.DC_REASON_CD
+ 			</when>
+ 		</choose>
+ 	</select>
+
+
+ 	<select id="selectMyCouponList" resultType="com.hisco.user.member.service.MemberCouponVO">
+ 		SELECT /* RsvnCommDAO.selectMyCouponList */
+ 			C.CPN_UID AS cpnUid,
+ 			C.CPN_ID AS cpnId,
+ 			C.CPN_PYMNTDATE AS cpnPymntdate,
+ 			C.CPN_USEYN AS useYn,
+ 			C.CPN_PYMNT_MESG AS cpnPymntMesg ,
+ 			M.CPN_NAME AS cpnName,
+ 			M.CPN_TARGET_GBN AS cpnTargetGbn,
+ 			M.CPN_STDT AS cpnStdt ,
+ 			M.CPN_STTIME AS cpnSttime,
+ 			M.CPN_EDDT AS cpnEddt,
+ 			M.CPN_EDTIME AS cpnEdtime,
+ 			M.CPN_DCRATE AS cpnDcrate
+ 		FROM
+ 			CPN_PYMNT_INFO C , CPN_ISUMANGE M
+ 		WHERE
+ 			C.COMCD=#{comcd}
+ 			AND C.CPN_PYMNTMEMNO=#{uniqId}
+ 			AND C.COMCD=M.COMCD
+ 			AND C.CPN_ID = M.CPN_ID
+ 			AND M.USE_YN ='Y'
+ 			AND M.CPN_TYPE = (CASE WHEN #{gubun}='EXBT' THEN '1' WHEN #{gubun}='EVT' THEN '2' WHEN  #{gubun}='EDC' THEN '3' END)
+ 			AND C.OPENYN = 'Y'
+ 			AND C.CPN_USEYN = 'N'
+<![CDATA[
+ 			AND M.CPN_STDT <= TO_CHAR(SYSDATE,'YYYYMMDD')
+ 			AND (M.CPN_STDT  < TO_CHAR(SYSDATE,'YYYYMMDD')  OR M.CPN_STTIME <=TO_CHAR(SYSDATE,'HHMI'))
+ 			AND M.CPN_EDDT >= TO_CHAR(SYSDATE,'YYYYMMDD')
+ 			AND (M.CPN_EDDT  > TO_CHAR(SYSDATE,'YYYYMMDD')  OR M.CPN_EDTIME >=TO_CHAR(SYSDATE,'HHMI'))
+]]>
+ 			AND
+ 			( M.CPN_TARGET_GBN = '1001'
+ 			  		OR
+ 			  		(M.CPN_TARGET_GBN = '2001'
+ 			  			AND EXISTS (
+ 			  				SELECT CPN_TARGET_PARTCD  FROM CPN_TARGET_STDMNG
+ 			  					WHERE COMCD=M.COMCD AND CPN_ID=M.CPN_ID AND CPN_TARGET_PARTCD=#{partCd}
+ <choose>
+ 			<when test='gubun == "EXBT"'>
+ 			  					AND (CPN_TARGET_CTGCD IS NULL OR CPN_TARGET_CTGCD=(SELECT EXBT_TYPE FROM EXBT_BASERULE WHERE COMCD=#{comcd} AND EXBT_SEQ=#{programCd}))
+ 			</when>
+ 			<when test='gubun == "EVT"'>
+ 								AND (CPN_TARGET_CTGCD IS NULL OR CPN_TARGET_CTGCD=(SELECT COM_CTGCD FROM EVENT_PROGRAM WHERE COMCD=#{comcd} AND EVT_NO=#{programCd}))
+ 			</when>
+ 			<when test='gubun == "EDC"'>
+ 								AND (CPN_TARGET_CTGCD IS NULL OR CPN_TARGET_CTGCD=(SELECT COM_CTGCD FROM EDC_PROGRAM WHERE COMCD=#{comcd} AND EDC_PRGMID=#{programCd}))
+ 			</when>
+ </choose>
+ 			  			)
+ 			  		)
+ 			  		OR
+ 			  		(M.CPN_TARGET_GBN ='3001' AND EXISTS
+ 			  		 	(SELECT CPN_ID FROM CPN_TARGET_PROGRAMCD WHERE COMCD=M.COMCD AND CPN_ID=M.CPN_ID AND CPN_TARGET_PARTCD=#{partCd} AND CPN_TARGET_PROGRMCD=#{programCd} AND CPN_TARGET_GBN='1' )
+ 			  		)
+ 			  	)
+			AND NOT EXISTS
+				(SELECT CPN_ID FROM  CPN_TARGET_PROGRAMCD WHERE COMCD=M.COMCD AND CPN_ID=M.CPN_ID AND CPN_TARGET_PARTCD=#{partCd} AND CPN_TARGET_PROGRMCD=#{programCd} AND CPN_TARGET_GBN='2' )
+ 	</select>
+
+
+ 	<!--해당 프로그램에 단체 할인 여부 조회 -->
+ 	<select id="selectGroupDcCheck" resultType="com.hisco.user.mypage.service.RsvnCommVO">
+ 		<choose>
+ 			<when test='gubun == "EXBT"'>
+		 		SELECT /* RsvnCommDAO.selectGroupDcCheck :: EXBT */
+		 			DC_REASON_CD AS eventReasoncd , DC_RATE AS eventDcRate , '단체할인' AS eventDcname,
+		 			CASE WHEN (SELECT COUNT(*) FROM EXBT_RSVN_ITEM WHERE EXBT_RSVN_IDX=#{rsvnIdxOne} AND EXBT_ITEMCD=#{itemCd} AND EXBT_DCTYPE=D.DC_REASON_CD)>0 THEN 'Y' ELSE 'N' END AS useYn
+		 		FROM EXBT_DC_STDMNG D
+		 		WHERE COMCD=#{comcd} AND EXBT_SEQ=#{programCd}
+		 			AND DC_REASON_CD IN (SELECT CD FROM COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD='CM_REASON_DC' AND ITEM2='6001')
+				  	AND DC_RATE > 0
+				  	AND ROWNUM=1
+ 			</when>
+ 			<when test='gubun == "EVT"'>
+		 		SELECT /* RsvnCommDAO.selectGroupDcCheck :: EVT */
+		 			DC_REASON_CD AS eventReasoncd , DC_RATE AS eventDcRate , '단체할인' AS eventDcname,
+		 			CASE WHEN (SELECT COUNT(*) FROM EVT_RSVN_ITEM WHERE EVT_RSVN_IDX=#{rsvnIdxOne} AND EVT_RSVN_ITEMCD=#{itemCd} AND EVT_DC_TYPE=D.DC_REASON_CD)>0 THEN 'Y' ELSE 'N' END AS useYn
+		 		FROM EVT_DC_STDMNG D
+		 		WHERE COMCD=#{comcd} AND EVT_NO=#{programCd}
+		 			AND DC_REASON_CD IN (SELECT CD FROM COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD='CM_REASON_DC' AND ITEM2='6001')
+				  	AND DC_RATE > 0
+				  	AND ROWNUM=1
+ 			</when>
+ 			<when test='gubun == "EDC"'>
+		 		SELECT /* RsvnCommDAO.selectGroupDcCheck :: EDC */
+		 			DC_REASON_CD AS eventReasoncd , DC_RATE AS eventDcRate , '단체할인' AS eventDcname,
+		 			CASE WHEN (SELECT COUNT(*) FROM EDC_RSVN_INFO WHERE EDC_RSVN_REQID=#{rsvnIdxOne} AND EDC_REQ_ITEM_CD=#{itemCd} AND EDC_REASONDC=D.DC_REASON_CD)>0 THEN 'Y' ELSE 'N' END AS useYn
+		 		FROM EDC_DC_STDMNG D
+		 		WHERE COMCD=#{comcd} AND EDC_PRGMID=#{programCd}
+		 			AND DC_REASON_CD IN (SELECT CD FROM COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD='CM_REASON_DC' AND ITEM2='6001')
+				  	AND DC_RATE > 0
+				  	AND ROWNUM=1
+ 			</when>
+ 		</choose>
+ 	</select>
+
+
+ 	<select id="selectMyCouponData" resultType="com.hisco.user.member.service.MemberCouponVO">
+ 		SELECT /* RsvnCommDAO.selectMyCouponData */
+ 			C.COMCD AS comcd,
+ 			C.CPN_UID AS cpnUid,
+ 			C.CPN_ID AS cpnId,
+ 			C.CPN_PYMNTDATE AS cpnPymntdate,
+ 			C.CPN_USEYN AS useYn,
+ 			C.CPN_PYMNT_MESG AS cpnPymntMesg ,
+ 			M.CPN_NAME AS cpnName,
+ 			M.CPN_TARGET_GBN AS cpnTargetGbn,
+ 			M.CPN_STDT AS cpnStdt ,
+ 			M.CPN_STTIME AS cpnSttime,
+ 			M.CPN_EDDT AS cpnEddt,
+ 			M.CPN_EDTIME AS cpnEdtime,
+ 			M.CPN_DCRATE AS cpnDcrate
+ 		FROM
+ 			CPN_PYMNT_INFO C , CPN_ISUMANGE M
+ 		WHERE
+ 			C.CPN_UID = #{dcCpnno}
+ 			AND C.COMCD=#{comcd}
+ 			AND C.COMCD=M.COMCD
+ 			AND C.CPN_ID = M.CPN_ID
+ 			AND M.USE_YN ='Y'
+ 			AND C.OPENYN = 'Y'
+ 			AND C.CPN_USEYN = 'N'
+
+ 	</select>
+
+ 	<update id="updateMyCouponDataUse">
+ 		UPDATE CPN_PYMNT_INFO SET CPN_USEYN='Y'
+ 		WHERE
+			CPN_UID = #{cpnUid}
+ 			AND COMCD=#{comcd}
+ 	</update>
+
+
+ 	<update id="updateMyCouponDataCancel">
+ 		UPDATE CPN_PYMNT_INFO SET CPN_USEYN='N'
+ 		WHERE
+ 		<choose>
+ 			<when test='gubun == "EXBT"'>
+			CPN_UID =  (SELECT EXBT_DCCPNNO FROM EXBT_RSVN_ITEM WHERE EXBT_RSVN_IDX=#{rsvnIdxOne} AND EXBT_SALESEQ=#{subSeq})
+			</when>
+			<when test='gubun == "EVT"'>
+			CPN_UID =  (SELECT EVT_DC_CPNNO FROM EVT_RSVN_ITEM WHERE EVT_RSVN_IDX=#{rsvnIdxOne} AND EVT_SALE_SEQ=#{subSeq})
+			</when>
+			<when test='gubun == "EDC"'>
+			CPN_UID =  (SELECT EDC_DCCPNNO FROM EDC_RSVN_INFO WHERE COMCD=#{comcd} AND EDC_RSVN_REQID=#{rsvnIdxOne} )
+			</when>
+		</choose>
+ 			AND COMCD=#{comcd}
+ 	</update>
+
+
+ 	<!--관람 가격  -->
+	<select id="selectExbtItemCharge" resultType="cMap">
+		SELECT
+			CASE WHEN B.FEE_TYPE='1001' THEN A.PRICE ELSE 0 END PRICE,
+			C.EXBT_PARTCD  AS PARTCD,
+			C.EXBT_VIEINGDATE AS YMD,
+			CASE WHEN C.EXBT_PERSN_GBN='2001' AND P.PERGRGBN='2001' THEN '2001' ELSE '1001' END AS TARGET,
+			C.EXBT_SEQ AS PROGRAM_CD,
+			C.EXBT_APPTYPE  AS APP_STATUS,
+			CASE WHEN (SELECT COUNT(*) FROM EXBT_DC_STDMNG WHERE COMCD=A.COMCD AND EXBT_SEQ=A.EXBT_SEQ AND DC_REASON_CD='6001')>0 THEN 'Y' ELSE 'N' END CPN_YN,
+			(SELECT NVL(SUM(EXBT_ITEM_CNT),0) FROM EXBT_RSVN_ITEM WHERE EXBT_RSVN_IDX=C.EXBT_RSVN_IDX AND EXBT_ITEMCD != #{itemCd} AND
+				EXBT_DCTYPE IN (SELECT CD FROM COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD='CM_REASON_DC' AND ITEM2='8001')) AS ANNUAL_CNT
+		FROM
+			EXBT_CHARGE A ,  EXBT_RSVN_MST C , EXBT_BASERULE B , PROGRAM_ITEM P
+		WHERE
+			A.COMCD=#{comcd} AND A.ITEM_CD=#{itemCd}
+			AND C.EXBT_RSVN_IDX=#{rsvnIdxOne}
+			AND A.EXBT_SEQ = C.EXBT_SEQ
+			AND A.COMCD = B.COMCD AND A.EXBT_SEQ=B.EXBT_SEQ
+			AND C.COMCD = P.COMCD AND A.ITEM_CD = P.ITEM_CD
+	</select>
+
+
+	<!-- 이벤트 할인율  -->
+	<select id="selectEventDcRate" resultType="integer">
+		SELECT
+			EVENT_DC_RATE
+		FROM
+			EVENT_DC_STDMNG A
+		WHERE
+			COMCD=#{comcd} AND EVENT_DCID=#{dcEventId}
+	</select>
+
+	 <!--강연/행사/영화 가격  -->
+	<select id="selectEvtItemCharge" resultType="cMap">
+		SELECT
+			CASE WHEN B.EVT_FEE_TYPE='1001' THEN A.ITEM_PRICE ELSE 0 END ITEM_PRICE ,
+			C.EVT_PARTCD AS PARTCD,
+			C.EVT_VEINGDATE AS YMD,
+			CASE WHEN C.EVT_PERSN_GBN='2001' AND P.PERGRGBN='2001' THEN '2001' ELSE '1001' END AS TARGET,
+			C.EVT_NO AS PROGRAM_CD,
+			C.EVT_RSVN_APPTYPE AS APP_STATUS,
+			CASE WHEN (SELECT COUNT(*) FROM EVT_DC_STDMNG WHERE COMCD=A.COMCD AND EVT_NO=A.EVT_NO AND DC_REASON_CD='6001')>0 THEN 'Y' ELSE 'N' END CPN_YN,
+			(SELECT NVL(SUM(EVT_RSVN_ITEMCNT),0) FROM EVT_RSVN_ITEM WHERE EVT_RSVN_IDX=C.EVT_RSVN_IDX AND EVT_RSVN_ITEMCD != #{itemCd} AND
+				EVT_DC_TYPE IN (SELECT CD FROM COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD='CM_REASON_DC' AND ITEM2='8001')) AS ANNUAL_CNT
+		FROM
+			EVT_ITEM_AMOUNT A ,  EVT_RSVN_MST C , EVENT_PROGRAM B , PROGRAM_ITEM P
+		WHERE
+			A.COMCD=#{comcd}  AND A.ITEM_CD=#{itemCd}
+			AND C.EVT_RSVN_IDX=#{rsvnIdxOne}
+			AND A.EVT_NO= C.EVT_NO
+			AND A.COMCD = B.COMCD AND A.EVT_NO=B.EVT_NO
+			AND C.COMCD = P.COMCD AND C.EVT_PARTCD=P.PART_CD AND A.ITEM_CD = P.ITEM_CD
+	</select>
+
+	<!--교육 가격  -->
+	<select id="selectEdcItemCharge" resultType="cMap">
+
+     SELECT /* RsvnCommDAO.selectEdcItemCharge */
+            C.EDC_REQ_SDATE  AS YMD
+          , B.EDC_PROGM_TYPE AS TARGET
+          , C.EDC_PRGMID AS PROGRAM_CD
+          , C.EDC_VISTNMPR   AS EDC_VISTNMPR
+          , C.EDC_PROGM_COST AS ITEM_PRICE
+          , C.EDC_STAT       AS APP_STATUS
+          , B.EDC_PART_CD    AS PARTCD
+          , (SELECT (SELECT G.CPN_DCRATE FROM CPN_ISUMANGE G WHERE G.COMCD = F.COMCD AND G.CPN_ID = F.CPN_ID)
+				       FROM CPN_PYMNT_INFO F
+				      WHERE F.COMCD   = A.COMCD
+				        AND F.CPN_UID = #{couponIdOne}) AS CPN_DCRATE
+		,CASE WHEN (SELECT COUNT(*) FROM EDC_DC_STDMNG WHERE COMCD=C.COMCD AND EDC_PRGMID=C.EDC_PRGMID AND DC_REASON_CD='6001')>0 THEN 'Y' ELSE 'N' END CPN_YN
+       FROM  EDC_RSVN_INFO C, EDC_PRGM_ITEM A, EDC_PROGRAM B
+      WHERE C.COMCD = #{comcd}
+            AND C.EDC_RSVN_REQID = #{rsvnIdxOne}
+            AND A.COMCD = C.COMCD
+            AND A.EDC_PRGMID = C.EDC_PRGMID
+            AND A.COMCD  = B.COMCD
+            AND A.EDC_PRGMID = B.EDC_PRGMID
+
+	</select>
+
+ 	<update id="updateEucRsvnInfoCoupon">
+ 		UPDATE /* RsvnCommDAO.updateEucRsvnInfoCoupon */
+ 		      EDC_RSVN_INFO
+ 		  SET EDC_TOTAMT     = '${payAmt}'
+ 		    , EDC_DCAMT      = '${dcAmt}'
+ 		    , EDC_DCCPNNO	 = '${couponIdOne}'
+ 		    , EDC_REASONDC	 = '${discReasonDc}'
+ 		    , EDC_EVENT_DCID  = '${eventReasonCd}'
+ 		WHERE COMCD          = '${comcd}'
+		  AND EDC_RSVN_REQID = '${rsvnIdxOne}'
+ 	</update>
+
+ 	<update id="updateEucRsvnCouponCancel">
+ 		UPDATE /* RsvnCommDAO.updateEucRsvnCouponCancel */
+ 		      EDC_RSVN_INFO
+ 		  SET EDC_TOTAMT     = EDC_PROGM_COST
+ 		    , EDC_DCAMT      = 0
+ 		    , EDC_DCCPNNO	 = ''
+ 		    , EDC_REASONDC	 = ''
+ 		WHERE COMCD          = #{comcd}
+		  AND EDC_RSVN_REQID = #{rsvnIdxOne}
+ 	</update>
+
+</mapper>

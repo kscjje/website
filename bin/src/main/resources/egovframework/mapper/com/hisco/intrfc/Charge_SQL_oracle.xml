@@ -1,0 +1,474 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	수정일      수정자     수정내용
+  =========     =======    =================================================
+  2020.09.08   	전영석     결제 Tibero Mapper
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ChargeDAO">
+
+	<resultMap id="egovMap" type="egovframework.rte.psl.dataaccess.util.EgovMap"></resultMap>
+
+ 	<select id="selectPgOrdMst" parameterType="Map" resultType="cMap">
+
+		SELECT /* ChargeDAO.selectPgOrdMst */
+	           OID_STAT
+		 FROM PG_ORD_MST T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="COMCD != null and COMCD != ''">
+		    	T.COMCD = #{COMCD}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+ 	<select id="selectPgOrdMstRow" parameterType="Map" resultType="int">
+
+		 SELECT COUNT(*) AS ROW_COUNT
+	  	  FROM PG_ORD_DET T
+	 	 WHERE COMCD = #{COMCD}
+
+ 		 <trim prefix="AND">
+
+			<choose>
+				<when test="RESERITEMSArr != 0">
+					T.RSVN_NO IN
+					<foreach collection="RESERITEMSArr" item="item"  open="(" close=")" separator=",">
+						#{item}
+					</foreach>
+				</when>
+			</choose>
+
+ 		 </trim>
+
+	</select>
+
+ 	<select id="selectPgOrdDet" parameterType="Map" resultType="cMap">
+
+		SELECT /* ChargeDAO.selectPgOrdDet */
+		       OID
+		     , OID_DET_ROWCNT
+		     , OID_STAT
+		  FROM PG_ORD_MST T
+		 WHERE T.COMCD = #{COMCD}
+
+ 		 <trim prefix="AND">
+
+			<choose>
+				<when test="RESERITEMSArr != 0">
+					T.OID IN (SELECT B.OID FROM PG_ORD_DET B WHERE B.OID_RSVN_NO IN
+					<foreach collection="RESERITEMSArr" item="item"  open="(" close=")" separator=",">
+						#{item}
+					</foreach>
+					)
+				</when>
+			</choose>
+
+ 		 </trim>
+
+	</select>
+
+ 	<insert id="insertPgOrdMst" parameterType="Map">
+
+		INSERT INTO /* ChargeDAO.insertPgOrdMst */
+          PG_ORD_MST (
+                      	COMCD
+                       , OID
+                       , OID_STAT
+                       , OID_DET_ROWCNT
+                       , OID_AMT
+                       , REGUSER
+                       , REGDATE
+                       , MODUSER
+                       , MODDATE
+                      ) VALUES (
+                         #{COMCD}
+                       , #{LGD_OID}
+                       , #{OID_STAT}
+                       , #{OID_DET_ROWCNT}
+                       , #{LGD_AMOUNT}
+                       , #{REGUSER}
+                       , SYSDATE
+                       , #{MODUSER}
+                       , SYSDATE
+                      )
+ 	</insert>
+
+ 	<insert id="insertPgOrdDet" parameterType="Map">
+
+		INSERT INTO /* ChargeDAO.insertPgOrdDet */
+           PG_ORD_DET (
+                      	COMCD
+                       , OID
+                       , OID_SEQ
+                       , OID_RSVN_NO
+                       , REGUSER
+                       , REGDATE
+                       , MODUSER
+                       , MODDATE
+                      ) VALUES (
+                         #{COMCD}
+                       , #{LGD_OID}
+                       , #{OID_SEQ}
+                       , #{OID_RSVN_NO}
+                       , #{REGUSER}
+                       , SYSDATE
+                       , #{MODUSER}
+                       , SYSDATE
+                      )
+ 	</insert>
+
+ 	<update id="updatePgOrdMst" parameterType="Map">
+
+		UPDATE PG_ORD_MST /* ChargeDAO.updatePgOrdMst */
+		    SET OID_STAT       = #{OID_STAT}
+		      , REQUEST_RESULT = #{REQUEST_RESULT}
+		      , MODUSER  = #{MODUSER}
+		      , MODDATE  = SYSDATE
+		   WHERE COMCD = #{COMCD}
+		     AND OID = #{LGD_OID}
+		     AND OID_STAT = '1001'
+
+ 	</update>
+
+	<!-- [예약결제대기 자동취소를 처리한다][2020-09-09][전영석] -->
+ 	<select id="selectChargeMainList" parameterType="Map" resultType="cMap">
+
+		SELECT /* ChargeDAO.selectChargeMainList */
+	           COMCD
+	         , EDC_PRGMID
+	         , COM_CTGCD
+	         , EDC_PRGMNM
+	         , EDC_PLACENM
+	         , EDC_SDATE
+	         , EDC_EDATE
+	         , EDC_STIME
+	         , EDC_ETIME
+		 FROM EDC_PROGRAM T
+
+ 		<trim prefix="WHERE">
+
+		  	<if test="COMCD != null and COMCD != ''">
+		    	T.COMCD = #{COMCD}
+		  	</if>
+
+ 		</trim>
+
+	</select>
+
+	<!-- 카드사별 수수료 구하기 -->
+ 	<select id="selectPaymethodRate" parameterType="Map" resultType="cMap">
+		SELECT /* ChargeDAO.selectPaymethodRate */
+	           CARD_RATE
+	         , CHECK_RATE
+		FROM
+			PAY_COM_RATE
+		WHERE
+			P_COMCD=#{P_COMCD}
+			AND P_TYPE=#{P_TYPE}
+			AND METHOD_CD=#{CARD_CD}
+			AND COMCD=#{comcd}
+
+	</select>
+
+	<!-- PG 기승인 내역 조회 -->
+ 	<select id="selectCardAppHistoryCnt" parameterType="Map" resultType="int">
+		SELECT /* ChargeDAO.selectCardAppHistoryCnt */
+	           COUNT(*)
+		FROM
+			CARD_APP_HIST
+		WHERE
+			OID = #{LGD_OID} AND PARTIAL_CNLYN='N'
+	</select>
+
+	<!-- PG거래승인내역 -->
+	<insert id="insertCardAppHistory" parameterType="Map">
+		INSERT INTO /* ChargeDAO.insertCardAppHistory */
+           CARD_APP_HIST (
+                      	COMCD
+                       , APP_DATE
+                       , APP_NO
+                       , MEM_NO
+                       , PARTIAL_CNLYN
+                       , APP_GBN
+                       , CNL_DATE
+                       , CARD_NO1
+                       , CARD_NO2
+                       , CARD_NO3
+                       , CARD_NO4
+                       , P_COMCD
+                       , P_TYPE
+                       , CARD_SEC
+                       , BANK_CD
+                       , CARD_CD
+                       , HALBU_CNT
+                       , APP_AMT
+                       , CASH_USER_INFO
+                       , CASH_APP_GBN
+                       , Card_Sale_No
+                       , STORE_NO
+                       , PAY_LIST_YN
+                       , FORCE_YN
+                       , PG_VAN
+                       , KEYIN_TYPE
+                       , IN_DATE
+                       , CHECK_GBN
+                       , CARDANDBANK_RATE_AMT
+                       , CARDANDBANK_RATE
+                       , REMARK
+                       , MID
+                       , OID
+                       , TID
+                       , ORDER_TERMINALID
+                       , UIP
+                       , RESULTMSG
+                       , TERMINAL_TYPE
+                       , REGUSER
+                       , REGDATE
+                       , MODUSER
+                       , MODDATE
+                      ) VALUES (
+                         #{comcd}
+                       , #{LGD_PAYDATE}
+                       , NVL(#{LGD_FINANCEAUTHNUM}, #{LGD_TID})
+                       , (SELECT MEM_NO FROM MEMBER WHERE ID=#{REGUSER} AND STATUS='0000' AND ROWNUM=1)
+                       , 'N'
+                       , #{APP_GBN}
+                       , #{CNL_DATE}
+                       , SUBSTR(#{LGD_CARDNUM},1,4)
+                       , CASE WHEN #{LGD_CARDNUM} != NULL THEN SUBSTR(#{LGD_CARDNUM},5,2)||'**' END
+                       , CASE WHEN #{LGD_CARDNUM} != NULL THEN '****' END
+                       , CASE WHEN #{LGD_CARDNUM} != NULL THEN '****' END
+                       , #{P_COMCD}
+                       , #{P_TYPE}
+                       , #{CARD_CD}
+                       , #{BANK_CD}
+                       , #{CARD_CD}
+                       , #{LGD_CARDINSTALLMONTH}
+                       , #{LGD_AMOUNT}
+                       , #{CASH_USER_INFO}
+                       , #{CASH_APP_GBN}
+                       , #{CARD_SALE_NO}
+                       , #{STORE_NO}
+                       , 'Y'
+                       , 'N'
+                       , 'PG'
+                       , #{KEYIN_TYPE}
+                       , #{IN_DATE}
+                       , #{CHECK_GBN}
+                       , #{CARDANDBANK_RATE_AMT}
+                       , #{CARDANDBANK_RATE}
+                       , #{REMARK}
+                       , #{LGD_MID}
+                       , #{LGD_OID}
+                       , #{LGD_TID}
+                       , #{ORDER_TERMINALID}
+                       , #{UIP}
+                       , #{LGD_RESPMSG}
+                       , #{TERMINAL_TYPE}
+                       , #{REGUSER}
+                       , SYSDATE
+                       , #{REGUSER}
+                       , SYSDATE
+                      )
+ 	</insert>
+
+ 	<!--  주문번호 생성 -->
+ 	<insert id="selectOrderIdProc" parameterType="com.hisco.intrfc.charge.service.OrderIdVO" statementType="CALLABLE">
+    	{ call SP_CREATE_OID (
+    		#{retCd, mode=OUT, jdbcType=VARCHAR, javaType=String},
+    		#{retMsg, mode=OUT, jdbcType=VARCHAR, javaType=String},
+    		#{retCursor, mode=OUT, jdbcType=CURSOR, javaType=ResultSet, resultMap=egovMapIfOnly},
+    		#{retOid, mode=OUT, jdbcType=VARCHAR, javaType=String},
+    		#{comcd},
+    		#{userId},
+   			#{rsvnNo},
+    		#{itemCd},
+    		#{rsvnCnt},
+    		#{rsvnAmt}
+    	) }
+    </insert>
+
+    <!--  주문 저장  -->
+ 	<insert id="insertPaymentProc"  statementType="CALLABLE">
+    	{ call SP_CREATE_PAMENTINFO (
+    		#{retCd, mode=OUT, jdbcType=VARCHAR, javaType=String},
+    		#{retMsg, mode=OUT, jdbcType=VARCHAR, javaType=String},
+    		#{retCursor, mode=OUT, jdbcType=CURSOR, javaType=ResultSet, resultMap=egovMapIfOnly},
+    		#{comcd},
+    		#{LGD_BUYERID},
+    		#{terminalType},
+    		#{partGbn},
+    		#{memYearSeq},
+    		#{memYearDccd},
+    		#{memYearDcrate},
+    		#{memYearDcamt},
+    		#{memYearSaleamt},
+    		'ALL',
+    		#{LGD_OID},
+    		''
+    	) }
+    </insert>
+
+
+<!--  주문 취소  -->
+ 	<insert id="insertReturnProc"  statementType="CALLABLE">
+    	{ call SP_PROC_RTN (
+    		#{retCd, mode=OUT, jdbcType=VARCHAR, javaType=String},
+    		#{retMsg, mode=OUT, jdbcType=VARCHAR, javaType=String},
+    		#{retCursor, mode=OUT, jdbcType=CURSOR, javaType=ResultSet, resultMap=egovMapIfOnly},
+    		#{retReceiptNo, mode=OUT, jdbcType=VARCHAR, javaType=String},
+    		#{comcd},
+    		#{moduser},
+    		'F',
+    		#{rsvnNo},
+    		#{LGD_OID},
+    		#{partGbn},
+    		#{terminalType},
+    		#{cancelCd},
+    		#{cancelDate},
+    		#{cancelAppNo}
+    	) }
+    </insert>
+
+    <!-- PG거래승인 취소 -->
+	<update id="updateCardAppCancel" >
+		UPDATE /* ChargeDAO.updateCardAppCancel */
+           CARD_APP_HIST
+          SET
+			CNL_DATE = TO_CHAR(SYSDATE,'YYYYMMDD'),
+			APP_GBN = '2',
+			MODDATE = SYSDATE,
+			MODUSER = #{moduser}
+       WHERE OID=#{orderId} AND NVL(PAY_LIST_YN,'Y')='Y' AND PARTIAL_CNLYN='N' AND APP_GBN='1'
+    </update>
+
+
+    <!-- PG거래승인 부분 취소 -->
+	<update id="updateCardAppPartial" >
+		INSERT INTO /* ChargeDAO.updateCardAppPartial */
+           CARD_APP_HIST
+        (COMCD
+             , APP_DATE
+             , APP_NO
+             , MEM_NO
+             , PARTIAL_CNLYN
+             , APP_GBN
+             , CNL_DATE
+             , CARD_NO1
+             , CARD_NO2
+             , CARD_NO3
+             , CARD_NO4
+             , P_COMCD
+             , P_TYPE
+             , CARD_SEC
+             , BANK_CD
+             , CARD_CD
+             , HALBU_CNT
+             , APP_AMT
+             , Card_Sale_No
+             , STORE_NO
+             , PAY_LIST_YN
+             , FORCE_YN
+             , PG_VAN
+             , CHECK_GBN
+             , CARDANDBANK_RATE_AMT
+             , CARDANDBANK_RATE
+             , MID
+             , OID
+             , TID
+             , UIP
+             , RESULTMSG
+             , TERMINAL_TYPE
+             , REGUSER
+             , REGDATE
+             , MODUSER
+             , MODDATE
+             , PCANCEL_NO)
+        SELECT
+        	COMCD
+             , NVL(#{cancelDate},TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS'))
+             , NVL(#{cancelAppNo},APP_NO)
+             , MEM_NO
+             , 'Y'
+             , '2'
+             , NVL( SUBSTR(#{cancelDate},1,8) , TO_CHAR(SYSDATE,'YYYYMMDD'))
+             , CARD_NO1
+             , CARD_NO2
+             , CARD_NO3
+             , CARD_NO4
+             , P_COMCD
+             , P_TYPE
+             , CARD_SEC
+             , BANK_CD
+             , CARD_CD
+             , HALBU_CNT
+             , (#{cancelAmt}*-1)
+             , Card_Sale_No
+             , STORE_NO
+             , 'N'
+             , 'N'
+             , PG_VAN
+             , CHECK_GBN
+             , #{cardRateAmt}
+             , #{cardRate}
+             , MID
+             , OID
+             , TID
+             , #{ip}
+             , #{retMsg}
+             , TERMINAL_TYPE
+             ,  #{moduser}
+             , SYSDATE
+             ,  #{moduser}
+             , SYSDATE
+             , #{pcancelNo}
+        FROM
+        	CARD_APP_HIST
+        WHERE
+        	OID=#{orderId} AND NVL(PAY_LIST_YN,'Y')='Y' AND PARTIAL_CNLYN='N'
+    </update>
+
+    <insert id="insertDbprocLog">
+    	INSERT INTO DBPROC_LOG (LOG_SEQ,REGDATE,DB_PROCNAME,LOG_DATA)
+    	VALUES(SEQ_DBPROCNO.NEXTVAL,SYSDATE, #{procName} , #{logData})
+    </insert>
+
+
+    <update id="updatePartialNo">
+    	UPDATE PG_ORD_DET SET OID_PCANCEL_NO=#{pcancelNo} WHERE COMCD=#{comcd} AND OID=#{orderId}
+    	AND OID_SEQ IN (
+    		SELECT MAX(OID_SEQ)
+    		FROM PG_ORD_DET
+    		WHERE
+    			COMCD=#{comcd} AND OID=#{orderId}
+				AND OID_RSVN_NO IN
+  				<foreach collection="rsvnNoList" item="item"  open="(" close=")" separator=",">#{item}</foreach>
+  				GROUP BY OID_RSVN_NO
+  			)
+	</update>
+
+
+	<!-- 환불 규정 -->
+ 	<select id="selectRefundRule" parameterType="Map" resultType="cMap">
+		SELECT /* ChargeDAO.selectRefundRule */
+	           RFND_NOFDAY
+	         , RFND_RATE
+	         , RFND_ETIME
+		FROM
+			REFUN_STDMNG
+		WHERE
+			COMCD=#{COMCD}
+			AND PART_CD=#{PART_CD}
+		ORDER BY
+			RFND_NOFDAY DESC
+	</select>
+
+
+</mapper>

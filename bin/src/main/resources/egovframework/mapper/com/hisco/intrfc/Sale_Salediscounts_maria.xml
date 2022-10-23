@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 
+통합매출정보
+작성자: 박우진
+ -->
+ 
+<mapper namespace="com.hisco.intrfc.sale.mapper.SaleDiscountMapper">
+
+	<update id="insertSaleDiscount">
+		/* com.hisco.intrfc.sale.mapper.SaleDiscountMapper.insertSaleDiscount */
+		INSERT INTO SALESDISCOUNTS (
+			COMCD /*운영사업자고유번호*/
+			, SALE_SEQ /*매출고유번호. */
+			, SEQ /*등록순번. 회원별매출내역에따른 순번을 부여한다.*/
+			, DISCOUNTDATE /*적용일자*/
+			, DISCOUNTCD /*할인종류코드*/
+			, BEFOREAMOUNT /*할인전금액. 할인적용되기전 금액을 기록한다.*/
+			, DISCOUNTRATE /*할인율*/
+			, DISCOUNTAMOUNT /*할인금액*/
+			, NWPAY_ORDID /*노원페이를 적용할인된경우 노원페이 적용 주문번호를 기록한다.*/
+			, ETC /*비고*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		SELECT
+			#{comcd}
+			, #{saleSeq}
+			, (SELECT NVL(MAX(SEQ), 0) + 1 FROM SALESDISCOUNTS WHERE COMCD = #{comcd} AND SALE_SEQ = #{saleSeq})
+			, NVL(#{discountdate}, DATE_FORMAT(SYSDATE(), '%Y%m%d')) AS DISCOUNTDATE
+			, #{discountcd}
+			, #{beforeamount}
+			, CASE WHEN #{nwpayOrdid} IS NULL OR #{nwpayOrdid} = '' THEN #{discountrate} ELSE ROUND((#{discountamount}/#{beforeamount})*100, 2) END
+			, #{discountamount}
+			, #{nwpayOrdid}
+			, #{etc}
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser}
+	</update>
+	
+	<update id="cancelSaleDiscount">
+		/* com.hisco.intrfc.sale.mapper.SaleDiscountMapper.cancelSaleDiscount */
+		INSERT INTO SALESDISCOUNTS (
+			COMCD /*운영사업자고유번호*/
+			, SALE_SEQ /*매출고유번호. */
+			, SEQ /*등록순번. 회원별매출내역에따른 순번을 부여한다.*/
+			, DISCOUNTDATE /*적용일자*/
+			, DISCOUNTCD /*할인종류코드*/
+			, BEFOREAMOUNT /*할인전금액. 할인적용되기전 금액을 기록한다.*/
+			, DISCOUNTRATE /*할인율*/
+			, DISCOUNTAMOUNT /*할인금액*/
+			, NWPAY_ORDID /*노원페이를 적용할인된경우 노원페이 적용 주문번호를 기록한다.*/
+			, ETC /*비고*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		SELECT
+			COMCD
+			, #{saleSeq} AS SALE_SEQ
+			, (SELECT NVL(MAX(SEQ), 0) + 1 FROM SALESDISCOUNTS WHERE COMCD = A.COMCD AND SALE_SEQ = #{saleSeq}) AS SEQ
+			, NVL(#{discountdate}, DATE_FORMAT(SYSDATE(), '%Y%m%d')) AS DISCOUNTDATE
+			, DISCOUNTCD
+			, BEFOREAMOUNT
+			, DISCOUNTRATE
+			, -1*#{discountamount}
+			, #{nwpayOrdid}
+			, #{etc}
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser}
+		FROM SALESDISCOUNTS A
+		WHERE COMCD = #{comcd}
+			AND SALE_SEQ = #{orgSaleSeq} 
+			AND SEQ = #{orgSeq}
+	</update>
+
+	<select id="selectSaleDiscount" resultType="com.hisco.intrfc.sale.vo.SaleDiscountVO" >
+		/* com.hisco.intrfc.sale.mapper.SaleDiscountMapper.selectSaleDiscount */
+		SELECT A.*
+			FROM SALESDISCOUNTS A
+			WHERE A.COMCD = #{comcd}
+				AND A.SALE_SEQ = #{saleSeq}
+				AND A.SEQ = #{seq}
+	</select>
+
+ 	<select id="selectSaleDiscountList" resultType="com.hisco.intrfc.sale.vo.SaleDiscountVO" >
+		/* com.hisco.intrfc.sale.mapper.SaleDiscountMapper.selectSaleDiscountList */
+		SELECT A.*
+			FROM SALESDISCOUNTS A
+			WHERE A.COMCD = #{comcd}
+				AND A.SALE_SEQ = #{saleSeq}				
+			ORDER BY A.SALE_SEQ, A.SEQ
+	</select>
+
+</mapper>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE form-validation PUBLIC
+    "-//Apache Software Foundation//DTD Commons Validator Rules Configuration 1.1//EN"
+    "http://jakarta.apache.org/commons/dtds/validator_1_1.dtd">
+<form-validation>
+    <formset>
+		<form name="memberUserVO">
+			<field property="memNm" depends="required, maxlength">
+        		<arg0 key="이름" />
+        		<arg1 key="30" resource="true"/>
+				<var>
+					<var-name>maxlength</var-name>
+					<var-value>30</var-value>
+				</var>
+			</field>
+			<field property="birthDate" depends="required, maxlength">
+        		<arg0 key="생년월일" />
+        		<arg1 key="10" resource="true"/>
+				<var>
+					<var-name>maxlength</var-name>
+					<var-value>10</var-value>
+				</var>
+			</field>
+
+			<field property="gender" depends="required, maxlength">
+        		<arg0 key="성별" />
+        		<arg1 key="1" resource="true"/>
+				<var>
+					<var-name>maxlength</var-name>
+					<var-value>1</var-value>
+				</var>
+			</field>
+			<field property="birthSec" depends="required, maxlength">
+        		<arg0 key="양/음력" />
+        		<arg1 key="1" resource="true"/>
+				<var>
+					<var-name>maxlength</var-name>
+					<var-value>1</var-value>
+				</var>
+			</field>
+			<field property="hp" depends="required, maxlength, mask">
+        		<arg0 key="휴대폰" />
+        		<arg1 key="13" resource="true"/>
+				<var>
+					<var-name>maxlength</var-name>
+					<var-value>13</var-value>
+				</var>
+				<var>
+					<var-name>mask</var-name>
+					<var-value>^01([0|1|6|7|8|9])-?([0-9]{3,4})-?([0-9]{4})$</var-value>
+				</var>
+			</field>
+			<field property="email" depends="email,maxlength">
+        		<arg0 key="이메일" />
+        		<arg1 key="50" resource="true"/>
+        		<var>
+					<var-name>maxlength</var-name>
+					<var-value>50</var-value>
+				</var>
+			</field>
+		</form>
+    </formset>
+
+</form-validation>

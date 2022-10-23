@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="menuManageDAO">
+
+	<select id="selectMenuCreatManageList_D" parameterType="comDefaultVO" resultType="egovMap">
+
+                SELECT *
+                FROM
+                    (SELECT rownum rn, TB.*
+                     FROM
+			            (SELECT AUTHOR_CODE   AS "authorCode",
+								AUTHOR_NM     AS "authorNm",
+								AUTHOR_DC     AS "authorDc",
+								AUTHOR_CREAT_DE AS "authorCreatDe",
+							   (SELECT COUNT(B.AUTHOR_CODE)
+								FROM   COMTNMENUCREATDTLS B
+								WHERE  B.AUTHOR_CODE = A.AUTHOR_CODE ) AS "chkYeoBu"
+						FROM    COMTNAUTHORINFO A
+						WHERE   A.AUTHOR_CODE like '%'||#{searchKeyword}||'%') TB
+
+                    )
+                WHERE rn BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+
+	</select>
+
+	<select id="selectMenuCreatManageTotCnt_S" parameterType="comDefaultVO" resultType="int">
+
+			SELECT COUNT(AUTHOR_CODE) AS "totcnt"
+			  FROM COMTNAUTHORINFO
+			 WHERE AUTHOR_CODE like '%'||#{searchKeyword}||'%'
+
+	</select>
+
+	<select id="selectMenuCreatList_D" parameterType="egovframework.com.sym.mnu.mcm.service.MenuCreatVO" resultType="egovMap">
+
+			SELECT
+				  A.MENU_NO AS "menuNo"
+				, A.MENU_ORDR AS "menuOrdr"
+				, A.MENU_NM AS "menuNm"
+				, A.MENU_URL AS "menuUrl"
+				, A.USE_YN AS "useYn"
+				, A.UPPER_MENU_NO AS "upperMenuId"
+				, (SELECT B.INS_YN FROM COMTNMENUCREATDTLS B WHERE  B.MENU_NO = A.MENU_NO AND AUTHOR_CODE = #{authorCode}) AS "insYn"
+				, (SELECT B.UPD_YN FROM COMTNMENUCREATDTLS B WHERE  B.MENU_NO = A.MENU_NO AND AUTHOR_CODE = #{authorCode}) AS "updYn"
+				, (SELECT B.DEL_YN FROM COMTNMENUCREATDTLS B WHERE  B.MENU_NO = A.MENU_NO AND AUTHOR_CODE = #{authorCode}) AS "delYn"
+			    , (SELECT count(B.MENU_NO)
+			         FROM COMTNMENUCREATDTLS B
+			        WHERE B.MENU_NO  = A.MENU_NO
+			          AND B.AUTHOR_CODE = #{authorCode}) AS "chkYeoBu"
+			FROM COMTNMENUINFO A
+			WHERE A.SITE_GUBUN = #{siteGubun} AND A.MENU_NO > 1
+			ORDER BY A.MENU_ORDR
+
+	</select>
+
+	<insert id="insertMenuCreat_S">
+
+			INSERT INTO COMTNMENUCREATDTLS ( AUTHOR_CODE ,MENU_NO , MAPNG_CREAT_ID , MAPNG_CREAT_DT)
+			VALUES (  #{authorCode}, #{menuNo}, #{creatPersonId} , SYSDATE)
+
+	</insert>
+
+	<select id="selectMenuCreatCnt_S" parameterType="egovframework.com.sym.mnu.mcm.service.MenuCreatVO" resultType="int">
+
+			SELECT COUNT(AUTHOR_CODE) AS "totcnt"
+			  FROM COMTNMENUCREATDTLS
+			 WHERE AUTHOR_CODE = #{authorCode}
+
+	</select>
+
+	<select id="selectMenuCreatCnt_All" parameterType="egovframework.com.sym.mnu.mcm.service.MenuCreatVO" resultType="int">
+
+			SELECT COUNT(AUTHOR_CODE) AS "totcnt"
+			  FROM COMTNMENUCREATDTLS
+			 WHERE AUTHOR_CODE = #{authorCode} AND MENU_NO=1
+
+	</select>
+
+
+	<insert id="insertMenuCreat_Role" parameterType="egovframework.com.sym.mnu.mcm.service.MenuCreatVO" >
+			INSERT INTO COMTNAUTHORROLERELATE
+			(AUTHOR_CODE , ROLE_CODE ,CREAT_DT)
+			SELECT
+				#{authorCode} , T.ROLE_CODE , SYSDATE
+			FROM (
+				SELECT
+					ROLE_CODE
+				 FROM
+				 	COMTNROLEINFO
+				 WHERE
+				 	ROLE_MENU_NO IN (SELECT MENU_NO FROM COMTNMENUCREATDTLS WHERE AUTHOR_CODE=#{authorCode})
+				 MINUS
+				 SELECT
+				 	ROLE_CODE
+				 FROM
+				 	COMTNAUTHORROLERELATE
+				 WHERE
+				 	AUTHOR_CODE=#{authorCode}
+			) T
+	</insert>
+
+	<delete id="deleteMenuCreat_Role" parameterType="egovframework.com.sym.mnu.mcm.service.MenuCreatVO" >
+			DELETE FROM
+				COMTNAUTHORROLERELATE
+			WHERE
+				AUTHOR_CODE=#{authorCode}
+				AND ROLE_CODE IN (
+					 SELECT ROLE_CODE FROM	COMTNROLEINFO
+				 	 WHERE
+				 		ROLE_MENU_NO IN (SELECT MENU_NO FROM COMTNMENUCREATDTLS WHERE AUTHOR_CODE=#{authorCode})
+				 )
+	</delete>
+
+	<update id="updateMenuCreat_S">
+
+		    UPDATE COMTNMENUCREATDTLS
+		       SET MAPNG_CREAT_ID=#{mapCreatId}
+		     WHERE AUTHOR_CODE=#{authorCode}
+
+	</update>
+
+	<update id="updateMenuCreat_Ins">
+
+		    UPDATE COMTNMENUCREATDTLS
+		       SET INS_YN=#{insYn}
+		     WHERE AUTHOR_CODE=#{authorCode} AND MENU_NO = #{menuNo}
+
+	</update>
+
+	<update id="updateMenuCreat_Upd">
+
+		    UPDATE COMTNMENUCREATDTLS
+		       SET UPD_YN=#{updYn}
+		     WHERE AUTHOR_CODE=#{authorCode} AND MENU_NO = #{menuNo}
+
+	</update>
+
+	<update id="updateMenuCreat_Del">
+
+		    UPDATE COMTNMENUCREATDTLS
+		       SET DEL_YN=#{delYn}
+		     WHERE AUTHOR_CODE=#{authorCode} AND MENU_NO = #{menuNo}
+
+	</update>
+
+	<delete id="deleteMenuCreat_S">
+
+			DELETE FROM COMTNMENUCREATDTLS
+			 WHERE AUTHOR_CODE=#{authorCode}
+
+	</delete>
+
+	<select id="selectAuthorByUsr" parameterType="comDefaultVO" resultType="egovframework.com.sym.mnu.mcm.service.MenuCreatVO">
+
+		select AUTHOR_CODE AS "authorCode" from COMTNEMPLYRSCRTYESTBS
+		where SCRTY_DTRMN_TRGET_ID =
+			(select ESNTL_ID from COMVNUSERMASTER
+			where user_id = #{searchKeyword} )
+
+	</select>
+
+	<select id="selectUsrByPk" parameterType="comDefaultVO" resultType="int">
+
+		select count(AUTHOR_CODE) from COMTNEMPLYRSCRTYESTBS
+		where SCRTY_DTRMN_TRGET_ID =
+			(select ESNTL_ID from COMVNUSERMASTER
+			where user_id = #{searchKeyword} )
+
+	</select>
+
+</mapper>

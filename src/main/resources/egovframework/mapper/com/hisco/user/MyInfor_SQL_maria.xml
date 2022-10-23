@@ -1,0 +1,586 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2020.8.19   	진수진     	 	회원정보 수정 관련 쿼리
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.user.mypage.mapper.MyInforMapper">
+
+	<!-- 로그인 처리를 위한 resultMap -->
+	<resultMap id="member" type="com.hisco.user.member.vo.MemberVO">
+		<result property="comcd"       column="COMCD"/>
+		<result property="memNo"       column="MEM_NO"/>
+		<result property="id"          column="ID"/>
+		<result property="memNm"       column="MEM_NM"/>
+		<result property="memGbn"      column="MEM_GBN"/>
+		<result property="gender"      column="GENDER"/>
+		<result property="pw"          column="PWD"/>
+		<result property="birthDate"   column="BIRTH_DATE"/>
+		<result property="birthSec"    column="BIRTH_SEC"/>
+		<result property="hp"          column="HP"/>
+		<result property="email"       column="EMAIL"/>
+		<result property="resdncGbn"   column="RESDNC_GBN"/>
+		<result property="emailYn"     column="EMAIL_YN"/>
+		<result property="smsYn"       column="SMS_YN"/>
+		<result property="carNo"       column="CAR_NO"/>
+		<result property="piAuthkey"   column="PI_AUTHKEY"/>
+		<result property="snsRegistyn" column="SNS_REGIST_YN"/>
+		<result property="yearYn"      column="YEAR_YN"/>
+		<result property="specialYn"   column="SPECIAL_YN"/>
+		<result property="anlmbEdate"  column="ANLMB_EDATE"/>
+		<result property="status"      column="STATUS"/>
+		<result property="piAuthkey"   column="piAuthkey"/>
+		<result property="piAuthtype"  column="piAuthtype"/>
+		<result property="piPAuthtype" column="piPAuthtype"/>
+	</resultMap>
+
+
+	<resultMap id="memberSns" type="com.hisco.user.member.vo.MemberSnsVO">
+		<result property="snsRegistkind" column="CD"/>
+		<result property="snsRegistkindNm" column="CD_NM"/>
+		<result property="regdate" column="REGDATE"/>
+	</resultMap>
+
+	<resultMap id="memberIntr" type="com.hisco.user.member.vo.MemberInstVO">
+		<result property="intrstKind" column="CD"/>
+		<result property="intrstKindNm" column="CD_NM"/>
+		<result property="regdate" column="REGDATE"/>
+	</resultMap>
+
+
+	<resultMap id="memberCar" type="com.hisco.user.member.vo.MemberCarVO">
+		<result property="carNo" column="CAR_NO"/>
+		<result property="regdate" column="REGDATE"/>
+	</resultMap>
+
+
+	<!-- 회원정보 조회 -->
+	<select id="selectMemberData" resultMap="member">
+			SELECT /* MyInforDAO.selectMemberData */
+				   M.MEM_NO
+				 , NVL(M.USER_ID , D.USER_ID) ID
+			     , NVL(M.MEM_NM , D.MEM_NM) MEM_NM
+			     , NVL(M.MEM_GBN , D.MEM_GBN) MEM_GBN
+			     , NVL(M.GENDER , D.GENDER) GENDER
+			     , NVL(M.PWD , D.PWD) PW
+			     , NVL(M.BIRTH_DATE , D.BIRTH_DATE) BIRTH_DATE
+			     , NVL(M.BIRTH_SEC , D.BIRTH_SEC) BIRTH_SEC
+			     , NVL(fn_aes_decrypt(NVL(M.HP , D.HP),#{dbEncKey}), M.HP) AS HP
+			     , fn_aes_decrypt(NVL(M.EMAIL, D.EMAIL),#{dbEncKey}) AS EMAIL
+			     , NVL(M.RESDNC_GBN,D.RESDNC_GBN) RESDNC_GBN
+			     , NVL(M.RESDNC_ORGNAME , D.RESDNC_ORGNAME) RESDNC_ORGNAME
+			     , NVL(M.EMAIL_YN , D.EMAIL_YN) EMAIL_YN
+			     , NVL(M.SMS_YN , D.SMS_YN) SMS_YN
+			     , NVL(M.PI_AUTHKEY , D.PI_AUTHKEY) PI_AUTHKEY
+			     , NVL(M.SNS_REGIST_YN, D.SNS_REGIST_YN) SNS_REGISTYN
+			     , M.STATUS
+			     , M.PI_P_AUTHKEY
+			     , 'N' AS YEAR_YN
+			     , 'N' AS SPECIAL_YN
+			     , (SELECT MAX(ANLMB_EDATE) FROM ANULMEMB_HIST WHERE MEM_NO=M.MEM_NO AND  RET_YN='N') ANLMB_EDATE
+			     , CASE WHEN DATE_FORMAT(SYSDATE(),'%Y')- SUBSTR(NVL(REPLACE(M.BIRTH_DATE,' ','') , D.BIRTH_DATE),1,4) >= 14 THEN 'normal' ELSE 'child' END type
+			     , substring_index(NVL(M.EMAIL, D.EMAIL), '@', 1)  AS email1
+			     , substring_index(NVL(M.EMAIL, D.EMAIL), '@', -1) AS email2
+			     , M.HOME_ZIPCD AS postNum
+			     , NVL(fn_aes_decrypt(NVL(M.HOME_ADDR1 , D.HOME_ADDR1),#{dbEncKey}), M.HOME_ADDR1)  AS addr1
+			     , NVL(fn_aes_decrypt(NVL(M.HOME_ADDR2 , D.HOME_ADDR2),#{dbEncKey}), M.HOME_ADDR2) AS addr2
+			     , M.PI_AUTHKEY      as piAuthkey
+			     , M.PI_AUTHTYPE     as piAuthtype
+			     , M.PI_P_AUTHTYPE   as piPAuthtype
+			  FROM MEMBER M
+			  	LEFT OUTER JOIN DORMANT_MEMBER D ON M.MEM_NO = D.MEM_NO
+			 WHERE
+			 	<choose>
+			 		<when test="uniqId != null and uniqId !=''">M.MEM_NO = #{uniqId}</when>
+			 		<otherwise>M.ID = #{id} AND M.STATUS='0000'</otherwise>
+			 	</choose>
+	</select>
+
+
+	<!-- SNS 계정 연결 정보 조회 -->
+	<select id="selectSnsCnncList" resultMap="memberSns">
+			SELECT
+				C.CD , C.CD_NM , S.REGDATE
+			  FROM COT_GRPCD C
+			   LEFT OUTER JOIN  SNS_CNNC_INFO S ON S.MEM_NO= #{uniqId} AND  C.CD=S.SNS_REGIST_KIND AND S.SNS_CNNC_STATE='1'
+			 WHERE
+				GRP_CD = 'SM_REGIST_SNSKIND' AND USE_YN='Y'
+			ORDER BY
+				SORT_ORDER
+	</select>
+
+
+	<!-- 관심정보  정보 조회 -->
+	<select id="selectIntrstList" resultMap="memberIntr">
+			SELECT
+				C.CD , C.CD_NM , S.REGDATE
+			  FROM COT_GRPCD C
+			   LEFT OUTER JOIN  MEMB_INTRST S ON S.MEM_NO= #{uniqId} AND  C.CD=S.INTRST_KIND
+			 WHERE
+				GRP_CD = 'SM_INTRST_KIND' AND USE_YN='Y'
+			ORDER BY
+				SORT_ORDER
+	</select>
+
+
+		<!-- 회원정보 수정 -->
+	<update id="updateMemberData">
+			/* updateMemberData */
+			UPDATE MEMBER
+				SET
+				<if test="memNm != null and memNm !=''">
+					 MEM_NM = #{memNm},
+				</if>
+				<if test="id != null and id !=''">
+					 /*USER_ID = id,*/
+				</if>
+				<if test="piAuthkey != null and piAuthkey !=''">
+					 /*PI_AUTHKEY = piAuthkey,*/
+				</if>
+				<if test="piAuthtype != null and piAuthtype !=''">
+					 /*PI_AUTHTYPE = piAuthtype,*/
+				</if>
+			    <if test="hp != null and hp !=''">
+					 HP = fn_aes_encrypt(#{hp},#{dbEncKey}),
+				</if>
+			    <if test="dupcheckKey != null and dupcheckKey !=''">
+					DUPCHECK_KEY = fn_aes_encrypt(#{dupcheckKey},#{dbEncKey}),
+				</if>
+			    <if test="email != null and email !=''">
+					 EMAIL =  fn_aes_encrypt(#{email},#{dbEncKey}),
+				</if>
+			    <if test="pw != null and pw !=''">
+					 /*PWD =  pw,*/
+				</if>
+				<!--거주지구분 관내,관외  -->
+			    <if test="resdncGbn != null and resdncGbn !=''">
+					 /*RESDNC_GBN =  resdncGbn,*/
+				</if>
+			    <if test="resdncOrgname != null and resdncOrgname !=''">
+			    	/*RESDNC_ORGNAME = resdncOrgname,*/
+			    </if>
+			    <if test="birthDate != null and birthDate !=''">
+			    	BIRTH_DATE = #{birthDate},
+					BIRTH_MMDD = #{birthMmdd},
+					GENDER = #{gender},
+					SSN = #{ssn},
+			    </if>
+			    <!-- RESDNC_GBN = #{resdncGbn}, -->
+			    <if test="birthSec != null and birthSec !=''">
+			    BIRTH_SEC = #{birthSec},
+			    </if>
+			    <if test="emailYn != null and emailYn !=''">
+			    EMAIL_YN = NVL(#{emailYn}, EMAIL_YN),
+			    </if>
+			    
+			    SMS_YN  = NVL(#{smsYn} , 'N'),
+			    
+			    <if test="postNum != null and postNum !=''">
+			    HOME_ZIPCD = #{postNum},
+			    </if>
+			    <if test="addr1 != null and addr1 !=''">
+			    HOME_ADDR1 = fn_aes_encrypt(#{addr1},#{dbEncKey}),
+			    </if>
+			    <if test="addr2 != null and addr2 !=''">
+			    HOME_ADDR2 = fn_aes_encrypt(#{addr2},#{dbEncKey}),
+			    </if>
+			    MODDATE = SYSDATE(),
+			    MODUSER = #{moduser},
+			    USER_IP = #{userIp}
+			 WHERE
+				MEM_NO = #{memNo}
+
+	</update>
+
+			<!-- 회원정보 수정 -->
+	<update id="updateMemberDataOld">
+			UPDATE MEMBER
+			SET
+				<if test="id != null and id !=''">ID = #{id},</if>
+
+			    <if test="hp != null and hp !=''">
+					<!-- for Tibero HP = CRYPTO.Encrypt_ARIA( #{hp} , #{dbEncKey}), -->
+					HP = #{hp},
+				</if>
+
+			    <if test="hp != null and hp !=''">
+					<!-- for Tibero DUPCHECK_KEY = CRYPTO.Encrypt_ARIA(CONCAT(MEM_NM, BIRTH_DATE, #{hp}), #{dbEncKey}), -->
+					DUPCHECK_KEY = CONCAT(MEM_NM, BIRTH_DATE, #{hp}),
+				</if>
+
+			    <!-- for Tibero EMAIL =  CRYPTO.Encrypt_ARIA(#{email} , #{dbEncKey}) , -->
+				EMAIL =  #{email},
+
+			    <if test="resdncOrgname != null and resdncOrgname !=''">RESDNC_ORGNAME = #{resdncOrgname},</if>
+			    PWD = #{pw},
+			    LOCKED_YN = 'N' ,
+			    FAIL_CNT = 0,
+			    RESDNC_GBN = #{resdncGbn},
+			    EMAIL_YN =  NVL(#{emailYn},'N'),
+			    SMS_YN = NVL(#{smsYn},'N'),
+			    <choose>
+			    	<when test="piPAuthkey!=null and piPAuthkey !=''">
+			    	PI_P_AUTHTYPE=#{piPAuthtype},
+					PI_P_AUTHKEY=#{piPAuthkey},
+					PI_P_AUTHDATETIME=SYSDATE(),
+					</when>
+					<otherwise>
+					PI_AUTHTYPE=#{piAuthtype},
+					PI_AUTHKEY =#{piAuthkey},
+					PI_AUTHDATETIME=SYSDATE(),
+					</otherwise>
+				</choose>
+			    MODDATE = SYSDATE(),
+			    MODUSER = #{id},
+			    USER_IP = #{userIp},
+			    STATUS = '0000'
+			 WHERE
+				MEM_NO = #{memNo}
+	</update>
+
+
+	<!-- 관심분야 삭제 -->
+	<delete id="deleteMemberIntrst">
+			DELETE FROM MEMB_INTRST
+			 WHERE
+				MEM_NO = #{memNo}
+	</delete>
+
+
+	<!-- 관심분야 등록 -->
+	<insert id="insertMemberIntrst">
+			INSERT INTO MEMB_INTRST (MEM_NO , INTRST_KIND , REGDATE , REGUSER)
+			VALUES(#{memNo} , #{intrstKind} , SYSDATE() , #{reguser})
+	</insert>
+
+
+	<!-- 본인인증 정보로 회원정보 조회 -->
+	<select id="selectMemberSearchByName" resultMap="member">
+		SELECT /* selectMemberSearchByName */
+			MEM_NO , MEM_NM, ID
+		FROM(
+			SELECT
+				MEM_NO , MEM_NM, ID
+			  FROM MEMBER M
+			 WHERE
+				MEM_NM=#{name} AND ( PI_AUTHKEY=#{crc_data_di} OR  PI_P_AUTHKEY=#{crc_data_di})
+			UNION
+			SELECT
+				MEM_NO , MEM_NM, ID
+			FROM
+				DORMANT_MEMBER
+			WHERE
+				MEM_NM=#{name} AND ( PI_AUTHKEY=#{crc_data_di} OR  PI_P_AUTHKEY=#{crc_data_di})
+
+		) MAIN
+
+			LIMIT 1
+
+	</select>
+
+	<select id="selectMemberSearchById" resultMap="member" parameterType="Map">
+
+		SELECT /* selectMemberSearchByName */
+			*
+		FROM (
+			SELECT
+
+				MEM_NO , MEM_NM, ID , STATUS , BIRTH_DATE
+				, HP
+
+			  FROM MEMBER M
+			 WHERE
+				COMCD=#{comcd} AND ID=#{id} AND ( PI_AUTHKEY=#{crc_data_di} OR PI_P_AUTHKEY=#{crc_data_di})
+			UNION
+			SELECT
+				MEM_NO , MEM_NM, ID , STATUS, BIRTH_DATE
+				, HP
+			FROM
+				DORMANT_MEMBER
+			 WHERE
+				COMCD=#{comcd} AND ID=#{id} AND ( PI_AUTHKEY=#{crc_data_di} OR PI_P_AUTHKEY=#{crc_data_di})
+		 ) MAIN LIMIT 1
+
+	</select>
+
+	<select id="selectMemberSearchNewById" resultMap="member">
+
+		SELECT /* selectMemberSearchNewById */
+			*
+		FROM (
+			SELECT
+
+				MEM_NO , MEM_NM, ID , STATUS , BIRTH_DATE
+				, HP
+
+			  FROM MEMBER M
+			 WHERE
+				ID=#{id} AND ( PI_AUTHKEY=#{crc_data_di} OR PI_P_AUTHKEY=#{crc_data_di})
+			UNION
+			SELECT
+				MEM_NO , MEM_NM, ID , STATUS, BIRTH_DATE
+				, HP
+			FROM
+				DORMANT_MEMBER
+			 WHERE
+				ID=#{id} AND ( PI_AUTHKEY=#{crc_data_di} OR PI_P_AUTHKEY=#{crc_data_di})
+
+		 ) MAIN LIMIT 1
+
+	</select>
+
+	<!-- 회원 비밀번호 수정 -->
+	<update id="updateMemberPassword">
+			/* updateMemberPassword */
+			UPDATE MEMBER
+			SET
+			    PWD = #{password},
+			    LOCKED_YN = 'N' ,
+			    FAIL_CNT = 0,
+			    MODDATE = SYSDATE(),
+			    MODUSER = #{id},
+			    USER_IP = #{ip},
+			    PWD_CHANGE_DATE = SYSDATE()
+		  WHERE MEM_NO = #{uniqId}
+	</update>
+
+	<!-- 휴면 계정 비밀번호 수정 -->
+	<update id="updateMemberPassword2">
+			/* updateMemberPassword2 */
+			UPDATE DORMANT_MEMBER
+			SET
+			    PWD = #{password},
+			    LOCKED_YN = 'N' ,
+			    FAIL_CNT = 0,
+			    MODDATE = SYSDATE(),
+			    MODUSER = #{id},
+			    /*USER_IP = ip,*/
+			    PWD_CHANGE_DATE = SYSDATE()
+		  WHERE MEM_NO = #{uniqId}
+	</update>
+
+	<!-- SNS 계정 연결 여부  수정 -->
+	<update id="updateMemberSnsRegist">
+			UPDATE MEMBER
+			SET
+			    SNS_REGIST_YN = CASE WHEN (SELECT COUNT(*) FROM SNS_CNNC_INFO WHERE MEM_NO=#{memNo} AND SNS_CNNC_STATE='1')>0 THEN 'Y' ELSE 'N' END
+			 WHERE
+				MEM_NO = #{memNo}
+	</update>
+
+
+	<!--차량 정보 조회 -->
+	<select id="selectMemberCarData" resultMap="memberCar">
+		SELECT
+			CAR_NO , NVL(MODDATE,REGDATE) REGDATE
+		FROM
+			MEMBER_CARINFO
+		WHERE
+			COMCD = #{comcd} AND MEM_NO=#{uniqId} AND  CAR_SEQ= (
+			SELECT
+				MAX(CAR_SEQ)
+			  FROM MEMBER_CARINFO
+			 WHERE
+				COMCD = #{comcd} AND MEM_NO=#{uniqId}
+		) AND USE_YN='Y'
+	</select>
+
+	<!--차량 정보 조회 -->
+	<select id="selectMemberCarCheck" resultType="Integer">
+		SELECT
+			COUNT(*)
+		FROM
+			MEMBER_CARINFO
+		WHERE
+			COMCD = #{comcd} AND MEM_NO=#{memNo} AND DATE_FORMAT(REGDATE,'%Y%m%d')=DATE_FORMAT(SYSDATE(),'%Y%m%d') AND USE_YN='Y'
+	</select>
+
+<!-- 차량정보 등록 -->
+	<insert id="insertMemberCarinfo">
+		/* insertMemberCarinfo */
+		INSERT INTO MEMBER_CARINFO (COMCD , MEM_NO ,  CAR_SEQ , CAR_NO, ETC , REGDATE , REGUSER , CAR_REGDATE , USE_YN)
+		VALUES(#{comcd} , #{memNo}
+		, (SELECT NVL(MAX(CAR_SEQ),0)+1 FROM MEMBER_CARINFO ALIAS_FOR_SUBQUERY WHERE COMCD=#{comcd} AND MEM_NO=#{memNo})
+		, #{carNo}
+		, #{etc}
+		, SYSDATE() , #{reguser}
+		, CASE WHEN (SELECT COUNT(*) FROM MEMBER_CARINFO ALIAS_FOR_SUBQUERY WHERE  COMCD = #{comcd} AND MEM_NO=#{memNo})>0 THEN DATE_FORMAT(DATE_ADD(SYSDATE(), INTERVAL 1 DAY),'%Y%m%d') ELSE DATE_FORMAT(SYSDATE(),'%Y%m%d') END
+		,'Y')
+	</insert>
+
+	<!-- 차량 정보 수정 -->
+	<update id="updateMemberCarinfo">
+		UPDATE
+			MEMBER_CARINFO
+		SET
+			CAR_NO=#{carNo} , MODDATE=SYSDATE() , MODUSER=#{reguser}
+		WHERE
+			COMCD = #{comcd} AND MEM_NO= #{memNo} AND DATE_FORMAT(REGDATE,'%Y%m%d')=DATE_FORMAT(SYSDATE(),'%Y%m%d') AND USE_YN='Y'
+	</update>
+
+	<!-- 차량 사용여부 수정 -->
+	<update id="updateMemberCarinfoUseN">
+		UPDATE MEMBER_CARINFO
+		SET USE_YN = 'N'
+		WHERE
+			COMCD = #{comcd} AND MEM_NO= #{memNo} AND USE_YN='Y'
+	</update>
+
+	<!-- 회원이메일 수정 -->
+	<update id="updateMemberEmail">
+			UPDATE MEMBER
+			SET
+			    <!-- for Tibero EMAIL =  CRYPTO.Encrypt_ARIA(#{email} , #{dbEncKey}), -->
+				EMAIL =  #{email},
+
+			    MODDATE = SYSDATE(),
+			    MODUSER = #{id},
+			    USER_IP = #{userIp}
+			 WHERE
+				MEM_NO = #{memNo}
+	</update>
+
+
+	<!-- 회원탈퇴 -->
+	<update id="updateMemberOut">
+	/*updateMemberOut*/
+		UPDATE MEMBER
+		SET
+			  MEM_NM = '탈퇴회원',
+			  MEM_GBN  = '탈퇴회원',
+			  GENDER = 'X',
+			  PWD  = '',
+			  SALT = '',
+			  SSN = '',
+			  BIRTH_DATE = '',
+			  BIRTH_MMDD = '0000',
+			  BIRTH_SEC  = 's',
+			  HP  = '',
+			  EMAIL = '',
+			  EMAIL_YN = 'N',
+			  SMS_YN = 'N',
+			  AGREE_YN = 'N',
+			  AGREE_LAST_DATE = '',
+			  HOME_ZIPCD = '',
+			  HOME_ADDR1  = '',
+			  HOME_ADDR2 = '',
+			  PI_IPIN  = '',
+			  PI_AUTHTYPE = '',
+			  PI_AUTHKEY  = '',
+			  PI_AUTHDATETIME = NULL,
+			  PI_P_AUTHTYPE = '',
+			  PI_P_AUTHKEY  = '',
+			  PI_P_AUTHDATETIME = NULL,
+			  FAIL_CNT = 0,
+			  LOCKED_YN  = 'N',
+			  SNS_REGIST_YN = '',
+			  DUPCHECK_KEY  = '',
+			  REMARK ='',
+			  STATUS = '',
+			  LAST_PWD_UPDATEDATE = '',
+			  LOGIN_LASTDATE = NULL,
+			  OUT_DATE  = NULL ,
+			  OUT_REASON = NULL,
+			  OLD_MEM_NO = NULL,
+			  USER_IP = NULL,
+			  REGDATE = NULL,
+			  REGUSER = NULL,
+			  MODDATE = NULL,
+			  MODUSER = NULL,
+			  RESDNC_GBN  = NULL,
+			  RESDNC_ORGNAME = NULL,
+			  OLD_MEM_FAMILY_CNT = NULL,
+			  PWD_CHANGE_DATE  = NULL
+		WHERE
+			MEM_NO= #{memNo}
+	</update>
+
+	<!-- 회원탈퇴 -->
+	<delete id="deleteMemberSNS">
+		DELETE FROM SNS_CNNC_INFO
+		WHERE
+			MEM_NO= #{memNo}
+	</delete>
+
+	<!-- 회원탈퇴 -->
+	<delete id="deleteMemberCAR">
+		DELETE FROM MEMBER_CARINFO
+		WHERE
+			MEM_NO= #{memNo}
+	</delete>
+
+	<!-- 회원탈퇴 -->
+	<delete id="deleteMemberCARD">
+		DELETE FROM MEM_CARD
+		WHERE
+			MEM_NO= #{memNo}
+	</delete>
+
+
+	<!-- 개인정보 재동의 -->
+	<update id="updateMemberRegree" >
+		UPDATE MEMBER
+			SET AGREE_LAST_DATE=DATE_FORMAT(SYSDATE(),'%Y%m%d') , MODDATE=SYSDATE() , MODUSER= #{id}
+		WHERE
+			MEM_NO=#{uniqId}
+	</update>
+
+
+	<!-- 본인인증 정보로 회원정보 조회 -->
+	<select id="selectOldMemberSearch" resultMap="member">
+		SELECT /* selectOldMemberSearch */
+			MEM_NO , MEM_NM, ID
+		FROM(
+			SELECT
+				MEM_NO , MEM_NM, ID
+			  FROM MEMBER M
+			 WHERE
+				MEM_NM=#{name} AND BIRTH_DATE=#{birthYmd} AND MEM_NO=#{memNo}
+			UNION
+			SELECT
+				MEM_NO , MEM_NM, ID
+			FROM
+				DORMANT_MEMBER
+			WHERE
+				MEM_NM=#{name} AND BIRTH_DATE=#{birthYmd} AND MEM_NO=#{memNo}
+
+		) MAIN LIMIT 1
+	</select>
+
+	<select id="selectMemberSearchByMemNo" resultMap="member">
+
+		SELECT /* selectMemberSearchByMemNo */
+			*
+		FROM (
+			SELECT
+
+				MEM_NO , MEM_NM, ID , STATUS , BIRTH_DATE
+				, HP
+
+			  FROM MEMBER M
+			 WHERE MEM_NO=#{memNo}
+			UNION
+			SELECT
+				MEM_NO , MEM_NM, ID , STATUS, BIRTH_DATE
+				, HP
+			FROM
+				DORMANT_MEMBER
+			 WHERE MEM_NO=#{memNo}
+
+		 ) MAIN LIMIT 1
+
+	</select>
+	
+	
+	<!-- 회원의 개인정보및이용약관동의여부를 갱신 WHERE MEM_NO = #{uniqId} -->
+	<update id="memberReAgreeProc">
+			/* memberReAgreeProc */
+			UPDATE MEMBER
+			SET
+				  AGREE_YN = 'Y'
+			    , AGREE_LAST_DATE = DATE_FORMAT(now(), '%Y%m%d')
+		  WHERE USER_ID = #{id}
+	</update>
+
+</mapper>

@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="UTF-8"?><!--Converted at: Wed May 11 15:51:02 KST 2016-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="bannerDAO">
+
+    <resultMap id="banner" type="egovframework.com.uss.ion.bnr.service.BannerVO">
+        <result property="bannerId" column="BANNER_ID"/>
+        <result property="bannerNm" column="BANNER_NM"/>
+        <result property="linkUrl" column="LINK_URL"/>
+        <result property="linkTarget" column="LINK_TARGET"/>
+        <result property="bannerGbn" column="BANNER_GBN"/>
+        <result property="bannerImage" column="BANNER_IMAGE"/>
+        <result property="bannerImageFile" column="BANNER_IMAGE_FILE"/>
+        <result property="bannerDc" column="BANNER_DC"/>
+        <result property="linkType" column="LINK_TYPE"/>
+        <result property="linkContent" column="LINK_CNTS"/>
+        <result property="sortOrdr" column="SORT_ORDR"/>
+        <result property="reflctAt" column="REFLCT_YN"/>
+        <result property="ntceBgnde" column="NTCE_BGNDE"/>
+		<result property="ntceEndde" column="NTCE_ENDDE"/>
+        <result property="ntceBgndeYMD" column="BGNDE_YMD"/>
+		<result property="ntceEnddeYMD" column="ENDDE_YMD"/>
+		<result property="ntceBgndeHH" column="BGNDE_HH"/>
+		<result property="ntceEnddeHH" column="ENDDE_HH"/>
+		<result property="ntceBgndeMM" column="BGNDE_MM"/>
+		<result property="ntceEnddeMM" column="ENDDE_MM"/>
+        <result property="frstRegisterId" column="REGUSER"/>
+        <result property="frstRegistPnttm" column="REGDATE"/>
+        <result property="lastUpdtPnttm" column="MODDATE"/>
+        <result property="lastUpdusrId" column="MODUSER"/>
+        <result property="isOrg" column="IS_ORG"/>
+        <result property="isActive" column="IS_ACTIVE"/>
+        <result property="searchGubunNm" column="SEARCH_GUBUN_NM"/>
+        <result property="fileName" column="FILE_NAME"/>
+        <result property="orginFileName" column="ORGIN_FILE_NAME"/>
+        <result property="filePath" column="FILE_PATH"/>
+
+    </resultMap>
+
+
+    <resultMap id="bannerImage" type="egovframework.com.uss.ion.bnr.service.BannerVO">
+        <result property="bannerImageFile" column="BANNER_IMAGE_FILE"/>
+        <result property="linkUrl" column="LINK_URL"/>
+    </resultMap>
+
+    <resultMap id="bannerImageFile" type="com.hisco.cmm.vo.FileVO">
+        <result property="fileName" column="FILE_NAME"/>
+		<result property="filePath" column="FILE_PATH"/>
+    </resultMap>
+
+    <select id="selectBannerList" parameterType="egovframework.com.uss.ion.bnr.service.BannerVO" resultMap="banner">
+    		/* selectBannerList */
+    		SELECT BANNER_ID,
+                   BANNER_NM,
+                   BANNER_LOCATION_CD AS BANNER_GBN,
+                   LINK_URL,
+                   BANNER_IMAGE,
+                   BANNER_IMAGE_FILE,
+                   BANNER_DC,
+                   SORT_ORDR,
+                   REFLCT_YN,
+                   LINK_TARGET,
+                   LINK_TYPE,
+                   DATE_FORMAT(NTCE_BGNDE,'%Y-%m-%d %H:%i') AS NTCE_BGNDE,
+				   DATE_FORMAT(NTCE_ENDDE,'%Y-%m-%d %H:%i') AS NTCE_ENDDE,
+                   A.REGUSER,
+                   A.REGDATE,
+                   B.CD_NM as SEARCH_GUBUN_NM,
+                   CASE WHEN UPPER(B.ITEM1) = 'ORG' THEN 'Y' ELSE 'N' END as  IS_ORG,
+                   CASE WHEN
+                   			REFLCT_YN='Y'
+							AND DATE_FORMAT(A.NTCE_BGNDE,'%Y-%m-%d %H:%i') &lt;= DATE_FORMAT(NOW(),'%Y-%m-%d %H:%i')
+							AND (
+									(DATE_FORMAT(NOW(),'%Y-%m-%d %H:%i')&lt;= DATE_FORMAT(A.NTCE_ENDDE,'%Y-%m-%d %H:%i'))
+									OR DATE_FORMAT(A.NTCE_ENDDE,'%Y-%m-%d') = '0000-00-00'
+								) THEN 'Y' ELSE 'N' END AS IS_ACTIVE
+              FROM COMTNBANNER A
+            	JOIN COT_GRPCD B ON A.BANNER_LOCATION_CD =B.CD AND B.GRP_CD ='WEB_BANNER_GBN'
+             WHERE 1=1
+            <if test="searchCondition == 1">AND
+                A.BANNER_NM LIKE CONCAT('%' , #{searchKeyword}, '%')
+            </if>
+            <if test="searchGubun != null and searchGubun != ''">AND
+                A.BANNER_LOCATION_CD = #{searchGubun}
+            </if>
+            <if test="comCd != null and comCd != ''">AND
+             	B.COMCD =#{comCd}
+            </if>
+            <if test="isOrg != null and isOrg == 'Y'.toString()">AND
+                A.BANNER_LOCATION_CD != '1001'
+            </if>
+            <if test="isOrg != null and isOrg == 'N'.toString()">AND
+                A.BANNER_LOCATION_CD = '1001'
+            </if>
+            <if test="isActive != null and isActive == 'Y'.toString()">
+            	AND REFLCT_YN='Y'
+				AND DATE_FORMAT(A.NTCE_BGNDE,'%Y-%m-%d %H:%i') &lt;= DATE_FORMAT(NOW(),'%Y-%m-%d %H:%i')
+				AND (
+						(DATE_FORMAT(NOW(),'%Y-%m-%d %H:%i')&lt;= DATE_FORMAT(A.NTCE_ENDDE,'%Y-%m-%d %H:%i'))
+						OR DATE_FORMAT(A.NTCE_ENDDE,'%Y-%m-%d') = '0000-00-00'
+					)
+            </if>
+            ORDER BY REGDATE DESC
+            LIMIT #{recordCountPerPage} OFFSET #{firstIndex}
+    </select>
+
+    <select id="selectBannerListTotCnt" parameterType="egovframework.com.uss.ion.bnr.service.BannerVO" resultType="int">
+			/* selectBannerListTotCnt */
+            SELECT COUNT(*) totcnt
+            FROM COMTNBANNER A
+            	JOIN COT_GRPCD B ON A.BANNER_LOCATION_CD =B.CD AND B.GRP_CD ='WEB_BANNER_GBN'
+            WHERE 1=1
+            <if test="searchCondition == 1">AND
+                BANNER_NM LIKE CONCAT('%', #{searchKeyword}, '%')
+            </if>
+            <if test="searchGubun != null and searchGubun != ''">AND
+                BANNER_LOCATION_CD = #{searchGubun}
+            </if>
+            <if test="comCd != null and comCd != ''">AND
+             	B.COMCD =#{comCd}
+            </if>
+            <if test="isOrg != null and isOrg == 'Y'.toString()">AND
+                A.BANNER_LOCATION_CD != '1001'
+            </if>
+            <if test="isOrg != null and isOrg == 'N'.toString()">AND
+                A.BANNER_LOCATION_CD = '1001'
+            </if>
+            <if test="isActive != null and isActive == 'Y'.toString()">
+            	AND REFLCT_YN='Y'
+				AND DATE_FORMAT(A.NTCE_BGNDE,'%Y-%m-%d %H:%i') &lt;= DATE_FORMAT(NOW(),'%Y-%m-%d %H:%i')
+				AND (
+						(DATE_FORMAT(NOW(),'%Y-%m-%d %H:%i')&lt;= DATE_FORMAT(A.NTCE_ENDDE,'%Y-%m-%d %H:%i'))
+						OR DATE_FORMAT(A.NTCE_ENDDE,'%Y-%m-%d') = '0000-00-00'
+					)
+            </if>
+    </select>
+
+    <select id="selectBanner" resultMap="banner">
+
+            SELECT BANNER_ID,
+                   BANNER_NM,
+                   BANNER_LOCATION_CD AS BANNER_GBN,
+                   LINK_TARGET,
+                   LINK_URL,
+                   BANNER_IMAGE,
+                   BANNER_IMAGE_FILE,
+                   BANNER_DC,
+                   LINK_TARGET,
+                   LINK_TYPE,
+                   LINK_CNTS,
+                   SORT_ORDR,
+                   REFLCT_YN,
+                   	DATE_FORMAT(NTCE_BGNDE,'%Y-%m-%d %H:%i') AS NTCE_BGNDE,
+					DATE_FORMAT(NTCE_ENDDE,'%Y-%m-%d %H:%i') AS NTCE_ENDDE,
+					CASE WHEN NTCE_BGNDE IS NOT NULL THEN DATE_FORMAT(NTCE_BGNDE,'%Y-%m-%d') END BGNDE_YMD,
+					CASE WHEN NTCE_ENDDE IS NOT NULL THEN DATE_FORMAT(NTCE_ENDDE,'%Y-%m-%d') END ENDDE_YMD,
+					CASE WHEN NTCE_BGNDE IS NOT NULL THEN DATE_FORMAT(NTCE_BGNDE,'%H') END BGNDE_HH,
+					CASE WHEN NTCE_ENDDE IS NOT NULL THEN DATE_FORMAT(NTCE_ENDDE,'%H') END ENDDE_HH,
+					CASE WHEN NTCE_BGNDE IS NOT NULL THEN DATE_FORMAT(NTCE_BGNDE,'MI') END BGNDE_MM,
+					CASE WHEN NTCE_ENDDE IS NOT NULL THEN DATE_FORMAT(NTCE_ENDDE,'MI') END ENDDE_MM,
+                   REGUSER,
+                   REGDATE,
+                   MODDATE,
+                   MODUSER,
+                   CASE WHEN
+                   			REFLCT_YN='Y'
+							AND DATE_FORMAT(NTCE_BGNDE,'%Y-%m-%d %H:%i') &lt;= DATE_FORMAT(NOW(),'%Y-%m-%d %H:%i')
+							AND (
+									(DATE_FORMAT(NOW(),'%Y-%m-%d %H:%i')&lt;= DATE_FORMAT(NTCE_ENDDE,'%Y-%m-%d %H:%i'))
+									OR DATE_FORMAT(NTCE_ENDDE,'%Y-%m-%d') = '0000-00-00'
+								) THEN 'Y' ELSE 'N' END AS IS_ACTIVE
+
+              FROM COMTNBANNER
+             WHERE BANNER_ID = #{bannerId}
+
+    </select>
+
+    <insert id="insertBanner" parameterType="egovframework.com.uss.ion.bnr.service.Banner">
+
+            INSERT INTO COMTNBANNER
+                   (BANNER_ID,
+                    BANNER_NM,
+                    BANNER_LOCATION_CD,
+                    LINK_URL,
+                    LINK_TARGET,
+                    BANNER_IMAGE,
+                    BANNER_IMAGE_FILE,
+                    BANNER_DC,
+                    LINK_TYPE,
+                    LINK_CNTS,
+                    SORT_ORDR,
+                    NTCE_BGNDE,
+					NTCE_ENDDE,
+                    REFLCT_YN,
+                    REGUSER,
+                    REGDATE)
+            VALUES (#{bannerId},
+                    #{bannerNm},
+                    #{bannerGbn},
+                    #{linkUrl},
+                    #{linkTarget},
+                    #{bannerImage},
+                    #{bannerImageFile},
+                    #{bannerDc},
+                    #{linkType},
+                    #{linkContent},
+                    #{sortOrdr},
+                    CASE WHEN #{ntceBgnde}=null THEN null ELSE STR_TO_DATE(#{ntceBgnde},'%Y%m%d%H%i') END,
+					CASE WHEN #{ntceEndde}=null THEN null ELSE STR_TO_DATE(#{ntceEndde},'%Y%m%d%H%i') END,
+                    #{reflctAt},
+                    #{frstRegisterId},
+                    SYSDATE())
+
+    </insert>
+
+    <update id="updateBanner" parameterType="egovframework.com.uss.ion.bnr.service.Banner">
+            UPDATE COMTNBANNER
+               SET BANNER_NM = #{bannerNm},
+                   LINK_URL = #{linkUrl},
+                   LINK_TARGET = #{linkTarget},
+                   BANNER_LOCATION_CD = #{bannerGbn},
+                   <if test="isAtchFile == true">
+                   BANNER_IMAGE = #{bannerImage},
+                   BANNER_IMAGE_FILE = #{bannerImageFile},
+                   </if>
+                   <choose>
+						<when test='ntceBgnde != ""'>NTCE_BGNDE=STR_TO_DATE(#{ntceBgnde},'%Y%m%d%H%i'),</when>
+						<otherwise>NTCE_BGNDE=null,</otherwise>
+					</choose>
+					<choose>
+						<when test='ntceEndde != ""'>NTCE_ENDDE=STR_TO_DATE(#{ntceEndde},'%Y%m%d%H%i'),</when>
+						<otherwise>NTCE_ENDDE=null,</otherwise>
+					</choose>
+                   BANNER_DC = #{bannerDc},
+                   LINK_TYPE = #{linkType},
+                   LINK_CNTS = #{linkContent},
+                   SORT_ORDR = #{sortOrdr},
+                   REFLCT_YN = #{reflctAt},
+                   MODUSER = #{frstRegisterId},
+                   MODDATE = SYSDATE()
+             WHERE BANNER_ID = #{bannerId}
+    </update>
+
+    <update id="deleteBannerFile" parameterType="egovframework.com.uss.ion.bnr.service.Banner">
+
+			UPDATE CM_FILE_GRP SET USE_YN='N'
+			WHERE
+				COMCD= #{comcd} AND
+				FILE_GRP_NO=(SELECT BANNER_IMAGE_FILE FROM COMTNBANNER WHERE BANNER_ID = #{bannerId})
+	</update>
+
+    <delete id="deleteBanner" parameterType="egovframework.com.uss.ion.bnr.service.Banner">
+
+            DELETE FROM COMTNBANNER
+             WHERE BANNER_ID = #{bannerId}
+
+    </delete>
+
+    <select id="selectBannerResult" resultMap="bannerImage">
+            SELECT BANNER_IMAGE_FILE,
+                   LINK_URL
+              FROM COMTNBANNER
+             WHERE REFLCT_YN = 'Y'
+             ORDER BY SORT_ORDR
+    </select>
+
+    <select id="selectBannerFile" parameterType="egovframework.com.uss.ion.bnr.service.Banner" resultMap="bannerImageFile">
+            SELECT B.FILE_PATH ,
+                   B.FILE_NM
+              FROM COMTNBANNER A,
+                   ATCH_FILE_LIST B
+             WHERE 1 = 1
+               AND A.BANNER_ID = #{bannerId}
+               AND A.BANNER_IMAGE_FILE = B.FILE_GRP_NO
+    </select>
+
+
+    <select id="selectBannerListCurrent" parameterType="egovframework.com.uss.ion.bnr.service.BannerVO" resultMap="banner">
+    		/* selectBannerListCurrent */
+    		SELECT BANNER_ID,
+                   BANNER_NM,
+                   BANNER_LOCATION_CD AS BANNER_GBN,
+                   LINK_URL,
+                   LINK_TARGET,
+                   BANNER_IMAGE,
+                   BANNER_IMAGE_FILE,
+                   BANNER_DC,
+                   LINK_TYPE,
+                   SORT_ORDR,
+                   REFLCT_YN,
+                   DATE_FORMAT(NTCE_BGNDE,'%Y-%m-%d %H:%i') AS NTCE_BGNDE,
+				   DATE_FORMAT(NTCE_ENDDE,'%Y-%m-%d %H:%i') AS NTCE_ENDDE,
+                   A.REGUSER,
+                   A.REGDATE,
+                   B.CD_NM as SEARCH_GUBUN_NM,
+                   CASE WHEN UPPER(B.ITEM1) = 'ORG' THEN 'Y' ELSE 'N' END as  IS_ORG,
+                   F.FILE_NM ,
+	               F.ORG_FILE_NM,
+	               F.FILE_PATH
+              FROM COMTNBANNER A
+            	JOIN COT_GRPCD B ON A.BANNER_LOCATION_CD =B.CD AND B.GRP_CD ='WEB_BANNER_GBN'
+            	LEFT OUTER JOIN ATCH_FILE_LIST F ON #{comCd}=F.COMCD AND A.BANNER_IMAGE_FILE = F.FILE_GRP_NO
+             WHERE 1=1
+             	AND B.COMCD =#{comCd}
+                AND A.BANNER_LOCATION_CD = #{bannerGbn}
+                AND A.REFLCT_YN='Y'
+				AND DATE_FORMAT(A.NTCE_BGNDE,'%Y-%m-%d %H:%i') &lt;= DATE_FORMAT(NOW(),'%Y-%m-%d %H:%i')
+				AND (
+						(DATE_FORMAT(NOW(),'%Y-%m-%d %H:%i')&lt;= DATE_FORMAT(A.NTCE_ENDDE,'%Y-%m-%d %H:%i'))
+						OR DATE_FORMAT(A.NTCE_ENDDE,'%Y-%m-%d') = '0000-00-00'
+					)
+            ORDER BY A.SORT_ORDR, A.REGDATE DESC
+    </select>
+</mapper>

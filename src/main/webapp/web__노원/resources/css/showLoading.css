@@ -1,0 +1,11 @@
+.loading-indicator {
+	height: 64px;
+	width: 64px;
+	background-repeat: no-repeat;
+}
+
+.loading-indicator-overlay {
+	background-color: #000;
+	opacity: 0.2;
+	filter: alpha(opacity = 60);
+}

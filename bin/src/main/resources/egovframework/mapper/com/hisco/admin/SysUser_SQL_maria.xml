@@ -1,0 +1,504 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 관리자 계정 관리
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2020.07.15   	진수진          최초 작성
+  2021.03.19   	진수진          노원 수학문학관 수정
+  2021.06.09   	전영석          노원 수학문학관 IP 설정 추가
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.admin.manager.mapper.SysUserMapper">
+ 	<!--관리자  목록 -->
+	<resultMap id="sysUserMap" type="com.hisco.admin.manager.vo.SysUserVO">
+	    <id     column="USER_ID"           jdbcType="VARCHAR" property="userId" />
+	    <result column="KOR_NAME"     jdbcType="VARCHAR" property="korName" />
+	    <result column="DEP_CD"     jdbcType="VARCHAR" property="depCd" />
+	    <result column="USE_YN"     jdbcType="VARCHAR" property="useYn" />
+	    <result column="TEL_NO"     jdbcType="VARCHAR" property="telNo" />
+	    <result column="ENTER_DATE"     jdbcType="VARCHAR" property="enterDate" />
+	    <result column="OUT_DATE"     jdbcType="VARCHAR" property="outDate" />
+	    <result column="STATS"     jdbcType="VARCHAR" property="stats" />
+	    <result column="EMAIL"     jdbcType="VARCHAR" property="email" />
+	    <result column="REGUSER"     jdbcType="VARCHAR" property="reguser" />
+	    <result column="REGDATE"     jdbcType="VARCHAR" property="regdate" />
+	    <result column="MODDATE"     jdbcType="VARCHAR" property="moddate" />
+	    <result column="MODUSER"     jdbcType="VARCHAR" property="moduser" />
+	    <result column="ACNT_STATS"     jdbcType="VARCHAR" property="acntStats" />
+	    <result column="LAST_LOGIN"     jdbcType="VARCHAR" property="lastLogin" />
+	    <result column="GROUP_NM"     jdbcType="VARCHAR" property="groupNm" />
+	    <result column="ORG_NM"     jdbcType="VARCHAR" property="orgNm" />
+	    <result column="USER_TYPENM"     jdbcType="VARCHAR" property="userTypeNm" />
+	    <result column="TOT_CNT"     jdbcType="NUMERIC" property="totCnt" />
+	     <collection property="ipList" column="USER_ID"  javaType="ArrayList"  ofType="com.hisco.admin.manager.vo.SysUserIpVO">
+	    	<result column="IP_SEQ"     jdbcType="NUMERIC" property="ipSeq" />
+	    	<result column="IP_INFO"     jdbcType="VARCHAR" property="ipInfo" />
+	    </collection>
+	</resultMap>
+
+
+ 	<select id="selectList" parameterType="com.hisco.admin.manager.vo.SysUserVO" resultType="com.hisco.admin.manager.vo.SysUserVO">
+          SELECT
+          	MAIN2.*
+          FROM (SELECT MAIN.*
+			      , ROW_NUMBER() OVER (ORDER BY REGDATE DESC , KOR_NAME) AS RNUM
+			      , (SELECT CD_NM FROM COT_GRP_ORGCD WHERE COMCD=MAIN.COMCD AND GRP_CD='CM_DEPT_CD' AND ORG_NO=MAIN.ORG_NO AND CD=MAIN.DEP_CD) AS DEP_NM
+	              FROM  (
+	            		SELECT
+		                   M.COMCD,
+		                   M.USER_ID,
+		                   M.KOR_NAME,
+		                   M.DEP_CD,
+		                   M.USE_YN,
+		                   M.TEL_NO,
+		                   M.ENTER_DATE,
+		                   M.OUT_DATE,
+		                   M.STATS,
+		                   M.OFFI_TEL,
+		                   M.EMAIL,
+		                   M.REGUSER,
+		                   M.REGDATE,
+		                   M.MODDATE,
+		                   M.MODUSER,
+		                   M.ACNT_STATS,
+		                   (SELECT MAX(REGDATE) FROM SYSTEM_CNNTLOG WHERE COMCD=#{comcd} AND CONNCT_APPGBN='2002' AND CONECT_ID=M.USER_ID) LAST_LOGIN,
+		                   (SELECT R.AUTHOR_NM FROM  COMTNAUTHORINFO R
+		                   		WHERE T.AUTHOR_CODE = R.AUTHOR_CODE ) GROUP_NM,
+		                   O.ORG_NM AS ORG_NM,
+		                   O.ORG_NO,
+		                   C.CD_NM AS USER_TYPENM,
+		                   COUNT(*) OVER() AS TOT_CNT
+		              FROM  MNGR_ACNTMNG M
+		              	INNER JOIN COMTNEMPLYRSCRTYESTBS T ON T.COMCD = M.COMCD AND T.SCRTY_DTRMN_TRGET_ID = M.USER_ID
+		              	LEFT OUTER JOIN MNGR_PARTCD P ON M.COMCD=P.COMCD AND M.USER_ID=P.USER_ID
+		              	LEFT OUTER JOIN ORG_INFO O ON P.COMCD=O.COMCD AND O.ORG_NO=P.ORG_NO
+		              	LEFT OUTER JOIN COT_GRPCD C ON C.COMCD=M.COMCD AND C.GRP_CD='SM_ADMINUSER_TYPE' AND C.CD=M.USER_TYPE
+	             		<where>
+	             			M.COMCD = #{comcd}
+				            <if test="searchKeyword != null and searchKeyword != ''">AND
+				                M.USER_ID LIKE CONCAT('%', #{searchKeyword}, '%')
+				            </if>
+				            <if test="searchKind !='' and searchKind !=''">AND
+				                M.KOR_NAME LIKE CONCAT('%', #{searchKind}, '%')
+				            </if>
+				            <if test="searchOrgNo != null and searchOrgNo != ''">AND
+				                P.ORG_NO =#{searchOrgNo}
+				            </if>
+				            <if test="searchDepcd != null and searchDepcd != ''">AND
+				                 M.DEP_CD =#{searchDepcd}
+				            </if>
+				            <if test="searchUseYn != null and searchUseYn != ''">AND
+				                 M.USE_YN =#{searchUseYn}
+				            </if>
+				            <if test="orgLtype != null and orgLtype != ''">AND
+				                 O.ORG_LTYPE =#{orgLtype}
+				            </if>
+				            <if test="orgMtype != null and orgMtype != ''">AND
+				                 O.ORG_MTYPE =#{orgMtype}
+				            </if>
+				            <if test="searchRole != null and searchRole != ''">AND
+				                 T.AUTHOR_CODE =#{searchRole}
+				            </if>
+				            <if test="myOrgList != null and myOrgList.size != 0">
+								AND P.ORG_NO IN <foreach collection="myOrgList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+							</if>
+			            </where>
+            		) AS MAIN
+            	) MAIN2
+					<![CDATA[
+	             WHERE  MAIN2.RNUM  > #{firstIndex}
+	               AND  MAIN2.RNUM <= #{firstIndex} + #{recordCountPerPage}
+            ]]>
+ 	</select>
+
+ 	<select id="selectListCount" parameterType="com.hisco.admin.manager.vo.SysUserVO" resultType="java.lang.Integer">
+		SELECT COUNT(*)
+		FROM
+			MNGR_ACNTMNG M
+			INNER JOIN COMTNEMPLYRSCRTYESTBS T ON T.COMCD = M.COMCD AND T.SCRTY_DTRMN_TRGET_ID = M.USER_ID
+		<where>
+            <if test="searchCondition == 0">AND
+                USER_ID LIKE CONCAT('%', #{searchKeyword}, '%')
+            </if>
+            <if test="searchCondition == 1">AND
+                KOR_NAME LIKE CONCAT('%', #{searchKeyword}, '%')
+            </if>
+       </where>
+ 	</select>
+
+
+ 	<select id="selectMstPartList" parameterType="com.hisco.admin.manager.vo.SysUserVO" resultType="com.hisco.admin.manager.vo.SysUserOrgVO">
+		SELECT *
+		FROM
+			MNGR_PARTCD
+		<where>
+            COMCD = #{comcd} AND USER_ID = #{userId}
+       </where>
+ 	</select>
+
+ 	 <select id="selectMstOrgList" parameterType="com.hisco.admin.manager.vo.SysUserVO" resultType="com.hisco.admin.orginfo.vo.OrgInfoVO">
+		SELECT
+			A.ORG_NO,
+			O.ORG_KIND,
+			O.ORG_NM,
+			O.REGUSER,
+			O.REGDATE,
+			O.MODDATE,
+			O.MODUSER
+		FROM
+			ORG_DATA_ACCESS A
+			INNER JOIN ORG_INFO O ON A.COMCD=O.COMCD AND A.ORG_NO=O.ORG_NO
+		<where>
+            A.COMCD = #{comcd} AND A.USER_ID = #{userId}
+       </where>
+       ORDER BY
+       		A.REGDATE , O.SORT_ORDER , O.ORG_NM
+ 	</select>
+
+ 	<!-- 로그인한 관리자의 관리 기관 목록 -->
+ 	<select id="selectMyOrgList" resultType="String">
+		SELECT
+			A.ORG_NO
+		FROM
+			ORG_INFO A ,
+		(
+			SELECT
+				A.ORG_NO , A.REGDATE
+			FROM
+				ORG_DATA_ACCESS A
+			<where>
+	            A.COMCD = #{comcd} AND A.USER_ID = #{userId}
+	       </where>
+	       UNION
+	       SELECT
+	       	 B.ORG_NO , B.REGDATE
+	       	FROM MNGR_PARTCD B
+	       	<where>
+	            B.COMCD = #{comcd} AND B.USER_ID = #{userId}
+	       </where>
+		)	B
+		WHERE
+			A.ORG_NO = B.ORG_NO
+		ORDER BY B.REGDATE
+ 	</select>
+
+
+
+ 	<select id="selectMstRecord" parameterType="com.hisco.admin.manager.vo.SysUserVO" resultType="com.hisco.admin.manager.vo.SysUserVO">
+		SELECT
+			M.COMCD
+			, M.USER_ID
+			, M.USER_TYPE
+			, M.PASSWORD
+			, M.KOR_NAME
+			, M.DEP_CD
+			, M.TEL_NO
+			, M.ENTER_DATE
+			, M.OUT_DATE
+			, M.STATS
+			, M.OFFI_TEL
+			, M.REMARK
+			, M.ACNT_STATS
+			, M.FAIL_CNT
+			, M.PWD_CHANGEYN
+			, M.PWD_CHANGE_DATE
+			, M.USE_YN
+			, M.REGDATE
+			, M.REGUSER
+			, M.MODDATE
+			, M.MODUSER
+			, fn_aes_decrypt(M.EMAIL,#{dbEncKey}) AS EMAIL
+			,(SELECT MAX(REGDATE) FROM SYSTEM_CNNTLOG WHERE COMCD=#{comcd} AND CONNCT_APPGBN='2002' AND CONECT_ID=M.USER_ID) LAST_LOGIN
+			, O.ORG_NM AS ORG_NM
+			, P.ORG_NO
+		FROM
+			MNGR_ACNTMNG M
+				LEFT OUTER JOIN MNGR_PARTCD P ON M.COMCD=P.COMCD AND M.USER_ID=P.USER_ID
+		    	LEFT OUTER JOIN ORG_INFO O ON P.COMCD=O.COMCD AND O.ORG_NO=P.ORG_NO
+		<where>
+            M.COMCD = #{comcd} AND M.USER_ID = #{userId}
+       </where>
+ 	</select>
+
+
+ 	<insert id="insertMst" parameterType="com.hisco.admin.manager.vo.SysUserVO">
+		INSERT INTO MNGR_ACNTMNG
+		(COMCD, USER_ID ,USER_TYPE, PASSWORD , USER_SALT, KOR_NAME, DEP_CD, USE_YN , TEL_NO , OFFI_TEL , ENTER_DATE,  OUT_DATE, EMAIL,ACNT_STATS , STATS, REMARK, REGUSER , REGDATE)
+		VALUES
+		(#{comcd} , #{userId} , #{userType} , #{password}  , #{userSalt}  , #{korName} , #{depCd} , #{useYn} , #{telNo} , #{offiTel}, REPLACE(#{enterDate},'-','') , REPLACE(#{outDate},'-','') , fn_aes_encrypt(#{email},#{dbEncKey})  , #{acntStats} , #{stats} ,#{remark}, #{reguser} , SYSDATE())
+ 	</insert>
+
+
+ 	<update id="updateMst" parameterType="com.hisco.admin.manager.vo.SysUserVO">
+		UPDATE MNGR_ACNTMNG
+		SET
+	  	   KOR_NAME = #{korName},
+	  	   USER_TYPE = #{userType},
+	  	   ACNT_STATS = NVL(#{acntStats} ,ACNT_STATS) ,
+	  	   STATS = #{stats},
+	  	   DEP_CD = #{depCd},
+	  	   USE_YN= #{useYn} ,
+	  	   TEL_NO = #{telNo} ,
+	  	   OFFI_TEL = #{offiTel},
+	  	   ENTER_DATE = REPLACE(#{enterDate},'-',''),
+	  	   OUT_DATE=REPLACE(#{outDate},'-','') ,
+	  	   EMAIL= fn_aes_encrypt(#{email},#{dbEncKey}),
+	  	   REMARK = #{remark},
+		   MODUSER=#{reguser} ,
+		   MODDATE = SYSDATE()
+		WHERE
+			COMCD = #{comcd} AND USER_ID = #{userId}
+ 	</update>
+
+ 	<update id="updateMyInfo" parameterType="com.hisco.admin.manager.vo.SysUserVO">
+		UPDATE MNGR_ACNTMNG
+		SET
+	  	   KOR_NAME = #{korName},
+	  	   DEP_CD = #{depCd},
+	  	   TEL_NO = #{telNo} ,
+	  	   OFFI_TEL = #{offiTel},
+	  	   ENTER_DATE = REPLACE(#{enterDate},'-',''),
+	  	   OUT_DATE=REPLACE(#{outDate},'-','') ,
+	  	   EMAIL= fn_aes_encrypt(#{email},#{dbEncKey}),
+		   MODUSER=#{reguser} ,
+		   MODDATE = SYSDATE()
+		WHERE
+			COMCD = #{comcd} AND USER_ID = #{userId}
+ 	</update>
+
+ 	<update id="updatePassword" parameterType="com.hisco.admin.manager.vo.SysUserVO">
+		UPDATE MNGR_ACNTMNG
+		SET
+			PASSWORD = #{password}
+			 , USER_SALT = #{userSalt}
+			, MODUSER=#{reguser} , MODDATE = SYSDATE() , PWD_CHANGE_DATE = SYSDATE() , PWD_CHANGEYN='Y'
+		WHERE
+			COMCD = #{comcd} AND USER_ID = #{userId}
+ 	</update>
+
+
+ 	<insert id="insertRole" parameterType="com.hisco.admin.manager.vo.SysUserVO">
+		INSERT INTO COMTNEMPLYRSCRTYESTBS
+		(SCRTY_DTRMN_TRGET_ID , COMCD , AUTHOR_CODE)
+		VALUES
+		( #{userId} , #{comcd} , #{roleCd})
+ 	</insert>
+
+ 	<update id="updateRole" parameterType="com.hisco.admin.manager.vo.SysUserVO">
+		UPDATE COMTNEMPLYRSCRTYESTBS
+		SET
+			 AUTHOR_CODE = #{roleCd}
+		<where>
+           COMCD=#{comcd}  AND SCRTY_DTRMN_TRGET_ID = #{userId}
+       </where>
+ 	</update>
+
+ 	<delete id="deleteRole" parameterType="com.hisco.admin.manager.vo.SysUserVO">
+		DELETE FROM COMTNEMPLYRSCRTYESTBS
+		<where>
+           COMCD=#{comcd}  AND SCRTY_DTRMN_TRGET_ID = #{userId}
+       </where>
+ 	</delete>
+
+ 	<select id="selectRole" parameterType="com.hisco.admin.manager.vo.SysUserVO" resultType="com.hisco.admin.manager.vo.SysUserVO">
+		SELECT
+			AUTHOR_CODE AS ROLE_CD
+		FROM
+			COMTNEMPLYRSCRTYESTBS
+		<where>
+            SCRTY_DTRMN_TRGET_ID = #{userId} AND COMCD=#{comcd}
+       </where>
+ 	</select>
+
+ 	<select id="selectRoleCount" parameterType="com.hisco.admin.manager.vo.SysUserVO" resultType="integer">
+		SELECT
+			COUNT(*)
+		FROM
+			COMTNEMPLYRSCRTYESTBS
+		<where>
+            SCRTY_DTRMN_TRGET_ID =  #{userId} AND COMCD=#{comcd}
+       </where>
+ 	</select>
+
+
+	<insert id="insertRoleLog" parameterType="com.hisco.admin.manager.vo.SysUserVO">
+		INSERT INTO SYSTEM_PRMISN_LOG
+		(LOG_SEQ , COMCD , SYSTEM_GBN , USER_IP , LOG_REG_USERID , LOG_REGDATE, LOGNM , USERID ,MENUID , PG_OBJ)
+		VALUES
+		((SELECT NVL(MAX(LOG_SEQ),0)+1 FROM SYSTEM_PRMISN_LOG ALIAS_FOR_SUBQUERY) , #{comcd} , '2002', #{ip} , #{reguser} , SYSDATE() , #{lognm} ,#{userId} ,0, #{roleCd} )
+ 	</insert>
+
+
+ 	<select id="selectAcntIppolicyCheck" parameterType="egovframework.com.cmm.LoginVO" resultType="cMap">
+		SELECT
+			COUNT(*) REGIST_CNT , NVL(SUM(CASE WHEN IP_INFO=#{ip} THEN 1 ELSE 0 END),0) IP_CNT
+		FROM
+			ACNT_IPPOLICY
+		<where>
+            COMCD=#{comcd} AND USER_ID=#{id}
+       </where>
+ 	</select>
+
+	<select id="selectSysUserIpList" parameterType="com.hisco.admin.manager.vo.SysUserVO" resultType="cMap">
+		/* SysUserDAO.selectSysUserIpList */
+		SELECT T.COMCD
+			 , T.USER_ID
+			 , T.IP_SEQ
+			 , T.IP_INFO
+			 , T.REGDATE
+			 , T.REGUSER
+			 , T.MODDATE
+			 , T.MODUSER
+		  FROM ACNT_IPPOLICY T
+		  WHERE T.COMCD = #{comcd}
+		    AND T.USER_ID = #{userId}
+		  ORDER BY T.IP_INFO
+	</select>
+
+	<insert id="insertSysIpUser" parameterType="com.hisco.admin.manager.vo.SysUserIpVO">
+		/* SysUserDAO.insertSysIpUser */
+		INSERT INTO ACNT_IPPOLICY
+		            (
+			              COMCD
+			            , USER_ID
+			            , IP_SEQ
+			            , IP_INFO
+			            , REGDATE
+			            , REGUSER
+	                    , MODDATE
+	                    , MODUSER
+		            ) VALUES (
+		            	  #{comcd}
+		            	, #{userId}
+		            	, (SELECT (NVL(MAX(IP_SEQ), 0) + 1) FROM ACNT_IPPOLICY ALIAS_FOR_SUBQUERY WHERE COMCD=#{comcd} AND USER_ID=#{userId})
+		            	, #{ipInfo}
+		            	, SYSDATE()
+		            	, #{reguser}
+		            	, SYSDATE()
+		            	, #{reguser}
+		            )
+
+	</insert>
+
+	<delete id="deleteSysIpUser" parameterType="com.hisco.admin.manager.vo.SysUserIpVO">
+		/* SysUserDAO.deleteSysIpUser */
+		DELETE FROM ACNT_IPPOLICY
+		  WHERE COMCD   = #{comcd}
+		    AND USER_ID = #{userId}
+		    AND IP_SEQ  = #{ipSeq}
+	</delete>
+
+	<delete id="deleteSysIpUserAll" parameterType="com.hisco.admin.manager.vo.SysUserVO">
+		/* SysUserDAO.deleteSysIpUserAll */
+		DELETE FROM ACNT_IPPOLICY
+		  WHERE COMCD   = #{comcd}
+		    AND USER_ID = #{userId}
+	</delete>
+
+	<select id="selectPartCount" parameterType="com.hisco.admin.manager.vo.SysUserVO" resultType="integer">
+		/* SysUserDAO.selectPartCount */
+		SELECT COUNT(*)
+		  FROM MNGR_PARTCD T
+		  WHERE T.COMCD = #{comcd}
+		    AND T.USER_ID = #{userId}
+	</select>
+
+	<insert id="insertSysPart" parameterType="com.hisco.admin.manager.vo.SysUserVO">
+		/* SysUserDAO.insertSysPart */
+		INSERT INTO MNGR_PARTCD
+		            (
+			              COMCD
+			            , USER_ID
+			            , SEQ
+			            , ORG_NO
+			            , REGDATE
+			            , REGUSER
+	                    , MODDATE
+	                    , MODUSER
+		            ) VALUES (
+		            	  #{comcd}
+		            	, #{userId}
+		            	, (SELECT (NVL(MAX(SEQ), 0) + 1) FROM MNGR_PARTCD ALIAS_FOR_SUBQUERY)
+		            	, #{orgNo}
+		            	, SYSDATE()
+		            	, #{reguser}
+		            	, SYSDATE()
+		            	, #{reguser}
+		            )
+	</insert>
+
+	<update id="updateSysPart" parameterType="com.hisco.admin.manager.vo.SysUserVO">
+		/* SysUserDAO.updateSysPart */
+		UPDATE MNGR_PARTCD
+		SET
+			ORG_NO=#{orgNo},
+			MODDATE=SYSDATE(),
+			MODUSER=#{moduser}
+		WHERE
+			COMCD=#{comcd}
+			AND USER_ID=#{userId}
+	</update>
+
+	<delete id="deleteSysPart" parameterType="com.hisco.admin.manager.vo.SysUserVO">
+		/* SysUserDAO.deleteSysPart */
+		DELETE
+			FROM MNGR_PARTCD
+		WHERE
+			COMCD=#{comcd}
+			AND USER_ID=#{userId}
+	</delete>
+
+
+	<select id="selectOrgAccessCount" parameterType="com.hisco.admin.manager.vo.SysUserOrgVO" resultType="integer">
+		/* SysUserDAO.selectOrgAccessCount */
+		SELECT COUNT(*)
+		  FROM ORG_DATA_ACCESS T
+		  WHERE T.COMCD = #{comcd}
+		    AND T.USER_ID = #{userId}
+		    AND T.ORG_NO = #{orgNo}
+	</select>
+
+	<insert id="insertOrgAccessData" parameterType="com.hisco.admin.manager.vo.SysUserOrgVO">
+		/* SysUserDAO.insertOrgAccessData */
+		INSERT INTO ORG_DATA_ACCESS
+		            (
+			              COMCD
+			            , USER_ID
+			            , ORG_NO
+			            , REGDATE
+			            , REGUSER
+	                    , MODDATE
+	                    , MODUSER
+		            ) VALUES (
+		            	  #{comcd}
+		            	, #{userId}
+		            	, #{orgNo}
+		            	, SYSDATE()
+		            	, #{reguser}
+		            	, SYSDATE()
+		            	, #{reguser}
+		            )
+	</insert>
+
+	<delete id="deleteOrgAccessData">
+		/* SysUserDAO.deleteOrgAccessData */
+		DELETE
+			FROM ORG_DATA_ACCESS
+		WHERE
+			COMCD=#{comcd}
+			AND USER_ID=#{userId}
+			<if test="orgList != null">
+				AND ORG_NO NOT IN <foreach collection="orgList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+			</if>
+	</delete>
+
+	<select id="selectGroupNextCd"  resultType="String">
+		/* SysUserDAO.selectGroupNextCd */
+		SELECT
+         CONCAT( 'ROLE_ADMIN' ,  MAX(cast(case when AUTHOR_CODE='ROLE_ADMIN' then '0' else  REPLACE(AUTHOR_CODE,'ROLE_ADMIN','') end as unsigned ) +1 )) AS AUTHOR_CODE
+            FROM COMTNAUTHORINFO
+            WHERE AUTHOR_CODE LIKE 'ROLE_ADMIN%'
+	</select>
+
+</mapper>

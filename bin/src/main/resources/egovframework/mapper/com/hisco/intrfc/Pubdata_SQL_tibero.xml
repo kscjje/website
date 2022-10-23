@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	수정일         수정자     수정내용
+    =========      =======    =================================================
+    2020.09.08     전영석     공공 데이터 연계 Tibero Mapper 
+-->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="PubdataDAO">
+
+	<!-- [교육 예약  Master 정보를 조회한다][2020-09-17][전영석] -->
+ 	<select id="selectEdcRsvnInfoList" parameterType="Map" resultType="cMap">
+
+			SELECT /* PubdataDAO.selectEdcRsvnInfoList */ 
+				    COMCD
+			      , EDC_RSVN_REQID
+			      , EDC_RSVN_NO
+			      , EDC_REQ_DATE
+			      , EDC_REQ_TIME
+			      , EDC_PRGMID
+			      , EDC_RSVN_MEMTYPE
+			      , EDC_MONTHCNT
+				  , EDC_TOTAMT
+				  , EDC_DCAMT
+				  , EDC_INDVDLINFO_AGRID
+				  , EDC_INDVDLINFO_AGRYN
+				  , EDC_AGREEID
+				  , EDC_AGREEYN
+				  , EDC_REFND_AGRID
+				  , EDC_REFND_AGRYN
+				  , EDC_ONOFFINTYPE
+				  , EDC_TRMNL_TYPE
+				  , EDC_RETYN
+				  , RET_SELNG_ID
+				  , EDC_IN_BUSLOCT
+				  , TO_CHAR(EDC_PAYWAIT_ENDDATETIME, 'YYYY"년" MM"월" DD"일" HH24"시" MI"분" SS"초"') AS EDC_PAYWAIT_ENDDATETIME
+				  , EDC_HOME_ZIPNO
+				  , CRYPTO.Decrypt_ARIA(EDC_HOME_ADDR1, #{dbEncKey}) AS EDC_HOME_ADDR1
+				  , CRYPTO.Decrypt_ARIA(EDC_HOME_ADDR2, #{dbEncKey}) AS EDC_HOME_ADDR2
+				  , EDC_RSVN_ORGNAME  
+				  , EDC_RSVN_CUSTNM
+				  , CRYPTO.Decrypt_ARIA(EDC_RSVN_MOBLPHON, #{dbEncKey}) AS EDC_RSVN_MOBLPHON
+			      , REGDATE
+			      , REGUSER
+			      , MODDATE
+			      , MODUSER 
+			   FROM EDC_RSVN_INFO    
+				WHERE COMCD = #{comCd} 
+
+	</select>
+
+	<!-- [교육 예약 Master 정보 실적을 조회한다][2020-09-17][전영석] -->
+ 	<select id="selectEdcRsvnInfoCnt" parameterType="Map" resultType="cMap">
+ 	
+		SELECT /* PubdataDAO.selectEdcRsvnInfoCnt */
+		       CASE WHEN MAIN.EDC_PROGM_TYPE = '1001' THEN '개인교육'  
+		            WHEN MAIN.EDC_PROGM_TYPE = '3001' THEN '단체교육'
+		            WHEN MAIN.EDC_PROGM_TYPE = '2001' THEN '캠프/체험'
+		            WHEN MAIN.EDC_PROGM_TYPE = '9001' THEN '1회성프로그램' ELSE '' END AS EDUEVT_TILE 
+		     , MAIN.EDC_PLACENM AS EDUEVT_PLCE
+		     , SUM(MAIN.EDUEVT_QTY)  AS EDUEVT_QTY 
+		FROM (SELECT  
+			(SELECT A.EDC_PROGM_TYPE FROM EDC_PROGRAM A WHERE A.EDC_PRGMID = T.EDC_PRGMID) AS EDC_PROGM_TYPE
+		  , (SELECT A.EDC_PLACENM FROM EDC_PROGRAM A WHERE A.EDC_PRGMID = T.EDC_PRGMID)    AS EDC_PLACENM   	
+		  , 1  AS EDUEVT_QTY
+		FROM EDC_RSVN_INFO T
+		WHERE T.COMCD = #{comCd} 
+		  AND T.EDC_REQ_SDATE <![CDATA[<=]]> #{eduevtDate} 
+		  AND T.EDC_REQ_EDATE <![CDATA[>=]]> #{eduevtDate}
+		) MAIN       
+		GROUP BY MAIN.EDC_PROGM_TYPE 
+		       , MAIN.EDC_PLACENM 
+		ORDER BY 1, 2 
+
+	</select>
+	
+	<!-- [교육 예약 Master 정보 실적을 조회한다][2020-09-17][전영석] -->
+ 	<select id="selectEvtRsvnInfoCnt" parameterType="Map" resultType="cMap">
+ 	
+		SELECT /* PubdataDAO.selectEvtRsvnInfoCnt */
+		       MAIN2.PART_NM          AS EDUEVT_TILE
+		     , MAIN2.EVT_PLACENM      AS EDUEVT_PLCE
+		     , SUM(MAIN2.EDUEVT_QTY)  AS EDUEVT_QTY 
+		FROM( SELECT (SELECT B.PART_NM FROM PART_CD B WHERE B.COMCD = MAIN.COMCD AND B.PART_CD = MAIN.EVT_PARTCD) AS PART_NM 
+		     , MAIN.EVT_PLACENM 
+		     , MAIN.EDUEVT_QTY 
+		FROM (SELECT COMCD 
+		  ,	(SELECT A.EVT_PARTCD FROM EVENT_PROGRAM A WHERE A.EVT_NO = T.EVT_NO)   AS EVT_PARTCD
+		  , (SELECT A.EVT_PLACENM FROM EVENT_PROGRAM A WHERE A.EVT_NO = T.EVT_NO)  AS EVT_PLACENM   	
+		  , 1  AS EDUEVT_QTY
+		FROM EVT_RSVN_MST T
+		
+		WHERE T.COMCD = #{comCd} 
+		  AND T.EVT_APPDATE <![CDATA[<=]]> #{eduevtDate} 
+		  AND T.EVT_APPDATE <![CDATA[>=]]> #{eduevtDate}		
+		
+		) MAIN ) MAIN2 
+		GROUP BY MAIN2.PART_NM 
+		       , MAIN2.EVT_PLACENM
+		ORDER BY 1, 2
+ 	
+	</select>
+
+	<!-- [교육 예약  정보를 조회한다.][2020-09-08][전영석] -->
+ 	<select id="selectEdcarsvnList" parameterType="Map" resultType="cMap">
+ 	
+ 	   SELECT /* PubdataDAO.selectEdcarsvnList */ *
+       FROM (SELECT  
+               SUB_MAIN.EDC_PROGM_TYPE_NM AS PUB_PROGM_TYPE_NM 
+             , SUB_MAIN.EDC_PLACE_NM      AS PUB_PLACE_NM 
+             , SUB_MAIN.EDC_PRGMNM        AS PUB_PRGMNM  
+             , CASE WHEN SUB_MAIN.EDC_RSVN_SDATETIME  <![CDATA[<=]]>  TO_CHAR(SYSDATE, 'YYYY.MM.DD HH24MI')
+                     AND SUB_MAIN.EDC_RSVN_EDATETIME  <![CDATA[>=]]>  TO_CHAR(SYSDATE, 'YYYY.MM.DD HH24MI') THEN '접수가능'
+                    WHEN SUB_MAIN.EDC_RSVN_SDATETIME  <![CDATA[>=]]>  TO_CHAR(SYSDATE, 'YYYY.MM.DD HH24MI') THEN '접수준비'
+                    WHEN SUB_MAIN.EDC_RSVN_EDATETIME  <![CDATA[<=]]>  TO_CHAR(SYSDATE, 'YYYY.MM.DD HH24MI') THEN '마감'
+                    ELSE '접수불가' END AS PUB_INTER_STATUS
+             
+             , SUB_MAIN.EDC_PNCPA AS PUB_PNCPA       
+             
+             , SUB_MAIN.EDC_SEDATETIME AS PUB_SEDATETIME 
+                    
+             , CASE WHEN SUB_MAIN.EDC_RSVN_SDATE = SUB_MAIN.EDC_RSVN_EDATE THEN SUB_MAIN.EDC_RSVN_SDATE ELSE (SUB_MAIN.EDC_RSVN_SDATE || ' ~ ' || SUB_MAIN.EDC_RSVN_EDATE) END AS PUB_RSVN_SEDATETIME 
+             
+             , CASE WHEN SUB_MAIN.EDC_RSVN_STIME = SUB_MAIN.EDC_RSVN_ETIME THEN SUB_MAIN.EDC_RSVN_STIME ELSE (SUB_MAIN.EDC_RSVN_STIME || ' ~ ' || SUB_MAIN.EDC_RSVN_ETIME) END AS PUB_RSVN_SETIME
+
+             , SUB_MAIN.EDC_FREE_YN AS PUB_FREE_YN 
+             
+             , SUB_MAIN.SALAMT AS  PUB_SALAMT
+             
+             , COUNT(*) OVER() AS TOTAL_COUNT
+             
+             , ROWNUM AS ROW_NUM             
+             
+        FROM  (SELECT 
+               (SELECT B.CD_NM FROM COT_GRPCD B WHERE B.GRP_CD = 'SM_EDCPROGM_TYPE' AND B.COMCD = A.COMCD AND B.CD = A.EDC_PROGM_TYPE) AS EDC_PROGM_TYPE_NM
+             , DECODE(A.EDC_ONLINEYN, 'Y', '온라인', A.EDC_PLACENM) AS EDC_PLACE_NM               
+             , A.EDC_PRGMNM    
+             , A.EDC_PNCPA      /* 교육 정원 */        
+             , A.EDC_TARGETINFO /* 교육 대상 */
+             , 'rsvn.science.go.kr' AS RSVN_URL 
+             ,  (SELECT D.SALAMT
+                  FROM PROGRAM_ITEM D
+                 WHERE D.COMCD = A.COMCD
+                   AND D.ITEM_CD =  (SELECT C.ITEM_CD
+                                      FROM EDC_PRGM_ITEM C
+                                     WHERE C.COMCD = A.COMCD
+                                       AND C.EDC_PRGMID = A.EDC_PRGMID
+                                   )
+                ) AS SALAMT         
+             , DECODE(A.EDC_FEE_TYPE, '2001', '무료', '1001', '유료', '') AS EDC_FREE_YN 
+             , fn_DateTime_Convert(1, A.EDC_SDATE, A.EDC_STIME) || ' ~ ' || 
+               fn_DateTime_Convert(1, A.EDC_EDATE, A.EDC_ETIME) AS EDC_SEDATETIME             
+             
+             , fn_DateTime_Convert(1, A.EDC_RSVN_SDATE, A.EDC_RSVN_STIME) AS EDC_RSVN_SDATETIME
+             , fn_DateTime_Convert(1, A.EDC_RSVN_EDATE, A.EDC_RSVN_ETIME) AS EDC_RSVN_EDATETIME             
+             
+             , A.EDC_RSVN_SDATE
+             , A.EDC_RSVN_EDATE
+             , A.EDC_RSVN_STIME
+             , A.EDC_RSVN_ETIME
+
+              , A.EDC_PROGM_TYPE
+              , A.PRDLST_CTGDID
+              , A.EDC_ONLINEYN 
+              
+        FROM EDC_PROGRAM A
+        WHERE A.COMCD = 'NOWONGU01'
+          AND A.USE_YN = 'Y' 
+          AND A.EDC_OPENYN = 'Y' 
+          ) SUB_MAIN 
+
+          WHERE SUB_MAIN.SALAMT <![CDATA[>=]]> 0
+        
+		ORDER BY EDC_PROGM_TYPE_NM 
+		       , EDC_PRGMNM
+		       
+	    ) MAIN2 
+	    
+		WHERE ROW_NUM BETWEEN #{pageIndex} + 1 AND #{pageIndex} + #{numOfRows}
+		ORDER BY ROW_NUM	    
+
+	</select>
+
+	<!-- [강연/행사/영화 정보를 조회한다.][2020-09-08][전영석] -->
+ 	<select id="selectEvtRsvnList" parameterType="Map" resultType="cMap">
+ 	
+ 	  SELECT * /* PubdataDAO.selectEvtRsvnList */	
+	  FROM (SELECT 
+		       MAIN.COM_PRNCTGCDNM  AS PUB_PRNCTGCDNM
+		     , MAIN.EVT_PLACENM     AS PUB_PLACENM
+		     , MAIN.EVT_NAME        AS PUB_NAME
+		     , MAIN.EVT_ORG_MAXCNT  AS PUB_ORG_MAXCNT
+		     , MAIN.EVT_TARGETAGE   AS PUB_TARGETAGE
+		     , MAIN.EVT_FEE_TYPENM  AS PUB_FEE_TYPENM
+		     , MAIN.EVT_REQ_SDATE || ' ~ ' || MAIN.EVT_REQ_EDATE AS PUB_REQ_SEDATE
+		     , MAIN.EVT_USE_SDATE || ' ~ ' || MAIN.EVT_USE_EDATE AS PUB_USE_SEDATE
+		     , MAIN.EVT_TIMEINFO    AS PUB_TIMEINFO
+		     
+		     , CASE WHEN MAIN.EVT_REQ_SDATE <![CDATA[<=]]> TO_CHAR(SYSDATE, 'YYYYMMDD')
+		             AND MAIN.EVT_REQ_EDATE <![CDATA[>=]]> TO_CHAR(SYSDATE, 'YYYYMMDD') THEN '접수가능'
+		            WHEN MAIN.EVT_REQ_SDATE <![CDATA[>=]]> TO_CHAR(SYSDATE, 'YYYYMMDD') THEN '접수준비'
+		            WHEN MAIN.EVT_REQ_EDATE <![CDATA[<=]]> TO_CHAR(SYSDATE, 'YYYYMMDD') THEN '마감' 
+		            ELSE '접수불가' END AS PUB_STATUS     
+		     
+		     , CASE WHEN MAIN.EVT_ORG_MAXCNT >= 1 THEN '단체' ELSE '개인' END AS PUB_ORG_YN
+		     , 'rsvn.science.go.kr' AS SCR_URL 
+             , COUNT(*) OVER() AS TOTAL_COUNT
+             , ROWNUM AS ROW_NUM		     
+		  FROM (SELECT (SELECT COM_CTGNM FROM COM_CTGR WHERE COM_CTGCD = C.COM_PRNCTGCD ) AS COM_PRNCTGCDNM 
+		         , NVL(A.EVT_PLACENM, '-') AS EVT_PLACENM 
+		         , A.EVT_NAME
+		         , B.PART_NM  AS EVT_PARTNM
+		         , A.EVT_PARTCD 
+		         , A.COM_CTGCD 
+		         , C.COM_CTGNM 
+		         , C.COM_PRNCTGCD
+		         , A.EVT_APP_PERIOD_GBN 
+		         , D.CD_NM AS EVT_APP_PERIOD_GBNNM 
+		         , A.OPENYN 
+		         , A.USE_YN 
+		         , A.EVT_TIMEINFO 
+		         , A.EVT_RUNING_TIME 
+		         , A.EVT_TARGETAGE 
+		         , A.EVT_USE_SDATE 
+		         , A.EVT_USE_EDATE 
+		         , A.EVT_REQ_SDATE
+		         , A.EVT_REQ_STIME 
+		         , A.EVT_REQ_EDATE 
+		         , A.EVT_REQ_ETIME 
+		         , A.EVT_OPENDATE 
+		         , A.EVT_OPENTIME 
+		         , A.EVT_SEXDSTN 
+		         , E.CD_NM AS EVT_SEXDSTNNM 
+		         , A.EVT_ANUALMEMBYN 
+		         , A.EVT_SPECLMEMBYN 
+		         , A.EVT_STDMEMBYN 
+		         , A.EVT_NONMEBYN 
+		         , NVL(A.EVT_ORG_MINCNT,0 ) AS EVT_ORG_MINCNT
+		         , NVL(A.EVT_ORG_MAXCNT,0)  AS EVT_ORG_MAXCNT 
+		         , A.EVT_FEE_TYPE 
+		         , F.CD_NM AS EVT_FEE_TYPENM 
+		         , A.EVT_ONLINE_RSVYN 
+		         , A.EVT_PAYWAIT_GBN 
+		         , NVL(A.EVT_MAXTIME_CNT,0)  AS  EVT_MAXTIME_CNT 
+		         , A.EVT_GUIDE_TELNO 
+		         , A.EVT_INTRCN 
+		         , A.EVT_INTRIMG_FINNB 
+		         , A.EVT_PLAN_FINNB 
+		         , A.EVT_TICKET_NOTICE 
+		         , A.EVT_TICKET_CHKYN 
+		         , A.EVT_THMB_IMG_FINNB
+		         , A.EVT_POSTR_IMG_FINNB
+		         , (SELECT NVL(MAX(ITEM_PRICE),0) FROM EVT_ITEM_AMOUNT WHERE EVT_NO = A.EVT_NO) AS ITEM_PRICE
+		         , NVL(A.EVT_BFTICKET_MSGTIME, 0) AS EVT_BFTICKET_MSGTIME
+		         , TO_DATE(DECODE(EVT_APP_PERIOD_GBN, '1001', EVT_OPENDATE, EVT_REQ_SDATE),'YYYYMMDD') - TRUNC(SYSDATE) RMN_YMD
+		         , DECODE(EVT_APP_PERIOD_GBN,'1001', EVT_OPENDATE||NVL(EVT_OPENTIME,'0000'), EVT_REQ_SDATE||EVT_REQ_STIME) REQ_YMD
+		          
+		   FROM EVENT_PROGRAM A LEFT JOIN PART_CD B
+		                               ON A.COMCD = B.COMCD
+		                              AND A.EVT_PARTCD = B.PART_CD
+		                              AND B.PART_GBN =   '3001'
+		                        LEFT JOIN COM_CTGR C
+		                               ON A.COM_CTGCD = C.COM_CTGCD
+		                        LEFT JOIN COT_GRPCD D
+		                               ON A.COMCD = D.COMCD
+		                              AND A.EVT_APP_PERIOD_GBN = D.CD
+		                              AND D.GRP_CD =   'SM_EVT_RECEIPTPERIOD_GBN'
+		                        LEFT JOIN COT_GRPCD E
+		                               ON A.COMCD = E.COMCD
+		                              AND A.EVT_SEXDSTN = E.CD
+		                              AND E.GRP_CD =   'SM_RSVN_SEXDSTN'
+		                        LEFT JOIN COT_GRPCD F
+		                               ON A.COMCD = F.COMCD
+		                              AND A.EVT_FEE_TYPE = F.CD
+		                              AND F.GRP_CD =   'SM_PRICE_TYPE'
+		              WHERE A.COMCD = 'NOWONGU01'
+		                AND A.USE_YN = 'Y'
+		                AND A.OPENYN = 'Y'  
+		          ) MAIN       
+	    ) MAIN2 
+	    
+		WHERE ROW_NUM BETWEEN #{pageIndex} + 1 AND #{pageIndex} + #{numOfRows}
+		ORDER BY ROW_NUM		                              
+
+	</select>
+	
+	<!-- [관람 예약 정보를 조회한다.][2020-10-29][전영석] -->
+ 	<select id="selectExbtRsvnList" parameterType="Map" resultType="cMap">
+		
+		SELECT * /* PubdataDAO.selectExbtRsvnList */ 		
+		FROM (SELECT MAIN.* 
+             , COUNT(*) OVER() AS TOTAL_COUNT 
+             , ROWNUM AS ROW_NUM		     		        		
+		FROM (SELECT 
+		    B.CD_NM     AS PUB_CD_NM,
+		    C.PART_NM   AS PUB_PART_NM,
+		    A.EXBT_NAME AS PUB_EXBT_NAME,
+		    CASE WHEN   RSVN_PEROD_TYPE = '1001'
+		            OR (
+		                RSVN_PEROD_TYPE = '2001'
+		                AND  TO_DATE(A.RSVN_APP_SDATE||A.RSVN_START_TIME,'YYYYMMDDHH24MI') <![CDATA[<=]]> SYSDATE
+		               AND  TO_DATE(RSVN_APP_EDATE||RSVN_END_TIME,'YYYYMMDDHH24MI') > SYSDATE ) THEN '접수중' 
+		               WHEN  TO_DATE(A.RSVN_APP_SDATE||A.RSVN_START_TIME,'YYYYMMDDHH24MI') <![CDATA[>]]>  SYSDATE  THEN '접수준비' END PUB_STATUS,
+		    CASE WHEN A.FEE_TYPE='1001' THEN '유료' ELSE '무료' END AS PUB_FEE_TYPE ,
+		    CASE WHEN (SELECT NVL(SUM(CNT),0) FROM (SELECT 1 CNT FROM CALENDAR
+		        WHERE
+		        COMCD = A.COMCD AND GUBUN IN ('1001', '1000') AND DATE_TYPE = '00' AND CAL_DATE= TO_CHAR(SYSDATE,'YYYYMMDD')
+		      UNION
+		      SELECT 1 FROM EXBT_EXCP_DATE WHERE COMCD =  A.COMCD  AND EXBT_SEQ=A.EXBT_SEQ AND EXCP_DATE=TO_CHAR(SYSDATE,'YYYYMMDD'))) >0 THEN '휴관' ELSE '상시' END AS PUB_PEROD,
+		      ( SELECT
+		                SUBSTR(MIN(S_TIME),1,2)||':' ||SUBSTR(MIN(S_TIME),3,2)   ||' ~ ' || SUBSTR(MAX(E_TIME ) ,1,2)||':' ||SUBSTR(MAX(E_TIME ) ,3,2)  
+		                    FROM (
+		                    SELECT
+		                            B2.S_TIME, B2.E_TIME
+		                            ,DENSE_RANK()OVER( ORDER BY B1.USE_BETWEEN_YN DESC , B1.TIME_STD_SEQ ) RNUM
+		                                FROM  EXBT_STDMNG B1  ,  EXBT_TIME_MNG B2
+		                                WHERE
+		                                     A.COMCD = B1.COMCD AND A.EXBT_SEQ=B1.EXBT_SEQ AND B1.USE_DAYS LIKE '%'|| (CASE WHEN D.HOL_CNT>0 THEN '8' ELSE D.WEEK_DT END) ||'%'
+		                                AND B1.COMCD= B2.COMCD AND B1.EXBT_SEQ = B2.EXBT_SEQ AND B1.TIME_STD_SEQ = B2.TIME_STD_SEQ
+		                                AND B2.USE_YN='Y'
+		                                AND B2.WEB_DISPYN='Y'
+		                                AND NOT EXISTS (SELECT EXBT_SEQ FROM EXBT_EXCP_TIME E WHERE  E.COMCD=B2.COMCD AND E.EXBT_SEQ=B2.EXBT_SEQ AND E.TIME_STD_SEQ=B2.TIME_STD_SEQ AND E.EXBT_TIMESEQ=B2.EXBT_TIMESEQ AND EXCP_DATE=TO_CHAR(SYSDATE,'YYYYMMDD'))
+		                                AND (B1.USE_BETWEEN_YN='N'  OR ( B1.USE_BETWEEN_YN='Y' AND B1.USE_S_DATE <![CDATA[<=]]> TO_CHAR(SYSDATE,'YYYYMMDD') AND B1.USE_E_DATE <![CDATA[>=]]> TO_CHAR(SYSDATE,'YYYYMMDD')))
+		                    ) T WHERE RNUM=1
+		                )  AS PUB_TIME_TABLE
+		FROM EXBT_BASERULE A
+		  , COT_GRPCD B
+		  , PART_CD C
+		  , ( 
+		            SELECT TO_CHAR(SYSDATE , 'd') WEEK_DT
+		            ,(SELECT COUNT(*) FROM CALENDAR WHERE COMCD= 'NOWONGU01' AND GUBUN IN ('1000' , '1001')  AND DATE_TYPE='02' AND CAL_DATE= TO_CHAR(SYSDATE,'YYYYMMDD')) HOL_CNT
+		     FROM DUAL                  
+		    ) D
+		WHERE A.COMCD='NOWONGU01'  AND A.OPENYN='Y' AND A.USE_YN='Y'
+		   AND B.GRP_CD='SM_EXBT_TYPE' AND B.CD=A.EXBT_TYPE
+		    AND A.COMCD = C.COMCD AND A.EXBT_PARTCD = C.PART_CD
+		    AND C.USE_YN='Y'
+		    AND A.RSVN_FROM_DAYS > 0 
+		    AND ( A.RSVN_NONMEBYN='Y' OR A.RSVN_STDMEMBYN='Y')
+		    AND (
+		        RSVN_PEROD_TYPE = '1001' OR TO_DATE(RSVN_APP_EDATE||RSVN_END_TIME,'YYYYMMDDHH24MI') > SYSDATE
+		    )
+		ORDER BY C.SORT_ORDER, B.SORT_ORDER ,  A.EXBT_SEQ
+		) MAIN ) MAIN2   		
+ 		
+		WHERE ROW_NUM BETWEEN #{pageIndex} + 1 AND #{pageIndex} + #{numOfRows}
+		ORDER BY ROW_NUM		                              
+		 		
+ 	</select>	
+	
+</mapper>

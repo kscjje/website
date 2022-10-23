@@ -1,0 +1,941 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+  Description : 마음배움터 관리
+
+   수정일                    수정자                     수정내용
+  =========     =======    =================================================
+  2021.11.04   	이기태          최초 작성
+  -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.admin.sales.mapper.SalesMapper">
+	<sql id="withMyOrgCondition">
+		<if test="myOrgList != null and myOrgList.size != 0">
+			AND ${alias}.ORG_NO IN <foreach collection="myOrgList" item="item" open="(" close=")" separator=",">#{item}</foreach>
+		</if>
+	</sql>
+
+	<sql id="withSettleCondition">
+		<if test="searchStartDts !=null and searchStartDts !=''">
+		<![CDATA[	AND A.PAY_DATE >= REPLACE(#{searchStartDts},'-','') ]]>
+		</if>
+		<if test="searchEndDts !=null and searchEndDts !=''">
+		<![CDATA[	AND A.PAY_DATE <= REPLACE(#{searchEndDts},'-','')	]]>
+		</if>
+		<if test="itemCtgd !=null and itemCtgd !=''"> AND B.ITEM_CTGD = #{itemCtgd} </if>
+		<if test="itemNm !=null and itemNm !=''"> AND D.ITEM_NM LIKE CONCAT('%',#{itemNm},'%') </if>
+		<if test="searchOrgNo !=null and searchOrgNo !=''"> AND C.ORG_NO = #{searchOrgNo} </if>
+		<if test="orgKind !=null and orgKind !=''"> AND C.ORG_LTYPE = #{orgKind} </if>
+		<include refid="withMyOrgCondition"><property name="alias" value="C"/></include>
+	</sql>
+
+	<sql id="withSettleList">
+		WITH SALE_INFO AS (
+			SELECT
+				A.SELNG_ID,
+				SUM(CASE WHEN A.P_TYPE = 'CASH' THEN A.PAY_AMT ELSE 0 END) AS CASH_AMT,
+				SUM(CASE WHEN A.P_TYPE = 'CARD' THEN A.PAY_AMT ELSE 0 END) AS CARD_AMT,
+				SUM(CASE WHEN A.P_TYPE = 'BANK' THEN A.PAY_AMT ELSE 0 END) AS BANK_AMT,
+				SUM(CASE WHEN A.P_TYPE = 'VBANK' THEN A.PAY_AMT ELSE 0 END) AS VBANK_AMT,
+				SUM(A.PAY_AMT) AS TOT_AMT
+			FROM pay_list A
+			INNER JOIN selng_info B ON (A.COMCD = B.COMCD AND A.SELNG_ID = B.SELNG_ID)
+			LEFT OUTER JOIN selng_info PB ON (B.COMCD = PB.PARENT_COMCD AND B.SELNG_ID = PB.PARENT_SELNG_ID)
+			LEFT OUTER JOIN pay_list PA ON (PB.COMCD = PA.COMCD AND PB.SELNG_ID = PA.SELNG_ID)
+			INNER JOIN org_info C ON (B.COMCD = C.COMCD AND B.ORG_NO = C.ORG_NO)
+			INNER JOIN program_item D ON ( B.COMCD = D.COMCD AND B.ITEM_NO = D.ITEM_NO )
+			WHERE 1=1
+			AND A.COMCD = #{comcd}
+			AND A.SLIP_TYPE = '1'
+			AND (
+				PB.PARENT_SELNG_ID IS NULL
+				OR	PA.PAY_DATE = PA.ORG_PAY_DATE
+			)
+			AND A.P_TYPE IN (SELECT CD FROM cot_grpcd WHERE COMCD= #{comcd} AND GRP_CD= 'SM_PAYMENT_TYPE')
+			#AND B.RETURN_YN = 'N'
+			<include refid="withSettleCondition" />
+			GROUP BY A.SELNG_ID
+		), BF_REFUND_INFO AS (
+			SELECT
+				A.SELNG_ID,
+				SUM(PAY_AMT) AS TOT_AMT
+			FROM pay_list A
+			INNER JOIN selng_info B ON (A.COMCD = B.COMCD AND A.SELNG_ID = B.SELNG_ID)
+			INNER JOIN org_info C ON (B.COMCD = C.COMCD AND B.ORG_NO = C.ORG_NO)
+			WHERE 1=1
+			AND A.COMCD = #{comcd}
+			AND A.SLIP_TYPE IN ('2','3')
+			AND A.P_TYPE IN (SELECT CD FROM cot_grpcd WHERE COMCD= #{comcd} AND GRP_CD= 'SM_PAYMENT_TYPE')
+			AND A.ORG_PAY_DATE &lt; A.PAY_DATE
+			#AND B.RETURN_YN = 'Y'
+			<include refid="withSettleCondition" />
+			GROUP BY A.SELNG_ID
+		)
+	</sql>
+
+	<!-- 수입금정산일지 -->
+	<select id="selectSettleList" parameterType="com.hisco.admin.sales.vo.SalesSettleVO" resultType="com.hisco.admin.sales.vo.SalesSettleVO">
+		<include refid="withSettleList" />
+		SELECT
+			X.*
+		FROM (
+			SELECT
+		     	 <choose>
+			      	<when test='searchOrder == "orgNm"' >
+			      	ROW_NUMBER() OVER (ORDER BY X3.ORG_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "ctgNm"'>
+			      	ROW_NUMBER() OVER (ORDER BY X4.CTG_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "prgNm"' >
+			      	ROW_NUMBER() OVER (ORDER BY X2.ITEM_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<otherwise>
+			      	ROW_NUMBER() OVER(ORDER BY X1.COMCD, X1.ITEM_NO, X1.ITEM_CTGD) AS RNUM,
+			      	</otherwise>
+				</choose>
+				X3.ORG_NM,
+				X2.ITEM_NM,
+				(CASE WHEN X1.ITEM_CTGD = '-ALL-' THEN '전체' ELSE X4.CTG_NM END) AS CTG_NM,
+				X1.*,
+				COUNT(*) OVER() AS TOT_CNT
+			FROM (
+				SELECT
+					A.COMCD,
+					A.ORG_NO,
+					<choose>
+						<when test="itemCtgd !=null and itemCtgd !=''">
+							A.ITEM_CTGD,
+						</when>
+						<otherwise>
+							'-ALL-' AS ITEM_CTGD,
+						</otherwise>
+					</choose>
+					A.ITEM_NO,
+					NVL(SUM(CASE WHEN B.SELNG_ID IS NULL THEN 0 ELSE A.SALNUM END),0) AS CNT,
+					NVL(SUM(B.CASH_AMT),0) AS CASH_AMT,
+					NVL(SUM(B.CARD_AMT),0) AS CARD_AMT,
+					NVL(SUM(B.BANK_AMT),0) AS BANK_AMT,
+					NVL(SUM(B.VBANK_AMT),0) AS VBANK_AMT,
+					NVL(SUM(B.TOT_AMT),0) AS TOT_AMT,
+					NVL(SUM(CASE WHEN A.VAT_YN = 'Y' THEN B.TOT_AMT - A.VAT_AMT ELSE B.TOT_AMT END),0) AS PRV_AMT,
+					SUM(CASE WHEN A.VAT_YN = 'Y' THEN A.VAT_AMT ELSE 0 END) AS VAT_AMT,
+					-1 * NVL(SUM(CASE WHEN C.SELNG_ID IS NULL THEN 0 ELSE A.SALNUM END),0) AS RET_CNT,
+					NVL(SUM(C.TOT_AMT),0) AS RETURN_AMT
+				FROM selng_info A
+				LEFT OUTER JOIN SALE_INFO B ON (A.SELNG_ID = B.SELNG_ID)
+				LEFT OUTER JOIN BF_REFUND_INFO C ON ( A.SELNG_ID = C.SELNG_ID )
+				INNER JOIN org_info O ON (A.COMCD = O.COMCD AND A.ORG_NO = O.ORG_NO)
+				WHERE 1=1
+				AND ( B.SELNG_ID IS NOT NULL OR C.SELNG_ID IS NOT NULL )
+				<if test="itemCtgd !=null and itemCtgd !=''"> AND A.ITEM_CTGD = #{itemCtgd} </if>
+				<if test="searchOrgNo !=null and searchOrgNo !=''"> AND O.ORG_NO = #{searchOrgNo} </if>
+				<include refid="withMyOrgCondition"><property name="alias" value="O"/></include>
+				GROUP BY A.COMCD, A.ORG_NO, <if test="itemCtgd !=null and itemCtgd !=''">A.ITEM_CTGD,</if> A.ITEM_NO
+			) X1
+			INNER JOIN program_item X2 ON ( X1.COMCD = X2.COMCD AND X1.ITEM_NO = X2.ITEM_NO )
+			INNER JOIN org_info X3 ON ( X1.COMCD = X3.COMCD AND X1.ORG_NO = X3.ORG_NO  )
+			LEFT OUTER JOIN com_ctgr X4 ON ( X1.COMCD = X4.COMCD AND X1.ITEM_CTGD = X4.CTG_CD)
+		) X
+		WHERE 1=1
+		<if test='excelyn ==null or excelyn!="Y"'>
+			<![CDATA[
+			    AND  RNUM  > #{firstIndex}
+			    AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+			]]>
+		</if>
+	</select>
+
+	<!-- 수입금정산일지(합계) -->
+	<select id="selectSettleTotal" parameterType="com.hisco.admin.sales.vo.SalesSettleVO" resultType="com.hisco.admin.sales.vo.SalesSettleVO">
+		<include refid="withSettleList" />
+		SELECT
+			A.COMCD,
+			NVL(SUM(CASE WHEN B.SELNG_ID IS NULL THEN 0 ELSE A.SALNUM END),0) AS CNT,
+			NVL(SUM(B.CASH_AMT),0) AS CASH_AMT,
+			NVL(SUM(B.CARD_AMT),0) AS CARD_AMT,
+			NVL(SUM(B.BANK_AMT),0) AS BANK_AMT,
+			NVL(SUM(B.VBANK_AMT),0) AS VBANK_AMT,
+			NVL(SUM(B.TOT_AMT),0) AS TOT_AMT,
+			NVL(SUM(CASE WHEN A.VAT_YN = 'Y' THEN B.TOT_AMT - A.VAT_AMT ELSE B.TOT_AMT END),0) AS PRV_AMT,
+			SUM(CASE WHEN A.VAT_YN = 'Y' THEN A.VAT_AMT ELSE 0 END) AS VAT_AMT,
+			-1 * NVL(SUM(CASE WHEN C.SELNG_ID IS NULL THEN 0 ELSE A.SALNUM END),0) AS RET_CNT,
+			NVL(SUM(C.TOT_AMT),0) AS RETURN_AMT
+		FROM selng_info A
+		LEFT OUTER JOIN SALE_INFO B ON (A.SELNG_ID = B.SELNG_ID)
+		LEFT OUTER JOIN BF_REFUND_INFO C ON ( A.SELNG_ID = C.SELNG_ID )
+		WHERE 1=1
+		GROUP BY A.COMCD
+	</select>
+
+
+	<sql id="withSettlePayList">
+		WITH SALE_INFO AS (
+			SELECT
+				A.SELNG_ID,
+				A.PAY_DATE,
+				SUM(CASE WHEN A.P_TYPE = 'CASH' THEN A.PAY_AMT ELSE 0 END) AS CASH_AMT,
+				SUM(CASE WHEN A.P_TYPE = 'CARD' THEN A.PAY_AMT ELSE 0 END) AS CARD_AMT,
+				SUM(CASE WHEN A.P_TYPE = 'BANK' THEN A.PAY_AMT ELSE 0 END) AS BANK_AMT,
+				SUM(CASE WHEN A.P_TYPE = 'VBANK' THEN A.PAY_AMT ELSE 0 END) AS VBANK_AMT,
+				SUM(A.PAY_AMT) AS TOT_AMT
+			FROM pay_list A
+			INNER JOIN selng_info B ON (A.COMCD = B.COMCD AND A.SELNG_ID = B.SELNG_ID)
+			LEFT OUTER JOIN selng_info PB ON (B.COMCD = PB.PARENT_COMCD AND B.SELNG_ID = PB.PARENT_SELNG_ID)
+			LEFT OUTER JOIN pay_list PA ON (PB.COMCD = PA.COMCD AND PB.SELNG_ID = PA.SELNG_ID)
+			INNER JOIN org_info C ON (B.COMCD = C.COMCD AND B.ORG_NO = C.ORG_NO)
+			INNER JOIN program_item D ON ( B.COMCD = D.COMCD AND B.ITEM_NO = D.ITEM_NO )
+			WHERE 1=1
+			AND A.COMCD = #{comcd}
+			AND A.SLIP_TYPE = '1'
+			AND (
+				PB.PARENT_SELNG_ID IS NULL
+				OR	PA.PAY_DATE = PA.ORG_PAY_DATE
+			)
+			AND A.P_TYPE IN (SELECT CD FROM cot_grpcd WHERE COMCD= #{comcd} AND GRP_CD= 'SM_PAYMENT_TYPE')
+			#AND B.RETURN_YN = 'N'
+			<include refid="withSettleCondition" />
+			GROUP BY A.SELNG_ID, A.PAY_DATE
+		), BF_REFUND_INFO AS (
+			SELECT
+				A.SELNG_ID,
+				A.PAY_DATE,
+				SUM(PAY_AMT) AS TOT_AMT
+			FROM pay_list A
+			INNER JOIN selng_info B ON (A.COMCD = B.COMCD AND A.SELNG_ID = B.SELNG_ID)
+			INNER JOIN org_info C ON (B.COMCD = C.COMCD AND B.ORG_NO = C.ORG_NO)
+			INNER JOIN program_item D ON ( B.COMCD = D.COMCD AND B.ITEM_NO = D.ITEM_NO )
+			WHERE 1=1
+			AND A.COMCD = #{comcd}
+			AND A.SLIP_TYPE IN ('2','3')
+			AND A.P_TYPE IN (SELECT CD FROM cot_grpcd WHERE COMCD= #{comcd} AND GRP_CD= 'SM_PAYMENT_TYPE')
+			AND A.ORG_PAY_DATE &lt; A.PAY_DATE
+			#AND B.RETURN_YN = 'Y'
+			<include refid="withSettleCondition" />
+			GROUP BY A.SELNG_ID, A.PAY_DATE
+		), NOW_REFUND_INFO AS (
+			SELECT
+				A.SELNG_ID,
+				A.PAY_DATE,
+				SUM(CASE WHEN P_TYPE = 'CASH' THEN PAY_AMT ELSE 0 END) AS CASH_AMT,
+				SUM(CASE WHEN P_TYPE = 'CARD' THEN PAY_AMT ELSE 0 END) AS CARD_AMT,
+				SUM(CASE WHEN P_TYPE = 'BANK' THEN PAY_AMT ELSE 0 END) AS BANK_AMT,
+				SUM(CASE WHEN P_TYPE = 'VBANK' THEN PAY_AMT ELSE 0 END) AS VBANK_AMT,
+				SUM(PAY_AMT) AS TOT_AMT
+			FROM pay_list A
+			INNER JOIN selng_info B ON (A.COMCD = B.COMCD AND A.SELNG_ID = B.SELNG_ID)
+			INNER JOIN org_info C ON (B.COMCD = C.COMCD AND B.ORG_NO = C.ORG_NO)
+			INNER JOIN program_item D ON ( B.COMCD = D.COMCD AND B.ITEM_NO = D.ITEM_NO )
+			WHERE 1=1
+			AND A.COMCD = #{comcd}
+			AND A.SLIP_TYPE IN ('2','3')
+			AND A.P_TYPE IN (SELECT CD FROM cot_grpcd WHERE COMCD= #{comcd} AND GRP_CD= 'SM_PAYMENT_TYPE')
+			AND A.ORG_PAY_DATE = A.PAY_DATE
+			#AND B.RETURN_YN = 'Y'
+			<include refid="withSettleCondition" />
+			GROUP BY A.SELNG_ID, A.PAY_DATE
+		)
+	</sql>
+
+	<!-- 수입금정산상세내역 -->
+	<select id="selectSettlePayList" parameterType="com.hisco.admin.sales.vo.SalesSettleVO" resultType="com.hisco.admin.sales.vo.SalesSettleDetailVO">
+		<include refid="withSettlePayList" />
+		SELECT
+			X.*
+		FROM (
+			SELECT
+		     	 <choose>
+			      	<when test='searchOrder == "orgNm"' >
+			      	ROW_NUMBER() OVER (ORDER BY X3.ORG_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "ctgNm"'>
+			      	ROW_NUMBER() OVER (ORDER BY X4.CTG_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "prgNm"' >
+			      	ROW_NUMBER() OVER (ORDER BY X2.ITEM_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "payDt"' >
+			      	ROW_NUMBER() OVER (ORDER BY X1.PAY_DATE <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "memNo"' >
+			      	ROW_NUMBER() OVER (ORDER BY X1.MEM_NO <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "memNm"' >
+			      	ROW_NUMBER() OVER (ORDER BY X1.MEM_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<otherwise>
+			      	ROW_NUMBER() OVER(ORDER BY X1.ORG_NO, X1.ITEM_NO, X1.ITEM_CTGD, X1.PAY_DATE, X1.MEM_NO, X1.MEM_NM) AS RNUM,
+			      	</otherwise>
+			    </choose>
+				X3.ORG_NM,
+				X2.ITEM_NM,
+				(CASE WHEN X1.ITEM_CTGD = '-ALL-' THEN '전체' ELSE X4.CTG_NM END) AS CTG_NM,
+				X1.MEM_NO,
+				X1.MEM_NM,
+				DATE_FORMAT(X1.PAY_DATE, '%Y-%m-%d') AS PAY_DATE,
+				X1.CNT, X1.CASH_AMT, X1.CARD_AMT, X1.BANK_AMT, X1.VBANK_AMT, 
+				X1.NRET_CNT, X1.NRET_CASH_AMT, X1.NRET_CARD_AMT, X1.NRET_BANK_AMT, X1.NRET_VBANK_AMT,
+				X1.TOT_AMT, X1.RET_CNT, X1.RETURN_AMT,
+				COUNT(*) OVER() AS TOT_CNT
+			FROM (
+				SELECT
+					A.COMCD,
+					A.ORG_NO,
+					<choose>
+						<when test="itemCtgd !=null and itemCtgd !=''">
+							A.ITEM_CTGD,
+						</when>
+						<otherwise>
+							'-ALL-' AS ITEM_CTGD,
+						</otherwise>
+					</choose>
+					A.ITEM_NO,
+					NVL(A.MEM_NO, '비회원') AS MEM_NO,
+					NVL(M.MEM_NM, '') AS MEM_NM,
+					NVL(B.PAY_DATE, NVL(C.PAY_DATE, D.PAY_DATE)) AS PAY_DATE,
+					NVL(SUM(CASE WHEN B.SELNG_ID IS NULL THEN 0 ELSE A.SALNUM END),0) AS CNT,
+					NVL(SUM(B.CASH_AMT),0) AS CASH_AMT,
+					NVL(SUM(B.CARD_AMT),0) AS CARD_AMT,
+					NVL(SUM(B.BANK_AMT),0) AS BANK_AMT,
+					NVL(SUM(B.VBANK_AMT),0) AS VBANK_AMT,
+					-1 * NVL(SUM(CASE WHEN D.SELNG_ID IS NULL THEN 0 ELSE A.SALNUM END),0) AS NRET_CNT,
+					NVL(SUM(D.CASH_AMT),0) AS NRET_CASH_AMT,
+					NVL(SUM(D.CARD_AMT),0) AS NRET_CARD_AMT,
+					NVL(SUM(D.BANK_AMT),0) AS NRET_BANK_AMT,
+					NVL(SUM(D.VBANK_AMT),0) AS NRET_VBANK_AMT,
+					NVL(SUM(B.TOT_AMT), 0) + NVL(SUM(D.TOT_AMT), 0) AS TOT_AMT,
+					-1 * NVL(SUM(CASE WHEN C.SELNG_ID IS NULL THEN 0 ELSE A.SALNUM END),0) AS RET_CNT,
+					NVL(SUM(C.TOT_AMT),0) AS RETURN_AMT
+				FROM selng_info A
+				LEFT OUTER JOIN SALE_INFO B ON (A.SELNG_ID = B.SELNG_ID)
+				LEFT OUTER JOIN BF_REFUND_INFO C ON ( A.SELNG_ID = C.SELNG_ID )
+				LEFT OUTER JOIN NOW_REFUND_INFO D ON ( A.SELNG_ID = D.SELNG_ID )
+				LEFT OUTER JOIN member M ON (A.COMCD = M.COMCD AND A.MEM_NO = M.MEM_NO )
+				INNER JOIN org_info O ON (A.COMCD = O.COMCD AND A.ORG_NO = O.ORG_NO)
+				INNER JOIN program_item P ON ( A.COMCD = P.COMCD AND A.ITEM_NO = P.ITEM_NO )
+				WHERE 1=1
+				AND ( B.SELNG_ID IS NOT NULL OR C.SELNG_ID IS NOT NULL OR D.SELNG_ID IS NOT NULL )
+				<if test="itemNm !=null and itemNm !=''"> AND P.ITEM_NM LIKE CONCAT('%',#{itemNm},'%') </if>
+				<if test="itemCtgd !=null and itemCtgd !=''"> AND A.ITEM_CTGD = #{itemCtgd} </if>
+				<if test="searchOrgNo !=null and searchOrgNo !=''"> AND O.ORG_NO = #{searchOrgNo} </if>
+				<include refid="withMyOrgCondition"><property name="alias" value="O"/></include>
+				GROUP BY A.COMCD, A.ORG_NO, <if test="itemCtgd !=null and itemCtgd !=''">A.ITEM_CTGD,</if> A.ITEM_NO, A.MEM_NO, M.MEM_NM, NVL(B.PAY_DATE, NVL(C.PAY_DATE, D.PAY_DATE))
+			) X1
+			INNER JOIN program_item X2 ON ( X1.COMCD = X2.COMCD AND X1.ITEM_NO = X2.ITEM_NO )
+			INNER JOIN org_info X3 ON ( X1.COMCD = X3.COMCD AND X1.ORG_NO = X3.ORG_NO  )
+			LEFT OUTER JOIN com_ctgr X4 ON ( X1.COMCD = X4.COMCD AND X1.ITEM_CTGD = X4.CTG_CD)
+		) X
+		WHERE 1=1
+		<if test='excelyn ==null or excelyn!="Y"'>
+		<![CDATA[
+		    AND  RNUM  > #{firstIndex}
+		    AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+		]]>
+		</if> 
+	</select>
+
+	<!-- 수입금정산상세내역(합계) -->
+	<select id="selectSettlePayTotal" parameterType="com.hisco.admin.sales.vo.SalesSettleVO" resultType="com.hisco.admin.sales.vo.SalesSettleDetailVO">
+		<include refid="withSettlePayList" />
+		SELECT
+			A.COMCD,
+			NVL(SUM(CASE WHEN B.SELNG_ID IS NULL THEN 0 ELSE A.SALNUM END),0) AS CNT,
+			NVL(SUM(B.CASH_AMT),0) AS CASH_AMT,
+			NVL(SUM(B.CARD_AMT),0) AS CARD_AMT,
+			NVL(SUM(B.BANK_AMT),0) AS BANK_AMT,
+			NVL(SUM(B.VBANK_AMT),0) AS VBANK_AMT,
+			-1 * NVL(SUM(CASE WHEN D.SELNG_ID IS NULL THEN 0 ELSE A.SALNUM END),0) AS NRET_CNT,
+			NVL(SUM(D.CASH_AMT),0) AS NRET_CASH_AMT,
+			NVL(SUM(D.CARD_AMT),0) AS NRET_CARD_AMT,
+			NVL(SUM(D.BANK_AMT),0) AS NRET_BANK_AMT,
+			NVL(SUM(D.VBANK_AMT),0) AS NRET_VBANK_AMT,
+			NVL(SUM(B.TOT_AMT), 0) + NVL(SUM(D.TOT_AMT), 0) AS TOT_AMT,
+			-1 * NVL(SUM(CASE WHEN C.SELNG_ID IS NULL THEN 0 ELSE A.SALNUM END),0) AS RET_CNT,
+			NVL(SUM(C.TOT_AMT),0) AS RETURN_AMT
+		FROM selng_info A
+		LEFT OUTER JOIN SALE_INFO B ON (A.SELNG_ID = B.SELNG_ID)
+		LEFT OUTER JOIN BF_REFUND_INFO C ON ( A.SELNG_ID = C.SELNG_ID )
+		LEFT OUTER JOIN NOW_REFUND_INFO D ON ( A.SELNG_ID = D.SELNG_ID )
+		WHERE 1=1
+		GROUP BY A.COMCD
+	</select>
+
+	<!-- 수입금전표현황 -->
+	<select id="selectReceiptList" parameterType="com.hisco.admin.sales.vo.SalesReceiptVO" resultType="com.hisco.admin.sales.vo.SalesReceiptVO">
+		SELECT
+			X1.RNUM,
+			DATE_FORMAT(X1.PAY_DATE, '%Y-%m-%d') AS PAY_DATE,
+			X1.ORG_NM,
+			X1.RECEIPT_NO,
+			X1.SLIP_TYPE,
+			X1.MEM_NO,
+			X1.MEM_NM,
+			X1.EDC_PRGM_NM,
+			X1.ITEM_NM,
+			X1.SALNUM,
+			X1.COST_AMT,
+			X1.DC_AMT,
+			(CASE WHEN X6.DISCOUNT_CD IS NOT NULL THEN CONCAT(X7.CD_NM,'(',X7.ITEM4,'%)') ELSE '' END) AS DC_TYPE_NM,
+			X1.PAY_METHOD_NM,
+			X1.PAY_LOC_NM,
+			X1.PAY_AMT,
+			X1.CASHIER,
+			X1.OID,
+			X1.MID,
+			X1.TID,
+			X1.APP_NO,
+			(SELECT EDC_RSVN_NO FROM EDC_RSVN_INFO WHERE COMCD=X1.COMCD AND EDC_RSVN_REQID=X1.EDC_RSVN_REQID) AS RSVN_NO,
+			X1.TOT_CNT
+		FROM (
+			SELECT
+				<choose>
+					<when test='searchOrder == "payDate"'>
+						ROW_NUMBER() OVER(ORDER BY PAY_DATE <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+					</when>
+					<when test='searchOrder == "orgNm"'>
+						ROW_NUMBER() OVER(ORDER BY ORG_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+					</when>
+					<when test='searchOrder == "memNm"'>
+						ROW_NUMBER() OVER(ORDER BY MEM_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+					</when>
+					<when test='searchOrder == "edcPrgmnm"'>
+						ROW_NUMBER() OVER(ORDER BY EDC_PRGM_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+					</when>
+					<when test='searchOrder == "itemNm"'>
+						ROW_NUMBER() OVER(ORDER BY ITEM_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+					</when>
+					<when test='searchOrder == "payType"'>
+						ROW_NUMBER() OVER(ORDER BY PAY_METHOD_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+					</when>
+					<when test='searchOrder == "methodNm"'>
+						ROW_NUMBER() OVER(ORDER BY PAY_LOC_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+					</when>
+					<when test='searchOrder == "payAmt"'>
+						ROW_NUMBER() OVER(ORDER BY PAY_AMT <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+					</when>
+					<otherwise>
+						ROW_NUMBER() OVER(ORDER BY A.PAY_DATE DESC, B.RECEIPT_NO DESC, O.ORG_NM, MEM_NO, MEM_NM) AS RNUM,
+					</otherwise>
+				</choose>
+				A.SELNG_ID,
+				A.COMCD,
+				B.ITEM_NO,
+				A.PAY_DATE,
+				O.ORG_NM AS ORG_NM,
+				X5.ITEM_NM,
+				B.RECEIPT_NO,
+				B.SLIP_TYPE,
+				(CASE WHEN B.SLIP_TYPE = '1' THEN NVL(M.MEM_NO, '비회원') ELSE NVL(MR.MEM_NO, '비회원') END) AS MEM_NO,
+				(CASE WHEN B.SLIP_TYPE = '1' THEN NVL(M.MEM_NM, C.EDC_RSVN_CUSTNM) ELSE NVL(MR.MEM_NM, CR.EDC_RSVN_CUSTNM) END) AS MEM_NM,
+				(CASE WHEN B.SLIP_TYPE = '1' THEN X4.EDC_PRGM_NM ELSE X4R.EDC_PRGM_NM END) AS EDC_PRGM_NM,
+				B.SALNUM,
+			 	B.COST_AMT,
+			 	-1*B.DC_AMT AS DC_AMT,
+				A.P_COMCD,
+			 	A.P_TYPE,
+				A.METHOD_CD,
+				X2.CD_NM AS PAY_METHOD_NM,
+				X3.METHOD_NM AS PAY_LOC_NM,
+				A.PAY_AMT,
+				A.CASHIER,
+				A.OID,
+				NVL(CH.TID , V2.VBANK_TID) AS TID ,
+				NVL(CH.MID, V2.VBANK_MID) AS MID,
+				CH.APP_NO,
+				C.EDC_RSVN_REQID,
+				COUNT(*) OVER() AS TOT_CNT
+			FROM pay_list A
+			INNER JOIN selng_info B ON (A.COMCD = B.COMCD AND A.SELNG_ID = B.SELNG_ID)
+			INNER JOIN org_info O ON (B.COMCD = O.COMCD AND B.ORG_NO = O.ORG_NO)
+			INNER JOIN cot_grpcd X2 ON (A.COMCD = X2.COMCD AND A.P_TYPE = X2.CD AND X2.GRP_CD = 'SM_PAYMENT_TYPE')
+			INNER JOIN pay_method X3 ON (A.P_COMCD = X3.P_COMCD AND A.P_TYPE = X3.P_TYPE AND A.METHOD_CD = X3.METHOD_CD)
+			LEFT OUTER JOIN EDC_RSVN_COMPT_INFO C ON (B.COMCD = C.COMCD AND B.SELNG_ID = C.SELNG_ID)
+			LEFT OUTER JOIN edc_program X4 ON (C.COMCD = X4.COMCD AND C.EDC_PRGM_NO = X4.EDC_PRGM_NO)
+			LEFT OUTER JOIN member M ON (C.COMCD = M.COMCD AND C.EDC_MEM_NO = M.MEM_NO)
+			LEFT OUTER JOIN EDC_RSVN_COMPT_INFO CR ON (B.COMCD = CR.COMCD AND B.SELNG_ID = CR.RET_SELNG_ID)
+			LEFT OUTER JOIN edc_program X4R ON (CR.COMCD = X4R.COMCD AND CR.EDC_PRGM_NO = X4R.EDC_PRGM_NO)
+			LEFT OUTER JOIN member MR ON (CR.COMCD = MR.COMCD AND CR.EDC_MEM_NO = MR.MEM_NO)
+			LEFT OUTER JOIN salesdiscounts DC ON ( B.COMCD = DC.COMCD AND B.SELNG_ID = DC.SALE_SEQ )
+			LEFT OUTER JOIN card_app_hist CH ON (A.COMCD=CH.COMCD AND A.OID=CH.OID AND CH.APP_GBN='1')
+			LEFT OUTER JOIN vbank_order_list V1 ON (V1.COMCD = C.COMCD AND V1.TR_NO = C.EDC_RSVN_REQID AND V1.VBANK_ORD_SEQ = 1)
+			LEFT OUTER JOIN vbank_payment_info V2 ON (V2.COMCD = V1.COMCD AND V2.VBANK_SEQ = V1.VBANK_SEQ)
+			INNER JOIN program_item X5 ON (B.COMCD = X5.COMCD AND B.ITEM_NO = X5.ITEM_NO)
+			WHERE 1=1
+			AND A.P_TYPE IS NOT NULL 
+			AND A.PAY_SEQ = 1
+			<if test="searchStartDts !=null and searchStartDts !=''">
+			<![CDATA[	AND A.PAY_DATE >= REPLACE(#{searchStartDts},'-','') ]]>
+			</if>
+			<if test="searchEndDts !=null and searchEndDts !=''">
+			<![CDATA[	AND A.PAY_DATE <= REPLACE(#{searchEndDts},'-','')	]]>
+			</if>
+			<if test="receiptNo !=null and receiptNo !=''"> AND B.RECEIPT_NO = #{receiptNo} </if>
+			<if test="memNm !=null and memNm !=''"> AND ( M.MEM_NM LIKE CONCAT('%',#{memNm},'%') OR MR.MEM_NM LIKE CONCAT('%',#{memNm},'%') )</if>
+			<if test="dcType != null">
+				#AND ( B.PARENT_SELNG_ID IS NULL OR A.PAY_DATE = A.ORG_PAY_DATE )
+				<choose>
+					<when  test="dcType == ''">
+						AND DC.DISCOUNT_CD IS NULL
+					</when>
+					<otherwise>
+						AND DC.DISCOUNT_CD = #{dcType}
+					</otherwise>
+				</choose>
+			</if>
+			<if test="searchOrgNo !=null and searchOrgNo !=''"> AND O.ORG_NO = #{searchOrgNo} </if>
+			<include refid="withMyOrgCondition"><property name="alias" value="O"/></include>
+		) X1
+		INNER JOIN cot_grpcd X2 ON (X1.COMCD = X2.COMCD AND X1.P_TYPE = X2.CD AND X2.GRP_CD = 'SM_PAYMENT_TYPE')
+		LEFT OUTER JOIN salesdiscounts X6 ON (X1.COMCD = X6.COMCD AND X1.SELNG_ID = X6.SALE_SEQ)
+		LEFT OUTER JOIN cot_grpcd X7 ON (X6.COMCD = X7.COMCD AND X6.DISCOUNT_CD = X7.CD AND X7.GRP_CD = 'CM_REASON_DC')
+		WHERE 1=1
+		<if test='excelyn ==null or excelyn!="Y"'>
+		<![CDATA[
+		    AND  RNUM  > #{firstIndex}
+		    AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+		]]>
+		</if>
+		ORDER BY RNUM
+	</select>
+
+	<!-- 신용카드거래현황 -->
+	<select id="selectPGHistory" parameterType="com.hisco.admin.sales.vo.SalesPGHistVO" resultType="com.hisco.admin.sales.vo.SalesPGHistVO">
+		SELECT
+			X1.RNUM,
+			X1.APP_DATE,
+			X1.ORG_NM,
+			X1.MEM_NO,
+			X1.MEM_NM,
+			X1.APP_NO,
+			X1.APP_GBN,
+			X1.CNL_DATE,
+			X1.FORCE_YN,
+			X1.PAY_TYPE,
+			X1.METHOD_CD,
+			X1.APP_AMT,
+			(CASE X1.PAY_LIST_YN WHEN 'Y' THEN '적용' ELSE '미적용' END) AS PAY_LIST_YN,
+			X1.CARD_NUM,
+			X1.`MID`,
+			X1.TID,
+			X1.OID,
+			X1.TOT_CNT
+		FROM (
+			SELECT
+				<choose>
+			      	<when test='searchOrder == "appDt"' >
+			      	ROW_NUMBER() OVER (ORDER BY APP_DATE <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "orgNm"' >
+			      	ROW_NUMBER() OVER (ORDER BY ORG_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "memNm"' >
+			      	ROW_NUMBER() OVER (ORDER BY MEM_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "appNo"' >
+			      	ROW_NUMBER() OVER (ORDER BY APP_NO <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "appClz"' >
+			      	ROW_NUMBER() OVER (ORDER BY APP_GBN <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "cnlDt"' >
+			      	ROW_NUMBER() OVER (ORDER BY CNL_DATE <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "payMtd"' >
+			      	ROW_NUMBER() OVER (ORDER BY PAY_TYPE <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "payLoc"' >
+			      	ROW_NUMBER() OVER (ORDER BY METHOD_CD <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<when test='searchOrder == "appAmt"' >
+			      	ROW_NUMBER() OVER (ORDER BY APP_AMT <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+			      	</when>
+			      	<otherwise>
+			    	ROW_NUMBER() OVER(ORDER BY APP_DATE DESC, ORG_NM, MEM_NM ) AS RNUM,
+			      	</otherwise>
+				</choose>
+
+				DATE_FORMAT(A.APP_DATE,'%Y-%m-%d') AS APP_DATE,
+				O.ORG_NM,
+				A.COMCD,
+				(CASE WHEN S.SLIP_TYPE = '1' THEN NVL(M.MEM_NO, '비회원') ELSE NVL(MR.MEM_NO, '비회원') END) AS MEM_NO,
+				(CASE WHEN B.SLIP_TYPE = '1' THEN NVL(M.MEM_NM, C.EDC_RSVN_CUSTNM) ELSE NVL(MR.MEM_NM, CR.EDC_RSVN_CUSTNM) END) AS MEM_NM,
+				A.APP_NO,
+				(CASE A.PARTIAL_CNL_YN WHEN 'Y' THEN '부분거래취소' ELSE (
+					CASE A.APP_GBN WHEN 1 THEN '거래승인'
+						 				WHEN 2 THEN '거래취소'
+						 				WHEN 3 THEN '거래승인'
+						 				WHEN 4 THEN '거래취소'
+					ELSE '' END)
+				END) AS APP_GBN,
+				DATE_FORMAT(A.CNL_DATE,'%Y-%m-%d') AS CNL_DATE,
+				A.FORCE_YN,
+				X2.CD_NM AS PAY_TYPE,
+				X3.METHOD_NM AS METHOD_CD,
+				A.APP_AMT, 
+				A.PAY_LIST_YN,
+				CONCAT(A.CARD_NO1,'-',A.CARD_NO2,'-',A.CARD_NO3,'-',A.CARD_NO4) AS CARD_NUM,
+				A.`MID`,
+				A.OID,
+				A.TID,
+				COUNT(*) OVER() AS TOT_CNT
+			FROM card_app_hist A
+			INNER JOIN pay_list B ON (A.COMCD = B.COMCD AND A.APP_DATE = B.APP_DATE AND A.APP_NO = B.APP_NO )
+			INNER JOIN selng_info S ON (B.COMCD = S.COMCD AND B.SELNG_ID = S.SELNG_ID)
+			INNER JOIN org_info O ON ( A.COMCD = O.COMCD AND A.ORG_NO = O.ORG_NO )
+			INNER JOIN cot_grpcd X2 ON (B.COMCD = X2.COMCD AND B.P_TYPE = X2.CD AND X2.GRP_CD = 'SM_PAYMENT_TYPE')
+			INNER JOIN pay_method X3 ON (B.P_COMCD = X3.P_COMCD AND B.P_TYPE = X3.P_TYPE AND B.METHOD_CD = X3.METHOD_CD)
+			LEFT OUTER JOIN EDC_RSVN_COMPT_INFO C ON (S.COMCD = C.COMCD AND S.SELNG_ID = C.SELNG_ID)
+			LEFT OUTER JOIN member M ON (C.COMCD = M.COMCD AND C.EDC_MEM_NO = M.MEM_NO)
+			LEFT OUTER JOIN EDC_RSVN_COMPT_INFO CR ON (S.PARENT_COMCD = CR.COMCD AND S.PARENT_SELNG_ID = CR.SELNG_ID)
+			LEFT OUTER JOIN member MR ON (CR.COMCD = MR.COMCD AND CR.EDC_MEM_NO = MR.MEM_NO)
+			WHERE 1=1
+			<if test="searchStartDts !=null and searchStartDts !=''">
+			<![CDATA[	AND (A.APP_DATE >= REPLACE(#{searchStartDts},'-','') OR A.CNL_DATE >= REPLACE(#{searchStartDts},'-','')) ]]>
+			</if>
+			<if test="searchEndDts !=null and searchEndDts !=''">
+			<![CDATA[	AND (A.APP_DATE <= REPLACE(#{searchEndDts},'-','') OR A.CNL_DATE >= REPLACE(#{searchEndDts},'-','')) ]]>
+			</if>
+			<if test="cardNum !=null and cardNum !=''">
+				AND A.CARD_NO1 = SUBSTR(REPLACE(#{cardNum},'-',''),1,4)
+				AND A.CARD_NO2 = SUBSTR(REPLACE(#{cardNum},'-',''),5,4)
+				AND A.CARD_NO3 = SUBSTR(REPLACE(#{cardNum},'-',''),9,4)
+			</if>
+			<if test="appNo !=null and appNo !=''"> AND A.APP_NO = #{appNo} </if>
+			<if test="oid !=null and oid !=''"> AND A.OID = #{oid} </if>
+			<if test="forceYn !=null and forceYn !=''"> AND A.FORCE_YN = #{forceYn} </if>
+			<if test="payListYn !=null and payListYn !=''"> AND A.PAY_LIST_YN = #{payListYn} </if>
+			<if test="memNm !=null and memNm !=''"> AND ( M.MEM_NM LIKE CONCAT('%',#{memNm},'%') OR MR.MEM_NM LIKE CONCAT('%',#{memNm},'%') )</if>
+			<if test="searchOrgNo !=null and searchOrgNo !=''"> AND O.ORG_NO = #{searchOrgNo} </if>
+			<include refid="withMyOrgCondition"><property name="alias" value="O"/></include>
+		) X1
+		WHERE 1=1
+		<if test='excelyn ==null or excelyn!="Y"'>
+		<![CDATA[
+		    AND  RNUM  > #{firstIndex}
+		    AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+		]]>
+		</if>
+		ORDER BY RNUM
+	</select>
+
+	<sql id="withDiscountCondition">
+		<if test="searchStartDts !=null and searchStartDts !=''">
+		<![CDATA[	AND A.PAY_DATE >= REPLACE(#{searchStartDts},'-','') ]]>
+		</if>
+		<if test="searchEndDts !=null and searchEndDts !=''">
+		<![CDATA[	AND A.PAY_DATE <= REPLACE(#{searchEndDts},'-','')	]]>
+		</if>
+		<if test="itemCtgd !=null and itemCtgd !=''"> AND PI.ITEM_CTGD = #{itemCtgd} </if>
+		<if test="searchOrgNo !=null and searchOrgNo !=''"> AND B.ORG_NO = #{searchOrgNo} </if>
+		<include refid="withMyOrgCondition"><property name="alias" value="B"/></include>
+	</sql>
+
+	<sql id="withDiscounted">
+		WITH FREE_INFO AS (
+			/* 무료 집계 */
+			SELECT
+				B.SELNG_ID,
+				B.SALNUM
+			FROM pay_list A
+			INNER JOIN selng_info B ON (A.COMCD = B.COMCD AND A.SELNG_ID = B.SELNG_ID)
+			INNER JOIN program_item PI ON ( B.COMCD = PI.COMCD AND B.ITEM_NO = PI.ITEM_NO)
+			LEFT OUTER JOIN salesdiscounts C ON (A.COMCD = C.COMCD AND A.SELNG_ID = C.SALE_SEQ)
+			WHERE 1=1
+			AND A.COMCD = #{comcd}
+			AND A.SLIP_TYPE = '1'
+			AND A.PAY_SEQ = 1
+			AND (
+				B.SALAMT = 0 OR C.DISCOUNT_RATE = 100
+			)
+			<include refid="withDiscountCondition" />
+		), PAY_INFO  AS (
+			/* 유료(전체환불 포함) 집계 */
+			SELECT
+				A.SELNG_ID,
+				SUM(CASE WHEN A.P_TYPE = 'CASH' THEN A.PAY_AMT ELSE 0 END) AS CASH_AMT,
+				SUM(CASE WHEN A.P_TYPE = 'CARD' THEN A.PAY_AMT ELSE 0 END) AS CARD_AMT,
+				SUM(CASE WHEN A.P_TYPE = 'BANK' THEN A.PAY_AMT ELSE 0 END) AS BANK_AMT,
+				SUM(CASE WHEN A.P_TYPE = 'VBANK' THEN A.PAY_AMT ELSE 0 END) AS VBANK_AMT,
+				SUM(A.PAY_AMT) AS TOT_AMT
+			FROM pay_list A
+			INNER JOIN selng_info B ON (A.COMCD = B.COMCD AND A.SELNG_ID = B.SELNG_ID)
+			INNER JOIN program_item PI ON ( B.COMCD = PI.COMCD AND B.ITEM_NO = PI.ITEM_NO)
+			#LEFT OUTER JOIN selng_info PB ON (B.COMCD = PB.PARENT_COMCD AND B.SELNG_ID = PB.PARENT_SELNG_ID)
+			#LEFT OUTER JOIN pay_list PA ON (PB.COMCD = PA.COMCD AND PB.SELNG_ID = PA.SELNG_ID)
+			WHERE 1=1
+			AND A.COMCD = #{comcd}
+			AND A.SLIP_TYPE = '1'
+			#AND (
+			#	PB.PARENT_SELNG_ID IS NULL
+			#	OR	PA.PAY_DATE = PA.ORG_PAY_DATE
+			#)
+			AND A.P_TYPE IN (SELECT CD FROM cot_grpcd WHERE COMCD= #{comcd} AND GRP_CD= 'SM_PAYMENT_TYPE')
+			AND B.SALAMT > 0
+			<include refid="withDiscountCondition" />
+			GROUP BY A.SELNG_ID
+		), REFUND_INFO AS (
+			/* 환불(전체) 집계 */
+			SELECT
+				A.SELNG_ID,
+				SUM(PAY_AMT) AS TOT_AMT
+			FROM pay_list A
+			INNER JOIN selng_info B ON (A.COMCD = B.COMCD AND A.SELNG_ID = B.SELNG_ID)
+			INNER JOIN program_item PI ON ( B.COMCD = PI.COMCD AND B.ITEM_NO = PI.ITEM_NO)
+			WHERE 1=1
+			AND A.COMCD = #{comcd}
+			AND A.SLIP_TYPE IN ('2','3')
+			AND A.P_TYPE IN (SELECT CD FROM cot_grpcd WHERE COMCD= #{comcd} AND GRP_CD= 'SM_PAYMENT_TYPE')
+			#AND A.ORG_PAY_DATE = A.PAY_DATE
+			<include refid="withDiscountCondition" />
+			GROUP BY A.SELNG_ID
+		)
+	</sql>
+
+	<!-- 할인사유별 수입금집계현황 -->
+	<select id="selectDiscounted" parameterType="com.hisco.admin.sales.vo.SalesDiscountVO" resultType="com.hisco.admin.sales.vo.SalesDiscountVO">
+		<include refid="withDiscounted" />
+		SELECT
+			DC.DISCOUNT_CD,
+			(CASE WHEN DC.DISCOUNT_CD = 'NWPY' THEN '노원PAY' ELSE NVL(CD1.CD_NM, '할인없음') END) AS DC_REASON,
+			(CASE WHEN DC.DISCOUNT_CD = 'NWPY' THEN '0%~20%'
+					WHEN DC.DISCOUNT_CD IS NOT NULL THEN CONCAT(DC.DISCOUNT_RATE, '%')
+			ELSE '' END) AS DC_RATE,
+			A.ORG_NO,
+			O.ORG_NM,
+			SUM(CASE WHEN B.SELNG_ID IS NOT NULL THEN A.SALNUM ELSE 0 END) AS FREE_CNT,
+			SUM(CASE WHEN C.SELNG_ID IS NOT NULL THEN A.SALNUM ELSE 0 END) AS PAY_CNT,
+			SUM(C.CASH_AMT) AS CASH_AMT,
+			SUM(C.CARD_AMT) AS CARD_AMT,
+			SUM(C.BANK_AMT) AS BANK_AMT,
+			SUM(C.VBANK_AMT) AS VBANK_AMT,
+			-1*SUM(CASE WHEN D.SELNG_ID IS NOT NULL THEN A.SALNUM ELSE 0 END) AS REFUND_CNT,
+			SUM(D.TOT_AMT) AS REFUND_AMT,
+			SUM(C.TOT_AMT) AS TOT_AMT, 
+			NVL(SUM(CASE WHEN A.VAT_YN = 'Y' THEN C.TOT_AMT - A.VAT_AMT ELSE C.TOT_AMT END),0) AS PRV_AMT,
+			SUM(CASE WHEN A.VAT_YN = 'Y' THEN A.VAT_AMT ELSE 0 END) AS VAT_AMT,
+			COUNT(*) OVER() AS TOT_CNT
+		FROM selng_info A
+		INNER JOIN org_info O ON ( A.COMCD = O.COMCD AND A.ORG_NO = O.ORG_NO )
+		LEFT OUTER JOIN salesdiscounts DC ON ( A.COMCD = DC.COMCD AND A.SELNG_ID = DC.SALE_SEQ )
+		LEFT OUTER JOIN cot_grpcd CD1 ON ( DC.COMCD = CD1.COMCD AND DC.DISCOUNT_CD = CD1.CD AND CD1.GRP_CD = 'CM_REASON_DC' )
+		LEFT OUTER JOIN FREE_INFO B ON( A.SELNG_ID = B.SELNG_ID )
+		LEFT OUTER JOIN PAY_INFO C ON( A.SELNG_ID = C.SELNG_ID )
+		LEFT OUTER JOIN REFUND_INFO D ON( A.SELNG_ID = D.SELNG_ID )
+		WHERE 1=1
+		AND A.COMCD = #{comcd}
+		AND ( B.SELNG_ID IS NOT NULL OR C.SELNG_ID IS NOT NULL OR D.SELNG_ID IS NOT NULL)
+		<include refid="withMyOrgCondition"><property name="alias" value="O"/></include>
+		GROUP BY DC.DISCOUNT_CD, A.ORG_NO
+		<choose>
+			<when test='searchOrder == "orgNm"' >
+				ORDER BY ORG_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>
+			</when>
+			<otherwise>
+				ORDER BY DISCOUNT_CD, ORG_NM
+			</otherwise>
+		</choose>
+	</select>
+
+	<!-- 할인사유별 수입금집계현황(합계) -->
+	<select id="selectDiscountedTotal" parameterType="com.hisco.admin.sales.vo.SalesDiscountVO" resultType="com.hisco.admin.sales.vo.SalesDiscountVO">
+		<include refid="withDiscounted" />
+		SELECT
+			SUM(CASE WHEN B.SELNG_ID IS NOT NULL THEN A.SALNUM ELSE 0 END) AS FREE_CNT,
+			SUM(CASE WHEN C.SELNG_ID IS NOT NULL THEN A.SALNUM ELSE 0 END) AS PAY_CNT,
+			SUM(C.CASH_AMT) AS CASH_AMT,
+			SUM(C.CARD_AMT) AS CARD_AMT,
+			SUM(C.BANK_AMT) AS BANK_AMT,
+			SUM(C.VBANK_AMT) AS VBANK_AMT,
+			-1*SUM(CASE WHEN D.SELNG_ID IS NOT NULL THEN A.SALNUM ELSE 0 END) AS REFUND_CNT,
+			SUM(D.TOT_AMT) AS REFUND_AMT,
+			SUM(C.TOT_AMT) AS TOT_AMT,
+			NVL(SUM(CASE WHEN A.VAT_YN = 'Y' THEN C.TOT_AMT - A.VAT_AMT ELSE C.TOT_AMT END),0) AS PRV_AMT,
+			SUM(CASE WHEN A.VAT_YN = 'Y' THEN A.VAT_AMT ELSE 0 END) AS VAT_AMT
+		FROM selng_info A
+		INNER JOIN org_info O ON ( A.COMCD = O.COMCD AND A.ORG_NO = O.ORG_NO )
+		LEFT OUTER JOIN salesdiscounts DC ON ( A.COMCD = DC.COMCD AND A.SELNG_ID = DC.SALE_SEQ )
+		LEFT OUTER JOIN cot_grpcd CD1 ON ( DC.COMCD = CD1.COMCD AND DC.DISCOUNT_CD = CD1.CD AND CD1.GRP_CD = 'CM_REASON_DC' )
+		LEFT OUTER JOIN FREE_INFO B ON( A.SELNG_ID = B.SELNG_ID )
+		LEFT OUTER JOIN PAY_INFO C ON( A.SELNG_ID = C.SELNG_ID )
+		LEFT OUTER JOIN REFUND_INFO D ON( A.SELNG_ID = D.SELNG_ID )
+		WHERE 1=1
+		AND A.COMCD = #{comcd}
+		AND ( B.SELNG_ID IS NOT NULL OR C.SELNG_ID IS NOT NULL OR D.SELNG_ID IS NOT NULL)
+	</select> 
+
+	<sql id="withRefund">
+		SELECT
+			<choose>
+				<when test='searchOrder == "refDt"'>
+					ROW_NUMBER() OVER(ORDER BY CANCEL_DATE <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+				</when>
+				<when test='searchOrder == "orgNm"'>
+					ROW_NUMBER() OVER(ORDER BY ORG_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+				</when>
+				<when test='searchOrder == "memNm"'>
+					ROW_NUMBER() OVER(ORDER BY MEM_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+				</when>
+				<when test='searchOrder == "hpNo"'>
+					ROW_NUMBER() OVER(ORDER BY HP_NO <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+				</when>
+				<when test='searchOrder == "edcPrgmnm"'>
+					ROW_NUMBER() OVER(ORDER BY EDC_PRGM_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+				</when>
+				<when test='searchOrder == "payMtd"'>
+					ROW_NUMBER() OVER(ORDER BY METHOD_NM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+				</when>
+				<when test='searchOrder == "payAmt"'>
+					ROW_NUMBER() OVER(ORDER BY PAY_AMT <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+				</when>
+				<when test='searchOrder == "refMtd"'>
+					ROW_NUMBER() OVER(ORDER BY PAY_PATH <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+				</when>
+				<when test='searchOrder == "useAmt"'>
+					ROW_NUMBER() OVER(ORDER BY USE_AMT <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+				</when>
+				<when test='searchOrder == "refAmt"'>
+					ROW_NUMBER() OVER(ORDER BY RETURN_AMT <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+				</when>
+				<when test='searchOrder == "refAcc"'>
+					ROW_NUMBER() OVER(ORDER BY RET_ACOUNT_NUM <choose><when test='searchOrderDir == "desc"'>DESC</when><otherwise>ASC</otherwise></choose>) AS RNUM,
+				</when>
+				<otherwise>
+					ROW_NUMBER() OVER(ORDER BY CANCEL_DATE DESC, ORG_NM, MEM_NO, MEM_NM) AS RNUM,
+				</otherwise>
+			</choose>
+			X.*,
+			(SELECT EDC_RSVN_NO FROM EDC_RSVN_INFO WHERE COMCD=X.COMCD AND EDC_RSVN_REQID=X.EDC_RSVN_REQID) AS RSVN_NO,
+			(CASE WHEN USE_AMT > 0 THEN '부분취소'
+				  WHEN PAY_TYPE = 'CARD' THEN '거래취소'
+		  		  WHEN PAY_TYPE = 'CASH' THEN '현금환불'
+				  WHEN PAY_TYPE = 'BANK' THEN '계좌환불'
+			ELSE '알수없음' END) AS PAY_PATH,
+			COUNT(*) OVER() AS TOT_CNT
+		FROM (
+			SELECT
+				DATE_FORMAT(A.CANCEL_DATE, '%Y-%m-%d') AS CANCEL_DATE,
+				A.COMCD ,
+				O.ORG_NM,
+				NVL(M.MEM_NO, '비회원') AS MEM_NO,
+				NVL(M.MEM_NM, R.EDC_RSVN_CUSTNM) AS MEM_NM,
+				NVL(fn_aes_decrypt(NVL(M.HP, R.EDC_RSVN_MOBLPHON), #{dbEncKey}), NVL(M.HP, R.EDC_RSVN_MOBLPHON)) AS HP_NO,
+				PR.EDC_PRGM_NM,
+				1 AS MEM_CNT,
+				X2.CD_NM AS METHOD_NM,
+				P2.PAY_AMT,
+				(CASE WHEN P1.P_TYPE IN ('CASH','CARD') THEN P1.P_TYPE
+					  WHEN P1.P_TYPE IN ('BANK','VBANK') THEN 'BANK' 
+				ELSE '' END) AS PAY_TYPE,
+				NVL(CD1.CD_NM, '기타사유') AS RET_REASON,
+				(
+					SELECT
+					 MAX(A.SALAMT) + SUM(PA.SALAMT) AS USE_AMT
+					FROM selng_info A
+					INNER JOIN selng_info PA ON (A.COMCD = PA.PARENT_COMCD AND A.SELNG_ID = PA.PARENT_SELNG_ID)
+					WHERE 1=1
+					AND A.SELNG_ID = S2.SELNG_ID
+					<![CDATA[AND PA.SELNG_ID <= S1.SELNG_ID	]]>
+				) AS USE_AMT,
+				A.RETURN_AMT,
+				V2.RET_DPSTR_NM,
+				V2.RET_BANK_NM,
+				S1.OID,
+				NVL(CH.MID, V2.VBANK_MID) AS MID,
+				NVL(CH.TID, V2.VBANK_TID) AS TID,
+				CH.APP_NO,
+				R.EDC_RSVN_REQID,
+				NVL(fn_aes_decrypt(V2.RET_ACOUNT_NUM, #{dbEncKey}), V2.RET_ACOUNT_NUM) AS RET_ACOUNT_NUM
+			FROM cancel A
+			#환불결제
+			INNER JOIN selng_info S1 ON (A.COMCD = S1.COMCD AND A.SALE_SEQ = S1.SELNG_ID)
+			INNER JOIN pay_list 	P1 ON (S1.COMCD = P1.COMCD AND S1.SELNG_ID = P1.SELNG_ID AND P1.PAY_SEQ = 1)
+			#수입결제
+			INNER JOIN selng_info S2 ON (S1.PARENT_COMCD = S2.COMCD AND S1.PARENT_SELNG_ID = S2.SELNG_ID)
+			INNER JOIN pay_list 	P2 ON (S2.COMCD = P2.COMCD AND S2.SELNG_ID = P2.SELNG_ID AND P2.PAY_SEQ = 1)
+			INNER JOIN cot_grpcd X2 ON (P1.COMCD = X2.COMCD AND P1.P_TYPE = X2.CD AND X2.GRP_CD = 'SM_PAYMENT_TYPE')
+			#기타정보
+			INNER JOIN org_info O ON (S1.COMCD = O.COMCD AND S1.ORG_NO = O.ORG_NO)
+			INNER JOIN EDC_RSVN_COMPT_INFO R ON (A.COMCD = R.COMCD AND A.SALE_SEQ = R.RET_SELNG_ID)
+			LEFT OUTER JOIN MEMBER M ON (R.COMCD = M.COMCD AND R.EDC_MEM_NO = M.MEM_NO)
+			INNER JOIN EDC_PROGRAM PR ON (R.COMCD = PR.COMCD AND R.EDC_PRGM_NO = PR.EDC_PRGM_NO)
+			LEFT OUTER JOIN COT_GRPCD CD1 ON (A.COMCD = CD1.COMCD AND A.CANCEL_CD = CD1.CD AND CD1.GRP_CD = 'CM_RET_REASON')
+			LEFT OUTER JOIN vbank_order_list V1 ON (V1.COMCD = R.COMCD AND V1.TR_NO = R.EDC_RSVN_REQID AND V1.VBANK_ORD_SEQ = 1)
+			LEFT OUTER JOIN vbank_payment_info V2 ON (V2.COMCD = V1.COMCD AND V2.VBANK_SEQ = V1.VBANK_SEQ)
+			LEFT OUTER JOIN card_app_hist CH ON (S1.COMCD=CH.COMCD AND S1.OID=CH.OID AND CH.APP_GBN='1') 
+			WHERE 1=1
+			<if test="receiptNo !=null and receiptNo !=''"> 
+			 	AND S1.RECEIPT_NO = #{receiptNo}
+			</if>
+			<if test="searchStartDts !=null and searchStartDts !=''">
+			<![CDATA[	AND A.CANCEL_DATE >= REPLACE(#{searchStartDts},'-','') ]]>
+			</if>
+			<if test="searchEndDts !=null and searchEndDts !=''">
+			<![CDATA[	AND A.CANCEL_DATE <= REPLACE(#{searchEndDts},'-','')	]]>
+			</if>
+			<if test="searchOrgNo !=null and searchOrgNo !=''"> AND S2.ORG_NO = #{searchOrgNo} </if>
+			<include refid="withMyOrgCondition"><property name="alias" value="O"/></include>
+		) X
+		WHERE 1=1
+		<if test="refundMethod !=null">
+			<choose>
+				<when test="refundMethod == 'PART'">
+					AND USE_AMT > 0
+				</when>
+				<when test="refundMethod != ''">
+					AND PAY_TYPE = #{refundMethod}
+				</when>
+			</choose>
+		</if>
+	</sql>
+
+	<!-- 환불취소현황 -->
+	<select id="selectRefundList" parameterType="com.hisco.admin.sales.vo.SalesRefundVO" resultType="com.hisco.admin.sales.vo.SalesRefundVO">
+		SELECT
+		 XX.*
+		FROM (
+			<include refid="withRefund" />
+		) XX
+		WHERE 1=1
+		<if test='excelyn ==null or excelyn!="Y"'>
+		<![CDATA[
+		    AND  RNUM  > #{firstIndex}
+		    AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+		]]>
+		</if>
+	</select>
+
+	<!-- 환불취소현황(합계) -->
+	<select id="selectRefundTotal"  parameterType="com.hisco.admin.sales.vo.SalesRefundVO" resultType="com.hisco.admin.sales.vo.SalesRefundVO">
+		SELECT
+			MAX(XX.TOT_CNT) AS TOT_CNT,
+			SUM(XX.PAY_AMT) AS PAY_AMT,
+			SUM(XX.RETURN_AMT) AS RETURN_AMT
+		FROM (
+			<include refid="withRefund" />
+		) XX
+	</select>
+
+
+	<!-- 수입금전표현황 -->
+	<select id="selectReceiptDetail" parameterType="com.hisco.admin.sales.vo.SalesReceiptVO" resultType="com.hisco.admin.sales.vo.SalesReceiptVO">
+			SELECT
+				A.RECEIPT_NO,
+				A.PAY_AMT,
+				A.CASH_AMT,
+				A.CARD_AMT,
+				A.REGDATE,
+				B.OID,
+				B.SELNG_ID,
+				NVL(C.MEM_NO,'비회원') AS MEM_NO ,
+				M.MEM_NM
+			FROM RECEPIT_INFO A
+				INNER JOIN PAY_LIST B ON (A.COMCD = B.COMCD AND A.RECEIPT_NO = B.RECEIPT_NO)
+				INNER JOIN SELNG_INFO C ON (B.COMCD = C.COMCD AND B.SELNG_ID = C.SELNG_ID)
+				LEFT OUTER JOIN member M ON (C.COMCD = M.COMCD AND C.MEM_NO = M.MEM_NO)
+			WHERE 1=1
+				AND A.COMCD = #{comcd}
+				AND A.RECEIPT_NO = #{receiptNo}
+			ORDER BY B.SELNG_ID
+			    LIMIT 1
+
+	</select>
+</mapper>

@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:egov-security="http://www.egovframe.go.kr/schema/egov-security"
+	xmlns:security="http://www.springframework.org/schema/security"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+        http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security-4.2.xsd
+		http://www.egovframe.go.kr/schema/egov-security http://www.egovframe.go.kr/schema/egov-security/egov-security-3.7.xsd">
+
+<!--
+수정일      			수정자				수정내용
+=========	======= 		=================================================
+2011.09.07		서준식				일반, 업무사용자의 경우 조직아이디가 없어 로그인이 안되던 문제 수정(SQL 수정)
+2011.09.25		서준식				usersByUsernameQuery 쿼리의 조직 아이디 비교 부분  오류 수정 > alias 추가
+2014.06.13		Vincent Han		표준프레임워크 3.0 적용 (간소화 설정 사용)
+2017.07.10      장동한            실행행환경 v3.7 적용[보안기능 추가(sniff, xFrameOptions, xssProtection csrf)]
+2018.10.26      신용호            실행행환경 v3.8 적용
+2020.07.29      진수진            국립중앙과학관에 맞춰 수정 query , security 제외 파일
+-->
+
+
+	<security:http pattern="#{dynamicConfig.adminRoot}/seditor2/imageUpload" security="none"/>
+	<security:http pattern="#{dynamicConfig.managerRoot}/seditor2/imageUpload" security="none"/>
+	<security:http pattern="#{dynamicConfig.adminRoot}/egov_security_logout" security="none"/>
+	<security:http pattern="#{dynamicConfig.managerRoot}/egov_security_logout" security="none"/>
+	<security:http pattern="/web/namefact/**" security="none"/>
+	<security:http pattern="/web/exception/**" security="none"/>
+	<security:http pattern="#{dynamicConfig.adminRoot}/accessDenied" security="none"/>
+ 	<security:http pattern="#{dynamicConfig.adminRoot}/resources/**" security="none"/>
+	<security:http pattern="#{dynamicConfig.managerRoot}/accessDenied" security="none"/>
+ 	<security:http pattern="#{dynamicConfig.managerRoot}/resources/**" security="none"/>
+ 	<security:http pattern="/web/resources/**" security="none"/>
+ 	<security:http pattern="/web/common/**" security="none"/>
+ 	<security:http pattern="/intrfc/**" security="none"/>
+ 	<security:http pattern="/web/edc/toss/**" security="none"/>
+ 	<security:http pattern="/web/edc/nwpay/**" security="none"/>
+ 	<security:http pattern="/web/edc/rsvn/pay/toss/**" security="none"/>
+ 	<security:http pattern="/web/member/jusoPop" security="none"/>
+	<security:http pattern="/web/member/loginCertCheck" security="none"/>
+ 	<security:http pattern="/web/member/join/joinUpdateCertCheck" security="none"/>
+ 	<security:http pattern="/web/member/join/joinCertCheck" security="none"/>
+ 	<security:http pattern="/web/member/join/mobileChangePop" security="none"/>
+ 	<security:http pattern="/web/member/findPasswdSet" security="none"/>
+ 	<security:http pattern="/web/member/findPasswdSave" security="none"/>
+ 	<security:http pattern="/web/member/sso/*" security="none"/>
+
+ 	<security:http pattern="/web/member/join/joinYearSave" security="none"/>
+ 	<security:http pattern="/web/mypage/memYear/memYearResult" security="none"/>
+ 	<security:http pattern="/web/member/join/joinYearResult" security="none"/>
+
+ 	<security:http pattern="/web/mypage/myRsvn/myRsvnListSave" security="none"/>
+ 	<security:http pattern="/web/mypage/myRsvn/myRsvnResult" security="none"/>
+
+ 	<security:http pattern="/usurvey/**"         security="none"/>
+ 	<security:http pattern="/ucoupon/**"         security="none"/>
+ 	<security:http pattern="/dashboard/**"       security="none"/>
+ 	<security:http pattern="/statBoard/**"       security="none"/>
+ 	<security:http pattern="\A/WEB-INF/jsp/common/error/.*\Z" security="none"/>
+ 	<security:http pattern="\A/WEB-INF/jsp/webadm/accessDenied.jsp\Z" security="none"/>
+ 	<security:http pattern="\A/WEB-INF/templates/.*\Z" request-matcher="regex" security="none"/>
+
+    <egov-security:config id="securityConfig"
+		loginUrl="#{dynamicConfig.adminRoot}/login"
+		logoutSuccessUrl="#{dynamicConfig.adminRoot}/actionLogout"
+		loginFailureUrl="#{dynamicConfig.adminRoot}/login"
+		accessDeniedUrl="#{dynamicConfig.adminRoot}/accessDenied"
+
+		dataSource="egov.dataSource"
+		jdbcUsersByUsernameQuery="SELECT m.USER_ID , (CONCAT(m.COMCD, '_', m.USER_ID)) AS PASSWORD, 1 ENABLED, KOR_NAME AS USER_NM, '' AS USER_ZIP,
+                                  '' AS USER_ADRES, EMAIL AS USER_EMAIL ,
+                                  (CONCAT(m.COMCD, '_', m.USER_ID)) ESNTL_ID, '' AS ORGNZT_ID
+                                  , (SELECT C.AUTHOR_NM
+			     					FROM COMTNEMPLYRSCRTYESTBS B , COMTNAUTHORINFO C
+			     					WHERE m.COMCD= B.COMCD AND B.SCRTY_DTRMN_TRGET_ID= m.USER_ID AND B.AUTHOR_CODE=C.AUTHOR_CODE) AS USER_SE
+			     				, (SELECT COUNT(*)
+			     					FROM COMTNEMPLYRSCRTYESTBS B , COMTNMENUCREATDTLS C
+			     					WHERE m.COMCD= B.COMCD AND B.SCRTY_DTRMN_TRGET_ID= m.USER_ID AND B.AUTHOR_CODE=C.AUTHOR_CODE) AS GROUP_ID
+                                  , 'Y' AS contentsYn
+                                    FROM MNGR_ACNTMNG m , COMTNEMPLYRSCRTYESTBS B
+                                    WHERE CONCAT(m.COMCD, m.USER_ID) = ?
+			     						AND B.SCRTY_DTRMN_TRGET_ID= m.USER_ID AND B.COMCD=m.COMCD"
+		jdbcAuthoritiesByUsernameQuery="SELECT A.SCRTY_DTRMN_TRGET_ID USER_ID, case when instr(A.AUTHOR_CODE,'ROLE_ADMIN') >0 then 'ROLE_ADMIN' else A.AUTHOR_CODE end  AUTHORITY
+                                                             FROM COMTNEMPLYRSCRTYESTBS A, MNGR_ACNTMNG B
+                                                             WHERE A.SCRTY_DTRMN_TRGET_ID = B.USER_ID AND A.COMCD=B.COMCD AND B.USER_ID = ?"
+		jdbcMapClass="egovframework.com.sec.security.common.EgovSessionMapping"
+
+		requestMatcherType="regex"
+		hash="plaintext"
+		hashBase64="false"
+
+		concurrentMaxSessons="999"
+		concurrentExpiredUrl="#{dynamicConfig.adminRoot}/actionMain"
+
+		defaultTargetUrl="#{dynamicConfig.adminRoot}/actionMain"
+
+		sniff="true"
+		xframeOptions="SAMEORIGIN"
+		xssProtection="true"
+		csrf="true"
+	/>
+
+	<egov-security:secured-object-config id="securedObjectConfig"
+		sqlHierarchicalRoles="
+			SELECT a.CHLDRN_ROLE as child, a.PARNTS_ROLE parent
+			FROM COMTNROLES_HIERARCHY a LEFT JOIN COMTNROLES_HIERARCHY b on (a.CHLDRN_ROLE = b.PARNTS_ROLE)"
+		sqlRolesAndUrl="
+			SELECT a.ROLE_PTTRN url, b.AUTHOR_CODE authority
+			FROM COMTNROLEINFO a, COMTNAUTHORROLERELATE b
+			WHERE a.ROLE_CODE = b.ROLE_CODE
+				AND a.ROLE_TY = 'url'  ORDER BY a.ROLE_SORT"
+		sqlRolesAndMethod="
+			SELECT a.ROLE_PTTRN as 	method , b.AUTHOR_CODE authority
+			FROM COMTNROLEINFO a, COMTNAUTHORROLERELATE b
+			WHERE a.ROLE_CODE = b.ROLE_CODE
+			AND a.ROLE_TY = 'method'  ORDER BY a.ROLE_SORT"
+		sqlRolesAndPointcut="
+			SELECT a.ROLE_PTTRN pointcut, b.AUTHOR_CODE authority
+			FROM COMTNROLEINFO a, COMTNAUTHORROLERELATE b
+			WHERE a.ROLE_CODE = b.ROLE_CODE
+			AND a.ROLE_TY = 'pointcut'  ORDER BY a.ROLE_SORT"
+		sqlRegexMatchedRequestMapping="
+			SELECT a.ROLE_PTTRN uri, b.AUTHOR_CODE authority
+			FROM COMTNROLEINFO a, COMTNAUTHORROLERELATE b
+			WHERE a.ROLE_CODE = b.ROLE_CODE
+			AND a.ROLE_TY = 'regex'
+			ORDER BY a.ROLE_SORT"
+	/>
+
+	<egov-security:initializer id="initializer" supportMethod="true" supportPointcut="false" />
+
+    <!-- URL에 세미콜론(semicolon)허용 여부(기본값/false) -->
+	<!--
+	<bean id="egovStrictHttpFirewall" class="org.springframework.security.web.firewall.StrictHttpFirewall">
+		<property name="allowSemicolon" value="true"/>
+	</bean>
+	<security:http-firewall ref="egovStrictHttpFirewall"/>
+	-->
+
+</beans>

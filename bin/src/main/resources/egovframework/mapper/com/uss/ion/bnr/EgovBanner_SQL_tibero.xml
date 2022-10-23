@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?><!--Converted at: Wed May 11 15:51:02 KST 2016-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="bannerDAO">
+
+    <resultMap id="banner" type="egovframework.com.uss.ion.bnr.service.BannerVO">
+        <result property="bannerId" column="BANNER_ID"/>
+        <result property="bannerNm" column="BANNER_NM"/>
+        <result property="linkUrl" column="LINK_URL"/>
+        <result property="linkTarget" column="LINK_TARGET"/>
+        <result property="bannerGbn" column="BANNER_GBN"/>
+        <result property="bannerImage" column="BANNER_IMAGE"/>
+        <result property="bannerImageFile" column="BANNER_IMAGE_FILE"/>
+        <result property="bannerDc" column="BANNER_DC"/>
+        <result property="sortOrdr" column="SORT_ORDR"/>
+        <result property="reflctAt" column="REFLCT_AT"/>
+        <result property="ntceBgnde" column="NTCE_BGNDE"/>
+		<result property="ntceEndde" column="NTCE_ENDDE"/>
+        <result property="ntceBgndeYMD" column="BGNDE_YMD"/>
+		<result property="ntceEnddeYMD" column="ENDDE_YMD"/>
+		<result property="ntceBgndeHH" column="BGNDE_HH"/>
+		<result property="ntceEnddeHH" column="ENDDE_HH"/>
+		<result property="ntceBgndeMM" column="BGNDE_MM"/>
+		<result property="ntceEnddeMM" column="ENDDE_MM"/>
+        <result property="frstRegisterId" column="FRST_REGISTER_ID"/>
+        <result property="frstRegistPnttm" column="FRST_REGIST_PNTTM"/>
+        <result property="lastUpdtPnttm" column="LAST_UPDT_PNTTM"/>
+        <result property="lastUpdusrId" column="LAST_UPDUSR_ID"/>
+    </resultMap>
+
+
+    <resultMap id="bannerImage" type="egovframework.com.uss.ion.bnr.service.BannerVO">
+        <result property="bannerImageFile" column="BANNER_IMAGE_FILE"/>
+        <result property="linkUrl" column="LINK_URL"/>
+    </resultMap>
+
+    <resultMap id="bannerImageFile" type="com.hisco.cmm.vo.FileVO">
+        <result property="fileName" column="FILE_NAME"/>
+		<result property="filePath" column="FILE_PATH"/>
+    </resultMap>
+
+    <select id="selectBannerList" parameterType="egovframework.com.uss.ion.bnr.service.BannerVO" resultMap="banner">
+
+            SELECT  *
+              FROM  (
+            SELECT ROWNUM RNUM, ALL_LIST.*
+              FROM  (
+
+            SELECT BANNER_ID,
+                   BANNER_NM,
+                   BANNER_LOCATIONCD AS BANNER_GBN,
+                   LINK_URL,
+                   BANNER_IMAGE,
+                   BANNER_IMAGE_FILE,
+                   BANNER_DC,
+                   SORT_ORDR,
+                   REFLCT_AT,
+                   TO_CHAR(NTCE_BGNDE,'YYYY-MM-DD HH24:MI') AS NTCE_BGNDE,
+				   TO_CHAR(NTCE_ENDDE,'YYYY-MM-DD HH24:MI') AS NTCE_ENDDE,
+                   FRST_REGISTER_ID,
+                   FRST_REGIST_PNTTM,
+                   LAST_UPDT_PNTTM
+              FROM COMTNBANNER
+             WHERE 1=1
+
+            <if test="searchCondition == 1">AND
+                BANNER_NM LIKE '%'||#{searchKeyword}||'%'
+            </if>
+            <if test="searchGubun != null and searchGubun != ''">AND
+                BANNER_LOCATIONCD = #{searchGubun}
+            </if>
+        <![CDATA[
+            ORDER BY FRST_REGIST_PNTTM DESC
+                    ) ALL_LIST
+                    )
+             WHERE  RNUM  > #{firstIndex}
+               AND  RNUM <= #{firstIndex} + #{recordCountPerPage}
+        ]]>
+    </select>
+
+    <select id="selectBannerListTotCnt" parameterType="egovframework.com.uss.ion.bnr.service.BannerVO" resultType="int">
+
+            SELECT COUNT(*) totcnt
+            FROM COMTNBANNER
+            WHERE 1=1
+            <if test="searchCondition == 1">AND
+                BANNER_NM LIKE '%'||#{searchKeyword}||'%'
+            </if>
+            <if test="searchGubun != null and searchGubun != ''">AND
+                BANNER_LOCATIONCD = #{searchGubun}
+            </if>
+    </select>
+
+    <select id="selectBanner" resultMap="banner">
+
+            SELECT BANNER_ID,
+                   BANNER_NM,
+                   BANNER_LOCATIONCD AS BANNER_GBN,
+                   LINK_TARGET,
+                   LINK_URL,
+                   BANNER_IMAGE,
+                   BANNER_IMAGE_FILE,
+                   BANNER_DC,
+                   SORT_ORDR,
+                   REFLCT_AT,
+                   	TO_CHAR(NTCE_BGNDE,'YYYY-MM-DD HH24:MI') AS NTCE_BGNDE,
+					TO_CHAR(NTCE_ENDDE,'YYYY-MM-DD HH24:MI') AS NTCE_ENDDE,
+					CASE WHEN NTCE_BGNDE IS NOT NULL THEN TO_CHAR(NTCE_BGNDE,'YYYY-MM-DD') END BGNDE_YMD,
+					CASE WHEN NTCE_ENDDE IS NOT NULL THEN TO_CHAR(NTCE_ENDDE,'YYYY-MM-DD') END ENDDE_YMD,
+					CASE WHEN NTCE_BGNDE IS NOT NULL THEN TO_CHAR(NTCE_BGNDE,'HH24') END BGNDE_HH,
+					CASE WHEN NTCE_ENDDE IS NOT NULL THEN TO_CHAR(NTCE_ENDDE,'HH24') END ENDDE_HH,
+					CASE WHEN NTCE_BGNDE IS NOT NULL THEN TO_CHAR(NTCE_BGNDE,'MI') END BGNDE_MM,
+					CASE WHEN NTCE_ENDDE IS NOT NULL THEN TO_CHAR(NTCE_ENDDE,'MI') END ENDDE_MM,
+                   FRST_REGISTER_ID,
+                   FRST_REGIST_PNTTM,
+                   LAST_UPDT_PNTTM,
+                   LAST_UPDUSR_ID
+              FROM COMTNBANNER
+             WHERE BANNER_ID = #{bannerId}
+
+    </select>
+
+    <insert id="insertBanner" parameterType="egovframework.com.uss.ion.bnr.service.Banner">
+
+            INSERT INTO COMTNBANNER
+                   (BANNER_ID,
+                    BANNER_NM,
+                    BANNER_LOCATIONCD,
+                    LINK_URL,
+                    LINK_TARGET,
+                    BANNER_IMAGE,
+                    BANNER_IMAGE_FILE,
+                    BANNER_DC,
+                    SORT_ORDR,
+                    NTCE_BGNDE,
+					NTCE_ENDDE,
+                    REFLCT_AT,
+                    FRST_REGISTER_ID,
+                    FRST_REGIST_PNTTM)
+            VALUES (#{bannerId},
+                    #{bannerNm},
+                    #{bannerGbn},
+                    #{linkUrl},
+                    #{linkTarget},
+                    #{bannerImage},
+                    #{bannerImageFile},
+                    #{bannerDc},
+                    #{sortOrdr},
+                    CASE WHEN #{ntceBgnde}=null THEN null ELSE TO_DATE(#{ntceBgnde},'YYYYMMDDHH24MI') END,
+					CASE WHEN #{ntceEndde}=null THEN null ELSE TO_DATE(#{ntceEndde},'YYYYMMDDHH24MI') END,
+                    #{reflctAt},
+                    #{frstRegisterId},
+                    SYSDATE)
+
+    </insert>
+
+    <update id="updateBanner" parameterType="egovframework.com.uss.ion.bnr.service.Banner">
+            UPDATE COMTNBANNER
+               SET BANNER_NM = #{bannerNm},
+                   LINK_URL = #{linkUrl},
+                   LINK_TARGET = #{linkTarget},
+                   BANNER_LOCATIONCD = #{bannerGbn},
+                   <if test="isAtchFile == true">
+                   BANNER_IMAGE = #{bannerImage},
+                   BANNER_IMAGE_FILE = #{bannerImageFile},
+                   </if>
+                   <choose>
+						<when test='ntceBgnde != ""'>NTCE_BGNDE=TO_DATE(#{ntceBgnde},'YYYYMMDDHH24MI'),</when>
+						<otherwise>NTCE_BGNDE=null,</otherwise>
+					</choose>
+					<choose>
+						<when test='ntceEndde != ""'>NTCE_ENDDE=TO_DATE(#{ntceEndde},'YYYYMMDDHH24MI'),</when>
+						<otherwise>NTCE_ENDDE=null,</otherwise>
+					</choose>
+                   BANNER_DC = #{bannerDc},
+                   SORT_ORDR = #{sortOrdr},
+                   REFLCT_AT = #{reflctAt},
+                   LAST_UPDUSR_ID = #{frstRegisterId},
+                   LAST_UPDT_PNTTM = SYSDATE
+             WHERE BANNER_ID = #{bannerId}
+    </update>
+
+    <update id="deleteBannerFile" parameterType="egovframework.com.uss.ion.bnr.service.Banner">
+
+			UPDATE CM_FILE_GRP SET USE_YN='N'
+			WHERE
+				COMCD= #{comcd} AND
+				FILE_GRPINNB=(SELECT BANNER_IMAGE_FILE FROM COMTNBANNER WHERE BANNER_ID = #{bannerId})
+	</update>
+
+    <delete id="deleteBanner" parameterType="egovframework.com.uss.ion.bnr.service.Banner">
+
+            DELETE FROM COMTNBANNER
+             WHERE BANNER_ID = #{bannerId}
+
+    </delete>
+
+    <select id="selectBannerResult" resultMap="bannerImage">
+            SELECT BANNER_IMAGE_FILE,
+                   LINK_URL
+              FROM COMTNBANNER
+             WHERE REFLCT_AT = 'Y'
+             ORDER BY SORT_ORDR
+    </select>
+
+    <select id="selectBannerFile" parameterType="egovframework.com.uss.ion.bnr.service.Banner" resultMap="bannerImageFile">
+            SELECT B.FILE_PATH ,
+                   B.FILE_NAME
+              FROM COMTNBANNER A,
+                   ATCH_FILE_LIST B
+             WHERE 1 = 1
+               AND A.BANNER_ID = #{bannerId}
+               AND A.BANNER_IMAGE_FILE = B.FILE_GRPINNB
+    </select>
+</mapper>

@@ -1,0 +1,517 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2020.8.11   	진수진     	 	회원관련 쿼리
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hisco.user.member.mapper.UserJoinMapper">
+	<select id="selectTermsList" parameterType="com.hisco.admin.terms.vo.TermsVO" resultType="com.hisco.admin.terms.vo.TermsVO">
+           SELECT /* UserJoinDAO.selectTermsList */
+                  	STPLAT_ID,
+                    STPLAT_NM,
+                  	STPLAT_CNTS,
+                  	USE_YN
+             FROM CM_STPLAT_INFO
+             WHERE STPLAT_ID LIKE '10%'
+               AND USE_YN = 'Y'
+          		ORDER BY STPLAT_ID
+ 	</select>
+
+	<select id="selectMemberDetail" resultType="com.hisco.user.member.vo.MemberVO">
+		SELECT /* selectMemberDetail */
+			MEM_NO,
+			MEM_NM,
+			USER_ID,
+			REGDATE,
+			STATUS
+		FROM (
+				SELECT
+					MEM_NO,MEM_NM,USER_ID,EMAIL,REGDATE,STATUS
+				FROM
+					MEMBER
+				WHERE
+					USER_ID = #{id}
+				UNION
+				SELECT
+					MEM_NO,MEM_NM,USER_ID,EMAIL,REGDATE,STATUS
+				FROM
+					DORMANT_MEMBER
+				WHERE
+					USER_ID = #{id}
+			 ) MAIN LIMIT 1
+ 	</select>
+
+
+ 	<select id="selectMemberByAuthkey" resultType="com.hisco.user.member.vo.MemberVO">
+				SELECT
+					MEM_NO,MEM_NM,USER_ID,EMAIL,REGDATE,STATUS
+				FROM
+					MEMBER
+				WHERE
+					PI_AUTHKEY = #{piAuthkey}
+				LIMIT 1
+ 	</select>
+
+ 	<select id="selectMemberDetailOff" resultType="com.hisco.user.member.vo.MemberVO">
+		SELECT /* selectMemberDetailOff */
+			MEM_NO,
+			MEM_NM,
+			USER_ID,
+			REGDATE,
+			STATUS
+		FROM (
+				SELECT
+					MEM_NO,MEM_NM,USER_ID,EMAIL,REGDATE,STATUS
+				FROM
+					MEMBER
+				WHERE
+					MEM_NM= #{memNm} AND HP=fn_aes_encrypt(#{hp},#{dbEncKey}) AND BIRTH_DATE=#{birthDate}
+				UNION
+				SELECT
+					MEM_NO,MEM_NM,USER_ID,EMAIL,REGDATE,STATUS
+				FROM
+					DORMANT_MEMBER
+				WHERE
+					MEM_NM= #{memNm} AND HP=fn_aes_encrypt(#{hp},#{dbEncKey}) AND BIRTH_DATE=#{birthDate}
+			 )
+	       MAIN LIMIT 1
+ 	</select>
+
+
+ 	<select id="selectMemberEmailCheck" resultType="Integer">
+		SELECT /* selectMemberEmailCheck */
+			COUNT(*)
+		FROM (
+				SELECT
+					EMAIL
+				FROM
+					MEMBER
+				WHERE
+					<!-- for Tibero EMAIL =(SELECT CRYPTO.Encrypt_ARIA(#{email},#{dbEncKey}) FROM DUAL) -->
+					 EMAIL = #{email}
+				UNION
+				SELECT
+					EMAIL
+				FROM
+					DORMANT_MEMBER
+				WHERE
+
+					<!-- for Tibero EMAIL = (SELECT CRYPTO.Encrypt_ARIA(#{email},#{dbEncKey}) FROM DUAL) -->
+					EMAIL = #{email}
+
+				<if test="piPAuthkey != null and piPAuthkey !=''">
+				<!-- JYS 2021.03.15 MINUS -->
+				AND EMAIL NOT IN (
+								(
+									SELECT EMAIL FROM MEMBER WHERE PI_AUTHKEY = #{piPAuthkey}
+									UNION
+									SELECT EMAIL FROM DORMANT_MEMBER WHERE PI_AUTHKEY = #{piPAuthkey}
+								)
+							)
+				</if>
+				<if test="memNo != null and memNo !=''">
+				<!-- JYS 2021.03.15 MINUS -->
+				AND EMAIL NOT IN (
+									(
+									SELECT EMAIL FROM MEMBER WHERE MEM_NO = #{memNo}
+									UNION
+									SELECT EMAIL FROM DORMANT_MEMBER WHERE MEM_NO = #{memNo}
+									)
+							)
+				</if>
+			) MAIN
+ 	</select>
+
+ 	<select id="selectCarDetail" resultType="com.hisco.user.member.vo.MemberCarVO">
+			SELECT
+					CAR_NO
+			FROM
+				MEMBER_CARINFO
+			WHERE CAR_NO = #{carNo}
+ 	</select>
+
+ 	<insert id="insertMemberDetail">
+
+ 		/* insertMemberDetail */
+ 		INSERT INTO MEMBER
+ 			(
+ 				COMCD,
+	 			MEM_NO,
+				MEM_NM,
+				MEM_GBN,
+				GENDER,
+				USER_ID,
+				PWD,
+				SALT,
+				JOIN_DATE,
+				SSN,
+				BIRTH_DATE,
+				BIRTH_SEC,
+				BIRTH_MMDD,
+				HP,
+				EMAIL,
+				RESDNC_GBN,
+				EMAIL_YN,
+				SMS_YN,
+				AGREE_YN,
+				AGREE_LAST_DATE,
+				PI_AUTHTYPE,
+				PI_AUTHKEY,
+				PI_AUTHDATETIME,
+				PI_P_AUTHTYPE,
+				PI_P_AUTHKEY,
+				PI_P_AUTHDATETIME,
+				FAIL_CNT,
+				LOCKED_YN,
+				SNS_REGIST_YN,
+				DUPCHECK_KEY,
+				STATUS,
+				REGDATE,
+				MODDATE,
+				REGUSER,
+				MODUSER,
+				PWD_CHANGE_DATE,
+				<if test="resdncOrgname != null and resdncOrgname !=''">
+					RESDNC_ORGNAME,
+				</if>
+				USER_IP,
+				HOME_ZIPCD,
+				HOME_ADDR1,
+				HOME_ADDR2
+			)
+			VALUES
+			(
+				#{comcd},
+				#{memNo},
+				#{memNm},
+				'1001',
+				(case #{gender} when 'M' then '1' when 'F' then '2' else '9' end),
+				#{id},
+				#{pw},
+				#{salt},
+				<choose><when test="id!=null and id !=''">DATE_FORMAT(SYSDATE(),'%Y%m%d')</when><otherwise>''</otherwise></choose>,
+				#{ssn},
+				#{birthDate},
+				NVL(#{birthSec}, '-'),
+				#{birthMmdd},
+				fn_aes_encrypt(#{hp} ,#{dbEncKey}),
+				fn_aes_encrypt(#{email},#{dbEncKey}),
+				#{resdncGbn},
+				NVL(#{emailYn},'Y'),
+				NVL(#{smsYn},'Y'),
+				'Y',
+				DATE_FORMAT(SYSDATE(),'%Y%m%d'),
+				<choose><when test="piPAuthkey!=null and piPAuthkey !=''">'','',null,</when><otherwise>
+				#{piAuthtype},
+				#{piAuthkey},
+				SYSDATE(),
+				</otherwise></choose>
+				#{piPAuthtype},
+				#{piPAuthkey},
+				<choose><when test="piPAuthkey!=null and piPAuthkey !=''">SYSDATE(),</when><otherwise>null,</otherwise></choose>
+				0,
+				'N',
+				#{snsRegistyn},
+				fn_aes_encrypt(#{dupcheckKey} ,#{dbEncKey}),
+				'0000',
+				SYSDATE(),
+				SYSDATE(),
+				#{reguser},
+				#{reguser},
+				SYSDATE(),
+				<if test="resdncOrgname != null and resdncOrgname !=''">
+				#{resdncOrgname},
+				</if>
+				#{userIp},
+				#{postNum},
+				fn_aes_encrypt(#{addr1},#{dbEncKey}),
+				fn_aes_encrypt(#{addr2},#{dbEncKey})
+			)
+ 	</insert>
+
+ 	<insert id="insertCarInfo">
+		INSERT INTO MEMBER_CARINFO
+		(
+			COMCD,
+			MEM_NO,
+			CAR_SEQ,
+			CAR_REGDATE,
+			CAR_NO,
+			USE_YN,
+			REGDATE,
+			REGUSER,
+			MODDATE,
+			MODUSER
+		)
+		VALUES
+		(
+			#{comcd},
+			#{memNo},
+			(SELECT NVL(MAX(CAR_SEQ),0)+1 FROM MEMBER_CARINFO WHERE MEM_NO = #{memNo}),
+			DATE_FORMAT(SYSDATE(),'%Y%m%d'),
+			#{carNo},
+			'Y',
+			SYSDATE(),
+			#{reguser},
+			SYSDATE(),
+			#{reguser}
+		)
+ 	</insert>
+
+ 	<insert id="insertInstInfo">
+ 		INSERT INTO MEMB_INTRST
+ 			(
+				MEM_NO,
+				INTRST_KIND,
+				REGDATE,
+				REGUSER
+			)
+			VALUES
+			(
+				#{memNo},
+				#{intrstKind},
+				SYSDATE(),
+				#{memNo}
+			)
+ 	</insert>
+
+ 	<insert id="insertSnsInfo">
+		INSERT INTO SNS_CNNC_INFO
+		(
+			MEM_NO,
+			SNS_REGIST_SEQ,
+			SNS_REGIST_KIND,
+			SNS_ID,
+			SNS_CNNC_STATE,
+			SNS_CNNC_LOG,
+			REGDATE,
+			REGUSER
+		)
+		VALUES
+		(
+			#{memNo},
+			(SELECT NVL(MAX(SNS_REGIST_SEQ),0)+1 FROM SNS_CNNC_INFO WHERE MEM_NO = #{memNo}),
+			#{snsRegistkind},
+			#{snsid} ,
+			'1' ,
+			#{snsCnnclog} ,
+			SYSDATE(),
+			#{memNo}
+		)
+ 	</insert>
+
+ 	<select id="selectMemCardCount" resultType="Integer">
+			SELECT
+					COUNT(*)
+			FROM
+				MEM_CARD
+			WHERE COMCD=#{comcd} AND MEM_NO=#{memNo}
+
+ 	</select>
+
+ 	<insert id="insertMemCard">
+		INSERT INTO MEM_CARD
+		(
+			CARD_NO,
+			MEM_NO,
+			COMCD,
+			ISSUE_DATE,
+			CARD_GBN,
+			USE_YN,
+			REGDATE,
+			REGUSER,
+			MODDATE,
+			MODUSER
+		)
+		VALUES
+		(
+			#{memNo},
+			#{memNo},
+			#{comcd},
+			DATE_FORMAT(SYSDATE(),'%Y%m%d'),
+			'1001' ,
+			'Y',
+			SYSDATE(),
+			#{reguser},
+			SYSDATE(),
+			#{reguser}
+		)
+ 	</insert>
+
+ 	<select id="selectSeqNextval" resultType="java.lang.String">
+			SELECT
+					LPAD(NEXTVAL(MEMBER_SEQ),8,'0')
+			FROM
+				DUAL
+ 	</select>
+
+ 	<select id="selectBannerList" resultType="egovframework.com.uss.ion.bnr.service.BannerVO">
+			SELECT B.BANNER_ID,
+                   B.BANNER_NM,
+                   B.LINK_URL,
+                   B.LINK_TARGET,
+                   B.BANNER_DC,
+                   B.SORT_ORDR,
+                   B.REFLCT_AT,
+                   F.FILE_PATH,
+                   F.FILE_NAME AS BANNER_IMAGE,
+                   F.ORGIN_FILE_NAME AS BANNER_IMAGE_FILE
+              FROM COMTNBANNER B
+              	LEFT OUTER JOIN ATCH_FILE_LIST F ON B.BANNER_IMAGE_FILE = F.FILE_GRPINNB AND F.FILE_SN=0
+             WHERE REFLCT_AT = 'Y'
+             AND BANNER_LOCATIONCD = '2001'
+            <![CDATA[
+             AND ( NTCE_BGNDE IS NULL OR NTCE_BGNDE <= SYSDATE())
+             AND (NTCE_ENDDE IS NULL OR SYSDATE() < NTCE_ENDDE)
+               ]]>
+             ORDER BY SORT_ORDR ASC
+ 	</select>
+
+
+ 	<select id="selectFindPasswd" resultType="com.hisco.user.member.vo.MemberVO">
+		SELECT /* selectFindPasswd */
+			MEM_NO,
+			MEM_NM,
+			USER_ID,
+			REGDATE,
+			STATUS,
+			EMAIL
+		FROM (
+				SELECT
+					MEM_NO,MEM_NM,USER_ID,EMAIL,REGDATE,STATUS
+				FROM
+					MEMBER
+				WHERE
+					USER_ID = #{id} AND MEM_NM=#{memNm}
+					AND
+					<choose>
+						<when test='memGbn == "email"'>EMAIL=#{email}</when>
+						<otherwise>HP=REPLACE(#{hp},'-','')</otherwise>
+					</choose>
+
+				UNION
+				SELECT
+					MEM_NO,MEM_NM,USER_ID,EMAIL,REGDATE,STATUS
+				FROM
+					DORMANT_MEMBER
+				WHERE
+					USER_ID = #{id} AND MEM_NM=#{memNm}
+					AND
+
+					<choose>
+						<when test='memGbn == "email"'>EMAIL=#{email}</when>
+						<otherwise>HP=REPLACE(#{hp},'-','')</otherwise>
+					</choose>
+
+			) MAIN LIMIT 1
+ 	</select>
+
+	<select id="selectMemberByCertiId" resultType="cMap">
+		SELECT /* selectMemberByCertiId */
+			MEM_NO,
+			MEM_NM,
+			USER_ID,
+			REGDATE,
+			STATUS
+		FROM (
+				SELECT
+					MEM_NO,MEM_NM,USER_ID,EMAIL,REGDATE,STATUS
+				FROM
+					MEMBER
+				WHERE
+					PI_AUTHKEY = #{crc_data_di}
+				UNION
+				SELECT
+					MEM_NO,MEM_NM,USER_ID,EMAIL,REGDATE,STATUS
+				FROM
+					DORMANT_MEMBER
+				WHERE
+					PI_AUTHKEY = #{crc_data_di}
+			 ) MAIN LIMIT 1
+ 	</select>
+
+ 	<!-- 본인인증 정보로 회원정보 조회 -->
+	<select id="selectMemberSearchByName" resultType="com.hisco.user.member.vo.MemberVO">
+		SELECT /* selectMemberSearchByName */
+			MEM_NO , MEM_NM, USER_ID
+		FROM(
+			SELECT
+				MEM_NO , MEM_NM, USER_ID
+			  FROM MEMBER M
+			 WHERE
+				MEM_NM=#{name} AND ( PI_AUTHKEY=#{crc_data_di} OR  PI_P_AUTHKEY=#{crc_data_di})
+			UNION
+			SELECT
+				MEM_NO , MEM_NM, USER_ID
+			FROM
+				DORMANT_MEMBER
+			WHERE
+				MEM_NM=#{name} AND ( PI_AUTHKEY=#{crc_data_di} OR  PI_P_AUTHKEY=#{crc_data_di})
+
+		) MAIN
+			LIMIT 1
+	</select>
+
+	<!-- 중복확인 체크 -->
+	<select id="selectMemberDupCheck" resultType="Integer">
+		SELECT /* selectMemberDupCheck */
+			COUNT(*)
+		FROM(
+			SELECT
+				MEM_NO
+			  FROM MEMBER M
+			 WHERE
+				DUPCHECK_KEY=fn_aes_encrypt(#{dupcheckKey} ,#{dbEncKey})
+			UNION
+			SELECT
+				MEM_NO
+			FROM
+				DORMANT_MEMBER
+			WHERE
+				DUPCHECK_KEY=fn_aes_encrypt(#{dupcheckKey} ,#{dbEncKey})
+		) MAIN
+	</select>
+	
+	<select id="findmemberList" parameterType="com.hisco.user.member.vo.MemberVO" resultType="com.hisco.user.member.vo.MemberVO" >
+            	
+            	SELECT /*findmemberList*/
+					MEM_NO,
+					MEM_NM,
+					USER_ID as id,
+					REGDATE,
+					STATUS,
+					BIRTH_DATE
+				FROM (
+						SELECT
+							MEM_NO,MEM_NM,USER_ID,EMAIL,REGDATE,STATUS,BIRTH_DATE
+						FROM
+							MEMBER
+						WHERE
+							PI_AUTHKEY = #{piAuthkey} or PI_P_AUTHKEY = #{piAuthkey} 
+						UNION
+						SELECT
+							MEM_NO,MEM_NM,USER_ID,EMAIL,REGDATE,STATUS,BIRTH_DATE
+						FROM
+							DORMANT_MEMBER
+						WHERE
+							PI_AUTHKEY = #{piAuthkey} or PI_P_AUTHKEY = #{piAuthkey} 
+					 ) MAIN 
+					 
+				WHERE
+					1=1
+					<if test="memNm != null and memNm !=''">
+					AND MEM_NM = #{memNm} 
+					</if>
+					<if test="birthDate != null and birthDate !=''">
+					AND BIRTH_DATE =  #{birthDate}
+					</if>
+					<if test="id != null and id !=''">
+					and USER_ID = #{id}
+		            </if>	
+            	
+            	
+ 	</select>
+
+
+</mapper>

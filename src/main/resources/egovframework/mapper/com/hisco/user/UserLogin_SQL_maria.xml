@@ -1,0 +1,447 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+	수정일                 수정자                          수정내용
+  =========     =======    =================================================
+  2020.8.11   	진수진     	 	회원 로그인 관련 쿼리
+-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="UserLoginDAO">
+
+	<!-- 로그인 처리를 위한 resultMap -->
+	<resultMap id="login" type="egovframework.com.cmm.LoginVO">
+		<result property="id"          column="id"/>
+		<result property="name"        column="name"/>
+		<result property="ihidNum"     column="ihidNum"/>
+		<result property="email"       column="email"/>
+		<result property="password"    column="password"/>
+		<result property="userSe"      column="userSe"/>
+		<result property="orgnztId"    column="orgnztId"/>
+		<result property="orgnztNm"    column="orgnztNm"/>
+		<result property="uniqId"      column="uniqId"/>
+		<result property="authorNm"    column="authorNm"/>
+		<result property="yearYn"      column="yearYn"/>
+		<result property="specialYn"   column="specialYn"/>
+		<result property="anlmbEdate"  column="anlmbEdate"/>
+		<result property="status"      column="status"/>
+		<result property="piAuthkey"   column="piAuthkey"/>
+		<result property="piAuthtype"  column="piAuthtype"/>
+		<result property="piPAuthtype" column="piPAuthtype"/>
+	</resultMap>
+
+	<!-- 아이디 찾기를 위한 resultMap -->
+	<resultMap id="id" type="egovframework.com.cmm.LoginVO">
+		<result property="id" column="id"/>
+	</resultMap>
+
+	<!-- 비밀번호 처리를 위한 resultMap -->
+	<resultMap id="password" type="egovframework.com.cmm.LoginVO">
+		<result property="password" column="password"/>
+	</resultMap>
+
+	<!-- 로그인 lock 환경설정 조회 -->
+	<select id="selectLockCntConfig" resultType="integer">
+		/* selectLockCntConfig */
+		<![CDATA[
+		SELECT  NVL(MAX(ITEM4),0) AS LOCK_CNT FROM COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD='SET_LOGIN_ACCLOCK_CNT' AND CD='1001'
+		]]>
+	</select>
+
+	<!-- 로그인 lock 환경설정 조회 -->
+	<select id="selectPasswdChangeConfig" resultType="integer">
+		/* selectPasswdChangeConfig */
+		<![CDATA[
+		SELECT NVL(ITEM1, 0) AS PASSWD_CNT FROM COT_GRPCD WHERE COMCD=#{comcd} AND GRP_CD='SET_PASSWD_CHANGE_CNT' AND CD='1001'
+		]]>
+	</select>
+
+
+	<!-- 일반 로그인 -->
+	<select id="actionLogin" resultMap="login">
+			SELECT /* UserLoginDAO.actionLogin */
+				  MEM_NO AS uniqId
+				, USER_ID AS id
+			     , MEM_NM AS name
+			     , PWD AS password
+			     , SALT
+				, fn_aes_decrypt(M.HP ,#{dbEncKey}) AS ihidNum
+				, fn_aes_decrypt(M.EMAIL ,#{dbEncKey}) AS email
+			     , CASE WHEN
+			     	(SELECT COUNT(*) FROM ANULMEMB_HIST WHERE MEM_NO=M.MEM_NO
+			     		AND ANLMB_SDATE <![CDATA[<=]]> DATE_FORMAT(SYSDATE(),'%Y%m%d')
+			     		AND ANLMB_EDATE>=DATE_FORMAT(SYSDATE(),'%Y%m%d')
+			     		AND RET_YN='N')>0 THEN 'Y' ELSE 'N' END
+			     AS yearYn
+			     , (SELECT MAX(ANLMB_EDATE) FROM ANULMEMB_HIST WHERE MEM_NO=M.MEM_NO AND  RET_YN='N') AS anlmbEdate
+			     , CASE WHEN M.MEM_GBN LIKE '20%' THEN 'Y' ELSE 'N' END AS specialYn
+			     , STATUS AS status
+			     , OUT_DATE AS outDate
+			     , GENDER AS gender
+			     , RESDNC_ORGNAME  as orgnztNm
+			     , BIRTH_DATE      as birthDate
+			     , HOME_ZIPCD      as homeZipNo
+			     
+			     , fn_aes_decrypt(HOME_ADDR1 ,#{dbEncKey})      as homeAddr1
+			     , fn_aes_decrypt(HOME_ADDR2 ,#{dbEncKey})      as homeAddr2
+			     
+			     
+			     , PI_AUTHKEY      as piAuthkey
+			     , PI_AUTHTYPE     as piAuthtype
+			     , PI_P_AUTHTYPE   as piPAuthtype
+			     , SMS_YN   as smsYn
+			     , AGREE_YN   as agreeYn
+			     , AGREE_LAST_DATE   as agreeLastDate
+			     , REGDATE as regdate
+			  FROM MEMBER M
+			 WHERE
+				<choose>
+					<when test="snsId != null and snsId !=''">
+						MEM_NO = (
+								SELECT MEM_NO FROM SNS_CNNC_INFO S
+								 /* WHERE S.SNSID=#{snsId} AND S.SNS_REGISTKIND=#{snsKind} AND S.SNS_CNNC_STAT='1' AND ROWNUM=1) */
+								 WHERE S.SNSID=#{snsId} AND S.SNS_REGISTKIND=#{snsKind} AND S.SNS_CNNC_STAT='1' LIMIT 1)
+					</when>
+					<when test='secretMode !=null and secretMode eq "Y"'>USER_ID = #{id}</when>
+					<otherwise>USER_ID = #{id}</otherwise>
+				</choose>
+	</select>
+
+
+	<!-- 비회원 로그인 -->
+	<select id="actionLoginNonMember" resultMap="login">
+			SELECT /* UserLoginDAO.actionLoginNonMember */
+			     #{name} AS name
+				, fn_aes_decrypt(#{ihidNum} ,#{dbEncKey}) AS ihidNum
+			     , #{birthDate}      as birthDate
+			  FROM DUAL
+	</select>
+
+	<!--휴면계정  로그인 -->
+	<select id="actionLogin2" resultMap="login">
+			SELECT /* UserLoginDAO.actionLogin2 */
+				MEM_NO AS uniqId
+				, USER_ID AS id
+			     , MEM_NM AS name
+			     , PWD AS password
+				, fn_aes_decrypt(M.HP ,#{dbEncKey}) AS ihidNum
+				, fn_aes_decrypt(M.EMAIL ,#{dbEncKey}) AS email
+			     , CASE WHEN
+			     	(SELECT COUNT(*) FROM ANULMEMB_HIST WHERE MEM_NO=M.MEM_NO
+			     		AND ANLMB_SDATE <![CDATA[<=]]> DATE_FORMAT(SYSDATE(),'%Y%m%d')
+			     		AND ANLMB_EDATE>=DATE_FORMAT(SYSDATE(),'%Y%m%d')
+			     		AND RET_YN='N')>0 THEN 'Y' ELSE 'N' END
+			     AS yearYn
+			     , (SELECT MAX(ANLMB_EDATE) FROM ANULMEMB_HIST WHERE MEM_NO=M.MEM_NO AND  RET_YN='N') AS anlmbEdate
+			     , CASE WHEN M.MEM_GBN LIKE '20%' THEN 'Y' ELSE 'N' END  AS specialYn
+			     , STATUS AS status
+			     , (SELECT OUT_DATE FROM MEMBER D WHERE MEM_NO=M.MEM_NO) AS outDate
+			     , GENDER AS gender
+			     , PI_AUTHKEY      as piAuthkey
+			     , PI_AUTHTYPE     as piAuthtype
+			     , PI_P_AUTHTYPE   as piPAuthtype
+			     , SMS_YN   as smsYn
+			     , AGREE_YN   as agreeYn
+			     , AGREE_LAST_DATE   as agreeLastDate
+			     , REGDATE as regdate
+			  FROM DORMANT_MEMBER M
+			 WHERE
+				<choose>
+					<when test="snsId != null and snsId !=''">
+						 MEM_NO = (
+								SELECT MEM_NO FROM SNS_CNNC_INFO S
+								 /* WHERE S.SNSID=#{snsId} AND S.SNS_REGISTKIND=#{snsKind} AND S.SNS_CNNC_STAT='1' AND ROWNUM=1) */
+								 WHERE S.SNSID=#{snsId} AND S.SNS_REGISTKIND=#{snsKind} AND S.SNS_CNNC_STAT='1' LIMIT 1)
+					</when>
+					<when test='secretMode !=null and secretMode eq "Y"'>ID = #{id}</when>
+					<otherwise>ID = #{id}</otherwise>
+				</choose>
+	</select>
+
+
+	<!-- 아이디 찾기 -->
+	<select id="searchId" resultMap="id">
+		SELECT USER_ID AS id
+			  FROM MEMBER
+			 WHERE MEM_NM = #{name}
+			   AND EMAIL = #{email}
+	</select>
+
+	<!-- 비밀번호 찾기 -->
+	<select id="searchPassword" resultMap="password">
+			SELECT PWD AS password
+			  FROM MEMBER
+			 WHERE MEM_NM = #{name}
+			   AND EMAIL = #{email}
+	</select>
+
+	<!-- 변경된 비밀번호를 저장 -->
+	<update id="updatePassword">
+			UPDATE MEMBER
+			   SET PWD = #{password}
+			   	, SALT = #{salt}
+			 WHERE MEM_NO = #{uniqId}
+
+	</update>
+
+	<!-- 로그인인증제한 조회 -->
+	<select id="selectLoginIncorrect" resultType="egovMap">
+
+		/* UserLoginDAO.selectLoginIncorrect */
+		<![CDATA[
+		SELECT  USER_ID AS USER_ID
+	         ,  PWD AS USER_PW
+	         ,  SALT
+		     ,  MEM_NM AS USER_NM
+		     ,  MEM_NO AS UNIQ_ID
+		     ,  NVL(LOCKED_YN,'N') LOCK_AT
+		     ,  NVL(FAIL_CNT,0) AS LOCK_CNT
+		     , STATUS
+		     , CASE WHEN AGREE_LAST_DATE  <  DATE_FORMAT(DATE_ADD(SYSDATE() , INTERVAL -12 MONTH) , '%Y%m%d') then 'Y' else 'N' end RE_AGREE
+		     , LOGIN_LASTDATE
+		     , CAST((DATE_FORMAT(DATE_FORMAT(SYSDATE(),'%Y%m%d'),'%Y%m%d') - DATE_FORMAT(PWD_CHANGE_DATE,'%Y%m%d')) AS INTEGER) AS PWD_CHANGED_DAY
+	      FROM  MEMBER
+		 WHERE USER_ID = #{id}
+		]]>
+
+	</select>
+
+
+	<!-- 로그인인증제한 조회 -->
+	<select id="selectLoginIncorrect2" resultType="egovMap">
+
+		/* selectLoginIncorrect2 */
+	    <![CDATA[
+		SELECT  M.USER_ID AS USER_ID
+	         ,  M.PWD AS USER_PW
+	         ,  M2.SALT
+		     ,  M.MEM_NM AS USER_NM
+		     ,  M.MEM_NO AS UNIQ_ID
+		     ,  NVL(M2.LOCKED_YN,'N') LOCK_AT
+		     ,  NVL(M2.FAIL_CNT,0) AS LOCK_CNT
+		     , M2.STATUS
+		     , CASE WHEN M.AGREE_LAST_DATE  <  DATE_FORMAT(DATE_ADD(SYSDATE(), INTERVAL -12 MONTH) , '%Y%m%d') then 'Y' else 'N' end RE_AGREE
+		     , M2.LOGIN_LASTDATE
+		     , CAST((DATE_FORMAT(DATE_FORMAT(SYSDATE(),'%Y%m%d'),'%Y%m%d') - DATE_FORMAT(M2.PWD_CHANGE_DATE,'%Y%m%d')) AS INTEGER) AS PWD_CHANGED_DAY
+	      FROM  DORMANT_MEMBER M
+	      	INNER JOIN MEMBER M2 ON M.MEM_NO=M2.MEM_NO
+		 WHERE  M.USER_ID = #{id}
+		]]>
+	</select>
+
+	<!-- 로그인인증제한 조회 -->
+	<select id="selectSnsLoginIncorrect" resultType="egovMap">
+
+		/* selectSnsLoginIncorrect */
+		<![CDATA[
+		SELECT NVL(M.USER_ID , M2.ID) AS USER_ID
+	         , NVL(M.PWD, M2.PW) AS USER_PW
+	         , SALT
+		     , NVL(M.MEM_NM , M2.MEM_NM) AS USER_NM
+		     , M.MEM_NO AS UNIQ_ID
+		     , NVL(M.LOCKED_YN,'N') LOCK_AT
+		     , NVL(M.FAIL_CNT,0) AS LOCK_CNT
+		     , S.SNSID AS SNS_ID
+		     , M.STATUS
+		     , CASE WHEN M.AGREE_LAST_DATE  <  DATE_FORMAT(DATE_ADD(SYSDATE(), INTERVAL -12 MONTH) , '%Y%m%d') then 'Y' else 'N' end RE_AGREE
+	      FROM  SNS_CNNC_INFO S , MEMBER M
+	      	LEFT OUTER JOIN DORMANT_MEMBER M2 ON M.MEM_NO=M2.MEM_NO
+		 WHERE S.SNSID=#{snsId} AND S.SNS_REGISTKIND=#{snsKind} AND S.SNS_CNNC_STAT='1'
+				AND S.MEM_NO = M.MEM_NO
+
+				LIMIT 1
+		]]>
+	</select>
+
+
+	<!-- 로그인인증제한 변경 > 수정 -->
+	<update id="updateLoginIncorrect">
+		<!-- LOCK 해제 -->
+		<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(updateAt,'E')">
+			<![CDATA[
+			UPDATE  MEMBER
+			   SET  LOCKED_YN = 'N' , FAIL_CNT = 0
+			   WHERE MEM_NO = #{uniqId}
+			]]>
+		</if>
+		<!-- LOCK 설정 -->
+		<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(updateAt,'L')">
+			<![CDATA[
+			UPDATE  MEMBER
+			   SET  LOCKED_YN = 'Y' , FAIL_CNT= NVL(FAIL_CNT,0)+1, MODDATE=SYSDATE()
+		      WHERE  MEM_NO = #{uniqId}
+			]]>
+		</if>
+		<!-- LOCK 카운트 설정 -->
+		<if test="@egovframework.com.cmm.util.EgovMybaitsUtil@isEquals(updateAt,'C')">
+			<![CDATA[
+			UPDATE  MEMBER
+			   SET  FAIL_CNT=  NVL(FAIL_CNT,0)+1
+			   WHERE  MEM_NO = #{uniqId}
+			]]>
+		</if>
+	</update>
+
+
+	<!-- SNS 계정 연결 정보 조회 -->
+	<select id="selectSnsKind" resultType="cMap">
+		SELECT  SNS_REGISTKIND , REGDATE , SNSID
+		FROM
+			SNS_CNNC_INFO
+		 WHERE  MEM_NO = #{uniqId}
+			   AND SNS_CNNC_STAT='1' LIMIT 1
+	</select>
+
+	<!-- SNS 계정 연결 정보 등록 -->
+	<insert id="insertSnsConnection" >
+		INSERT INTO SNS_CNNC_INFO
+		(MEM_NO, SNS_REGIST_SEQ , SNS_REGISTKIND, SNSID , SNS_CNNC_STAT , SNS_CNNCLOG , REGDATE , REGUSER)
+		VALUES(#{memNo} , (SELECT NVL(MAX(SNS_REGIST_SEQ),0)+1 FROM SNS_CNNC_INFO WHERE MEM_NO=#{memNo}) , #{snsKind}, #{snsId} , '1' , #{snsCnnclog} , SYSDATE() , #{memNo})
+	</insert>
+
+
+	<!-- SNS 계정 연결 정보 취소 -->
+	<update id="updateSnsConnection" >
+		UPDATE SNS_CNNC_INFO
+			SET SNS_CNNC_STAT = '2' , MODDATE=SYSDATE() , MODUSER= #{memNo}
+		WHERE
+			MEM_NO=#{memNo} AND SNS_CNNC_STAT='1'
+	</update>
+
+	<!-- 아이디 찾기 -->
+	<select id="selectFindId" resultMap="login">
+
+		SELECT /* selectFindId */
+			concat(substr(USER_ID,1,length(USER_ID)-2), lpad('*',2,'*')) AS id
+		FROM (
+			SELECT USER_ID
+			FROM
+				MEMBER
+			WHERE  MEM_NM = #{name}
+			   AND HP = #{ihidNum}
+			   AND BIRTH_DATE = #{birthDate}
+
+			UNION
+
+			SELECT IDUSER_ID
+			FROM
+				DORMANT_MEMBER
+			 WHERE  MEM_NM = #{name}
+			 	AND HP = #{ihidNum}
+			 	AND BIRTH_DATE = #{birthDate}
+
+		) MAIN LIMIT 1
+
+	</select>
+
+	<!-- 아이디 찾기 -->
+	<select id="selectFindIdByCerti" resultMap="login">
+
+		SELECT /* selectFindIdByCerti */
+			concat(substr(USER_ID,1,length(USER_ID)-2), lpad('*',2,'*')) AS id
+		FROM (
+			SELECT USER_ID
+			FROM
+				MEMBER
+			WHERE  MEM_NM = #{name}
+			   AND PI_AUTHKEY = #{dn}
+			   AND BIRTH_DATE = #{birthDate}
+
+			UNION
+
+			SELECT USER_ID
+			FROM
+				DORMANT_MEMBER
+			 WHERE  MEM_NM = #{name}
+			 	AND PI_AUTHKEY = #{dn}
+			 	AND BIRTH_DATE = #{birthDate}
+
+		) MAIN LIMIT 1
+
+	</select>
+
+	<!-- 휴면계정 해제 -->
+	<update id="updateMemberWakeup" >
+		UPDATE MEMBER
+			/*
+			SET STATUS = '0000' , MODDATE=SYSDATE() , MODUSER= #{id} , USER_IP = #{ip}
+			, MEM_NM = (SELECT MEM_NM FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, USER_ID = (SELECT USER_ID FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, PWD = (SELECT PWD FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, SALT = (SELECT SALT FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, HP = (SELECT HP FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, SSN = (SELECT SSN FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, BIRTH_DATE = (SELECT BIRTH_DATE FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, BIRTH_MMDD = (SELECT BIRTH_MMDD FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, BIRTH_SEC = (SELECT BIRTH_SEC FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, EMAIL = (SELECT EMAIL FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, HOME_ZIPNO = (SELECT HOME_ZIPNO FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, HOME_ADDR1 = (SELECT HOME_ADDR1 FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, HOME_ADDR2 = (SELECT HOME_ADDR2 FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, PI_IPIN = (SELECT PI_IPIN FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, PI_AUTHTYPE = (SELECT PI_AUTHTYPE FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, PI_AUTHKEY = (SELECT PI_AUTHKEY FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, PI_AUTHDATETIME = (SELECT PI_AUTHDATETIME FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, PI_P_AUTHTYPE = (SELECT PI_P_AUTHTYPE FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, PI_P_AUTHKEY = (SELECT PI_P_AUTHKEY FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId})
+			, PI_P_AUTHDATETIME = (SELECT PI_P_AUTHDATETIME FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, DUPCHECK_KEY = (SELECT DUPCHECK_KEY FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, RESDNC_GBN = (SELECT RESDNC_GBN FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, RESDNC_ORGNAME = (SELECT RESDNC_ORGNAME FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			, REMARK = (SELECT REMARK FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} AND ROWNUM=1)
+			*/
+
+			SET STATUS = '0000' , MODDATE=SYSDATE() , MODUSER= #{id} , USER_IP = #{ip}
+			, MEM_NM = (SELECT MEM_NM FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, USER_ID = (SELECT USER_ID FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, PWD = (SELECT PWD FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, SALT = (SELECT SALT FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, HP = (SELECT HP FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, SSN = (SELECT SSN FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, BIRTH_DATE = (SELECT BIRTH_DATE FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, BIRTH_MMDD = (SELECT BIRTH_MMDD FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, BIRTH_SEC = (SELECT BIRTH_SEC FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, EMAIL = (SELECT EMAIL FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, HOME_ZIPNO = (SELECT HOME_ZIPNO FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, HOME_ADDR1 = (SELECT HOME_ADDR1 FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, HOME_ADDR2 = (SELECT HOME_ADDR2 FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, PI_IPIN = (SELECT PI_IPIN FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, PI_AUTHTYPE = (SELECT PI_AUTHTYPE FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, PI_AUTHKEY = (SELECT PI_AUTHKEY FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, PI_AUTHDATETIME = (SELECT PI_AUTHDATETIME FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, PI_P_AUTHTYPE = (SELECT PI_P_AUTHTYPE FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, PI_P_AUTHKEY = (SELECT PI_P_AUTHKEY FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId})
+			, PI_P_AUTHDATETIME = (SELECT PI_P_AUTHDATETIME FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, DUPCHECK_KEY = (SELECT DUPCHECK_KEY FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, RESDNC_GBN = (SELECT RESDNC_GBN FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, RESDNC_ORGNAME = (SELECT RESDNC_ORGNAME FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+			, REMARK = (SELECT REMARK FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId} LIMIT 1 )
+
+			, OUT_DATE = ''
+			, OUT_REASON = ''
+			, LOGIN_LASTDATE = SYSDATE()
+		WHERE
+			MEM_NO=#{uniqId} AND STATUS='9002'
+	</update>
+
+
+	<!-- 휴면계정 삭제 -->
+	<delete id="deleteDormantMember" >
+		DELETE FROM DORMANT_MEMBER WHERE MEM_NO=#{uniqId}
+	</delete>
+
+	<!-- SNS 계정 연결 체크 -->
+	<select id="selectCheckSns" resultType="Integer">
+		SELECT COUNT(*)
+		FROM
+			SNS_CNNC_INFO S
+		WHERE S.SNSID=#{snsId} AND S.SNS_REGISTKIND=#{snsKind} AND S.SNS_CNNC_STAT='1'
+	</select>
+
+	<!-- 마지막 로그인날짜 업데이트-->
+	<update id="updateLastLogin" >
+		UPDATE MEMBER
+			SET LOGIN_LASTDATE = SYSDATE()
+		WHERE
+			MEM_NO=#{uniqId}
+	</update>
+
+</mapper>

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 
+통합매출정보
+작성자: 박우진
+ -->
+ 
+<mapper namespace="com.hisco.intrfc.sale.mapper.ReceiptInfoMapper">
+
+	<update id="insertReceiptInfo">
+		<selectKey keyProperty="receiptNo" resultType="java.lang.String" order="BEFORE">
+			SELECT CONCAT(DATE_FORMAT(SYSDATE(), '%y%m%d'), LPAD(NEXTVAL(SEQ_RECEIPT_NO), 7, '0')) 
+		</selectKey>
+		/* com.hisco.intrafc.sale.mapper.ReceiptInfoMapper.insertReceiptInfo */
+		INSERT INTO RECEPIT_INFO (
+			COMCD /*운영사업자고유번호*/
+			, RECEIPT_NO /*영수증번*/
+			, ORG_NO /*평생학습포털을 강좌를 운영하는 등록된 기관의 고유번호로. 시퀀스(SEQ_ORGNO) 를 사용*/
+			, RPT_DATE /*매출일자*/
+			, RPT_TIME /*매출시간*/
+			, PAY_AMT /*총결제금액*/
+			, CASH_AMT /*현금결제금액*/
+			, CARD_AMT /*카드결제금액*/
+			, Remark /*비고*/
+			, REGDATE /*등록일시*/
+			, REGUSER /*등록자*/
+			, MODDATE /*수정일시*/
+			, MODUSER /*수정자*/
+		)
+		VALUES (
+			#{comcd}
+			, #{receiptNo}
+			, #{orgNo}
+			, NVL(#{rptDate}, DATE_FORMAT(SYSDATE(), '%Y%m%d'))
+			, NVL(#{rptTime}, DATE_FORMAT(SYSDATE(), '%H%i%s'))			
+			, #{payAmt}
+			, #{cashAmt}
+			, #{cardAmt}
+			, #{remark}
+			, SYSDATE()
+			, #{reguser}
+			, SYSDATE()
+			, #{moduser}
+		)
+	</update>
+
+	<select id="selectReceiptInfo" resultType="com.hisco.intrfc.sale.vo.ReceiptInfoVO" >
+		/* com.hisco.intrafc.sale.mapper.ReceiptInfoMapper.selectReceiptInfo */
+		SELECT A.*
+			FROM RECEPIT_INFO A 
+			WHERE A.COMCD = #{comcd}
+				AND A.RECEIPT_NO = #{receiptNo}
+	</select>
+	
+</mapper>
